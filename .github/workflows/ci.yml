@@ -38,7 +38,7 @@ jobs:
 
       # Pin pnpm to the version the project runs locally (Plan 00-01: 9.15.9 for Node 20).
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9.15.9
 

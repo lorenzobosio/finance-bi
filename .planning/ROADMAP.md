@@ -40,10 +40,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A CI check fails the build if `service_role` appears in the client bundle, and passes when it is isolated to server-only code
   5. The base Postgres schema exists with a seeded calendar dimension (`period_key` = YYYYMM) covering past and future months for MoM/YoY joins
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 **Wave 1**
 
-- [ ] 00-01-PLAN.md — Scaffold (Next 15 + Tailwind v4 + shadcn) + Tremor Raw deps + Vitest Wave-0 test harness + external-service provisioning (FND-05, FND-06)
+- [x] 00-01-PLAN.md — Scaffold (Next 15 + Tailwind v4 + shadcn) + Tremor Raw deps + Vitest Wave-0 test harness + external-service provisioning (FND-05, FND-06)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -175,7 +175,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation | 0/4 | Not started | - |
+| 0. Foundation | 1/4 | In Progress|  |
 | 1. Ingestion (Enable Banking) | 0/TBD | Not started | - |
 | 2. Core BI + house-as-business | 0/TBD | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |

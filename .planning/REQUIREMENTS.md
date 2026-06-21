@@ -12,9 +12,9 @@ Requirements for the initial roadmap. Each maps to exactly one phase.
 ### Foundation (FND) — Phase 0
 
 - [ ] **FND-01**: User can sign in with Google, restricted to a 2-email allowlist (all other emails rejected)
-- [ ] **FND-02**: Every table has RLS enabled enforcing the allowlist; all app routes require authentication
+- [x] **FND-02**: Every table has RLS enabled enforcing the allowlist; all app routes require authentication
 - [ ] **FND-03**: `service_role` key is isolated to server-only code (ingestion + audited route handlers) and never ships in the client bundle (CI-asserted)
-- [ ] **FND-04**: Base Postgres schema exists with a seeded calendar dimension (`period_key` = YYYYMM) supporting MoM/YoY
+- [x] **FND-04**: Base Postgres schema exists with a seeded calendar dimension (`period_key` = YYYYMM) supporting MoM/YoY
 - [ ] **FND-05**: App scaffold (Next.js 15 + Tailwind v4 + Tremor Raw + `@supabase/ssr`) is deployed and reachable on Vercel
 - [ ] **FND-06**: Charting adopts Tremor Raw (Tailwind v4 + Recharts), not the frozen `@tremor/react` package
 
@@ -121,9 +121,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FND-01 | Phase 0 | Pending |
-| FND-02 | Phase 0 | Pending |
+| FND-02 | Phase 0 | Complete |
 | FND-03 | Phase 0 | Pending |
-| FND-04 | Phase 0 | Pending |
+| FND-04 | Phase 0 | Complete |
 | FND-05 | Phase 0 | Pending |
 | FND-06 | Phase 0 | Pending |
 | ING-01 | Phase 1 | Pending |
@@ -168,6 +168,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | REM-03 | Phase 7 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 40 total
 - Mapped to phases: 40 (100%)
 - Unmapped: 0

@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-import { isAllowed } from "@/lib/auth/allowlist";
-
 // Routes reachable without an authenticated, allowlisted session (D-17).
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
 
@@ -13,7 +11,14 @@ const PUBLIC_PATHS = ["/login", "/auth/callback"];
  *   never the unvalidated storage-only read — RESEARCH Pitfall 3 / T-00-08).
  * - Redirects unauthenticated requests on protected paths to `/login` (307).
  * - Signs out and redirects any authenticated but non-allowlisted user to
- *   `/login?denied=1` — defense-in-depth with the Plan-02 RLS zero-rows policy (T-00-09).
+ *   `/login?denied=1`.
+ *
+ * The allowlist is sourced from the `app_allowlist` DB table via the
+ * `public.is_email_allowed()` SECURITY DEFINER function — NOT from an env var. This
+ * keeps the middleware gate in lockstep with the RLS policies (every table is gated on
+ * the same function) and makes it immune to Edge-runtime env-var inlining / per-deploy
+ * env drift (which silently denied legitimate users when read from `process.env` in the
+ * Edge runtime). Fails CLOSED: any RPC error or a non-true result denies access.
  */
 export async function middleware(request: NextRequest) {
   // `response` carries refreshed auth cookies back to the browser. Recreated on the
@@ -57,10 +62,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Authenticated but not on the allowlist -> sign out + deny (D-13).
-  if (user && !isAllowed(user.email)) {
-    await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?denied=1", request.url));
+  // Authenticated -> confirm the email is on the DB allowlist (source of truth).
+  // Fails closed: RPC error or a non-true answer signs out + denies (D-13).
+  if (user) {
+    const { data: allowed, error } = await supabase.rpc("is_email_allowed", {
+      check_email: user.email ?? "",
+    });
+    if (error || allowed !== true) {
+      await supabase.auth.signOut();
+      return NextResponse.redirect(new URL("/login?denied=1", request.url));
+    }
   }
 
   return response;

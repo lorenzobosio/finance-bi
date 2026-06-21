@@ -1,0 +1,110 @@
+# CI — Finance BI (Phase 0 foundation gate)
+#
+# Proves the security keystone FND-03 on every push/PR: the service_role key must never
+# reach the client bundle. Layers:
+#   1. `pnpm lint`  — the ESLint no-restricted-imports / no-restricted-syntax guard
+#                     (service module + SUPABASE_SERVICE_ROLE_KEY blocked from client code)
+#   2. `pnpm build` — `import "server-only"` would fail the build if the chokepoint leaked
+#   3. bundle grep  — the AUTHORITATIVE FND-03 assertion: fail the job if the key NAME or
+#                     (when the secret is available) its VALUE appears under .next/static
+#   4. `pnpm test`  — Vitest unit suite (allowlist + middleware)
+#   5. `pnpm test:rls` — live SQL/RLS assertions (RLS-on-every-table, zero-rows for a
+#                     non-allowlisted identity, seed counts) against DATABASE_URL
+#
+# Secrets are read ONLY from GitHub Actions encrypted secrets and are NEVER echoed.
+# The repo holds no secrets in git (.env.local is git-ignored — Plan 00-01).
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save Hobby CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-verify:
+    name: lint · build · bundle-grep (FND-03) · test · rls
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pin pnpm to the version the project runs locally (Plan 00-01: 9.15.9 for Node 20).
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (service_role import + env guard)
+        run: pnpm lint
+
+      - name: Build
+        # NEXT_PUBLIC_* are needed at build time. SUPABASE_SERVICE_ROLE_KEY is intentionally
+        # NOT a NEXT_PUBLIC_* var, so Next never inlines it into the client bundle; it is
+        # exported here only so the value-grep step below can prove the value never leaked.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ALLOWED_EMAILS: ${{ secrets.ALLOWED_EMAILS }}
+        run: pnpm build
+
+      - name: Assert service_role is NOT in the client bundle (FND-03)
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ ! -d .next/static ]; then
+            echo "::error::.next/static not found — did the build run?"; exit 1
+          fi
+
+          # (a) The env-var NAME must never appear in any emitted client chunk.
+          if grep -rIl --include='*.js' -e 'SUPABASE_SERVICE_ROLE_KEY' .next/static; then
+            echo "::error::service_role key NAME leaked into the client bundle (.next/static)"
+            exit 1
+          fi
+
+          # (b) The literal secret VALUE must never appear (build injects it server-side only).
+          #     Gated on the secret being present; -F = fixed string, never echoed.
+          if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            if grep -rIlF "$SUPABASE_SERVICE_ROLE_KEY" .next/static; then
+              echo "::error::service_role VALUE leaked into the client bundle (.next/static)"
+              exit 1
+            fi
+          else
+            echo "::warning::SUPABASE_SERVICE_ROLE_KEY secret not set — value-grep skipped (name-grep still enforced)"
+          fi
+
+          echo "FND-03 OK: no service_role name/value found under .next/static"
+
+      - name: Unit tests (Vitest)
+        run: pnpm test
+
+      - name: Live RLS + seed assertions
+        # Gated on DATABASE_URL being configured as a repo secret. If absent, the job fails
+        # loudly so the missing secret is fixed rather than silently skipping the security check.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::DATABASE_URL secret is not set — RLS/seed assertions cannot run"
+            exit 1
+          fi
+          pnpm test:rls

@@ -120,13 +120,58 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| FND-01 | Phase 0 | Pending |
+| FND-02 | Phase 0 | Pending |
+| FND-03 | Phase 0 | Pending |
+| FND-04 | Phase 0 | Pending |
+| FND-05 | Phase 0 | Pending |
+| FND-06 | Phase 0 | Pending |
+| ING-01 | Phase 1 | Pending |
+| ING-02 | Phase 1 | Pending |
+| ING-03 | Phase 1 | Pending |
+| ING-04 | Phase 1 | Pending |
+| ING-05 | Phase 1 | Pending |
+| ING-06 | Phase 1 | Pending |
+| CAT-03 | Phase 1 | Pending |
+| CAT-01 | Phase 2 | Pending |
+| CAT-02 | Phase 2 | Pending |
+| CAT-04 | Phase 2 | Pending |
+| CAT-05 | Phase 2 | Pending |
+| CAT-06 | Phase 2 | Pending |
+| CAT-07 | Phase 2 | Pending |
+| BI-01 | Phase 2 | Pending |
+| BI-02 | Phase 2 | Pending |
+| BI-03 | Phase 2 | Pending |
+| BI-04 | Phase 2 | Pending |
+| BI-05 | Phase 2 | Pending |
+| BI-06 | Phase 2 | Pending |
+| BI-07 | Phase 2 | Pending |
+| GOAL-01 | Phase 3 | Pending |
+| GOAL-02 | Phase 3 | Pending |
+| GOAL-03 | Phase 3 | Pending |
+| GOAL-04 | Phase 3 | Pending |
+| GOAL-05 | Phase 3 | Pending |
+| GOAL-06 | Phase 3 | Pending |
+| PWA-01 | Phase 4 | Pending |
+| PWA-02 | Phase 4 | Pending |
+| PWA-03 | Phase 4 | Pending |
+| AI-01 | Phase 5 | Pending |
+| AI-02 | Phase 5 | Pending |
+| AI-03 | Phase 5 | Pending |
+| AI-04 | Phase 5 | Pending |
+| ETF-01 | Phase 6 | Pending |
+| ETF-02 | Phase 6 | Pending |
+| ETF-03 | Phase 6 | Pending |
+| ETF-04 | Phase 6 | Pending |
+| REM-01 | Phase 7 | Pending |
+| REM-02 | Phase 7 | Pending |
+| REM-03 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 40 total
-- Mapped to phases: (set by roadmapper)
-- Unmapped: (set by roadmapper)
+- Mapped to phases: 40 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-21*
-*Last updated: 2026-06-21 after initial definition*
+*Last updated: 2026-06-21 after roadmap creation (traceability populated, 40/40 mapped)*

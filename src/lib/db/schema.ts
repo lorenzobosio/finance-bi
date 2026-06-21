@@ -24,6 +24,7 @@ import {
   date,
   uniqueIndex,
   index,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
@@ -91,7 +92,7 @@ export const categories = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     group: categoryGroup('group').notNull(),
-    parentId: uuid('parent_id').references((): any => categories.id),
+    parentId: uuid('parent_id').references((): AnyPgColumn => categories.id),
   },
   (t) => [index('categories_parent_id_idx').on(t.parentId)],
 );

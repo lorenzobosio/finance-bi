@@ -18,6 +18,11 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Non-application directories: GSD tooling, planning docs, and generated
+      // Drizzle SQL/migrations are not part of the Next app and must not be linted.
+      ".claude/**",
+      ".planning/**",
+      "drizzle/**",
     ],
   },
 ];

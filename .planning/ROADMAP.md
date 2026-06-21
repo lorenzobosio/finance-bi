@@ -15,7 +15,7 @@ A couple in Berlin runs their household finances like a business: salaries are r
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 0: Foundation** - Secure scaffold: Next.js 15 + Tailwind v4 + Tremor Raw on Vercel; Google auth (2-email allowlist) + RLS on every table; base schema + seeded calendar dimension
+- [x] **Phase 0: Foundation** - Secure scaffold: Next.js 15 + Tailwind v4 + Tremor Raw on Vercel; Google auth (2-email allowlist) + RLS on every table; base schema + seeded calendar dimension (completed 2026-06-21)
 - [ ] **Phase 1: Ingestion (Enable Banking)** - Daily, idempotent pull of the Revolut accounts with freshness/reconnect visibility; the €4k investimento contract
 - [ ] **Phase 2: Core BI + house-as-business** - Versioned rules engine + P&L, cost-center budgets, spending views, MoM comparability, Home KPIs, config, balance snapshots
 - [ ] **Phase 3: €100k Goal** - Gamified goal page: total invested, % to goal, milestones, ETA, €4k streak, Home hero; swappable goal-total abstraction
@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A CI check fails the build if `service_role` appears in the client bundle, and passes when it is isolated to server-only code
   5. The base Postgres schema exists with a seeded calendar dimension (`period_key` = YYYYMM) covering past and future months for MoM/YoY joins
 
-**Plans**: 3/4 plans executed
+**Plans**: 5/4 plans complete
 **Wave 1**
 
 - [x] 00-01-PLAN.md — Scaffold (Next 15 + Tailwind v4 + shadcn) + Tremor Raw deps + Vitest Wave-0 test harness + external-service provisioning (FND-05, FND-06)
@@ -55,7 +55,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 00-04-PLAN.md — service_role chokepoint (server-only) + ESLint guard + CI (lint/build/bundle-grep/SQL assertions) + Vercel deploy (FND-03, FND-05)
+- [x] 00-04-PLAN.md — service_role chokepoint (server-only) + ESLint guard + CI (lint/build/bundle-grep/SQL assertions) + Vercel deploy (FND-03, FND-05)
 
 **Wave 5** *(hardening — public-repo prep)*
 
@@ -185,7 +185,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation | 3/4 | In Progress|  |
+| 0. Foundation | 5/4 | Complete   | 2026-06-21 |
 | 1. Ingestion (Enable Banking) | 0/TBD | Not started | - |
 | 2. Core BI + house-as-business | 0/TBD | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |

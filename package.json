@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:rls": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f test/rls.assert.sql"
+    "test:rls": "node test/rls.assert.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

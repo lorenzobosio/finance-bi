@@ -50,13 +50,28 @@ export const categoryGroup = pgEnum('category_group', [
 ]);
 
 // ---------------------------------------------------------------------------
-// Tables (full v1 per D-09 — all 12 + dim_calendar)
+// Tables (full v1 per D-09 — all 12 + dim_calendar + app_allowlist)
 // ---------------------------------------------------------------------------
 
-// The 2 household members (Lorenzo + Fernanda). Seeded in 0002.
+// Access-control allowlist (Phase-0 hardening). This is the ONLY place the set of
+// permitted emails lives in the database. It is seeded at deploy time from the
+// `ALLOWED_EMAILS` env (scripts/seed-allowlist.ts) — NEVER from committed SQL — so no
+// real email literal ever lands in a migration. RLS gates every data table on
+// `public.is_email_allowed(jwt email)`, a SECURITY DEFINER function that reads THIS
+// table. RLS is enabled on app_allowlist too; the SECURITY DEFINER function is what
+// lets the policies consult it without recursing.
+export const appAllowlist = pgTable('app_allowlist', {
+  email: text('email').primaryKey(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// The 2 household members (Lorenzo + Fernanda). Seeded in 0002 (names only — no emails).
 export const members = pgTable('members', {
   id: uuid('id').primaryKey().defaultRandom(),
-  email: text('email').notNull().unique(),
+  // Email is OPTIONAL and is NOT an access boundary (the allowlist table is). It is left
+  // nullable so the seed can store first names only — no real email PII in committed SQL
+  // (Phase-0 public-repo hardening). Unique still applies to any non-null value.
+  email: text('email').unique(),
   displayName: text('display_name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

@@ -1,8 +1,13 @@
 -- 0002_seed — members + fixed category taxonomy + dim_calendar 2024-2035 (D-10).
 --
+-- Phase-0 hardening: NO email literal appears in this seed. The members are seeded by
+-- DISPLAY NAME only (first names are acceptable; emails are PII and removed). The 2-email
+-- allowlist now lives in the `app_allowlist` table, seeded SEPARATELY at deploy time from
+-- the `ALLOWED_EMAILS` env via `scripts/seed-allowlist.ts` (pnpm db:seed-allowlist) —
+-- never from committed SQL.
+--
 -- Seeds:
---   * the 2 household members (Lorenzo, Fernanda). Their emails MUST stay in sync with
---     the RLS allowlist (0001) and the app-layer ALLOWED_EMAILS env (Plan 03).
+--   * the 2 household members (Lorenzo, Fernanda) — display names only, no emails.
 --   * the fixed category taxonomy: 3 groups (essential | desire | investment), each with
 --     a parent row + child rows (parent/child via categories.parent_id self-FK).
 --   * the north-star goal (EUR 100,000, cost_basis) and its 5 milestones.
@@ -11,11 +16,11 @@
 --
 -- Idempotent: on conflict clauses make re-runs safe.
 
--- members (emails lowercased; in sync with 0001 RLS allowlist + ALLOWED_EMAILS)
-insert into public.members (email, display_name) values
-  ('redacted@example.com', 'Lorenzo'),
-  ('redacted@example.com', 'Fernanda')
-on conflict (email) do nothing;
+-- members (display names only — emails removed; access is governed by app_allowlist)
+insert into public.members (id, display_name) values
+  ('55555555-5555-5555-5555-555555555501', 'Lorenzo'),
+  ('55555555-5555-5555-5555-555555555502', 'Fernanda')
+on conflict (id) do nothing;
 --> statement-breakpoint
 
 -- category taxonomy: 3 groups, each a parent + children (parent_id self-FK)

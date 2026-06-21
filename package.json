@@ -11,7 +11,8 @@
     "test:rls": "node test/rls.assert.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:seed-allowlist": "node scripts/seed-allowlist.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

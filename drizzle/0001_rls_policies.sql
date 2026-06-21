@@ -26,6 +26,31 @@
 -- SECURITY + one `for all to authenticated` allowlist policy. No table ships without one.
 
 -- ---------------------------------------------------------------------------
+-- Supabase role grants. Supabase normally grants table/sequence privileges to the
+-- `anon` / `authenticated` / `service_role` roles via schema-level DEFAULT PRIVILEGES.
+-- Because this project rebuilds the `public` schema from scratch (fresh-DB reset), those
+-- grants are re-asserted HERE so a clean `drizzle-kit migrate` always restores them.
+-- RLS still enforces row-level access on top of these table-level privileges; without the
+-- grants, an authenticated caller gets "permission denied for table" before RLS even runs.
+-- `service_role` keeps full access and BYPASSES RLS by design (server-only key).
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated, service_role;
+--> statement-breakpoint
+grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+--> statement-breakpoint
+grant all on all tables in schema public to service_role;
+--> statement-breakpoint
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+--> statement-breakpoint
+-- Future tables created in this schema inherit the same grants.
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to anon, authenticated;
+--> statement-breakpoint
+alter default privileges in schema public
+  grant all on tables to service_role;
+--> statement-breakpoint
+
+-- ---------------------------------------------------------------------------
 -- Allowlist lookup function (SECURITY DEFINER — bypasses RLS on app_allowlist).
 -- ---------------------------------------------------------------------------
 create or replace function public.is_email_allowed(check_email text)

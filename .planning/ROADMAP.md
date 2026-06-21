@@ -36,7 +36,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. RLS is enabled on every table enforcing the 2-email allowlist (verifiable: an unauthorized identity SELECTs zero rows)
   4. A CI check fails the build if `service_role` appears in the client bundle, and passes when it is isolated to server-only code
   5. The base Postgres schema exists with a seeded calendar dimension (`period_key` = YYYYMM) covering past and future months for MoM/YoY joins
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 00-01-PLAN.md — Scaffold (Next 15 + Tailwind v4 + shadcn) + Tremor Raw deps + Vitest Wave-0 test harness + external-service provisioning (FND-05, FND-06)
+- [ ] 00-02-PLAN.md — Full v1 Drizzle schema + RLS-on-every-table + seed (members/taxonomy/dim_calendar 2024-2035) + [BLOCKING] live migration push (FND-02, FND-04)
+- [ ] 00-03-PLAN.md — Google auth gate: @supabase/ssr clients, allowlist, middleware route protection, /auth/callback, protected page with one real RLS-bound read (FND-01, FND-02)
+- [ ] 00-04-PLAN.md — service_role chokepoint (server-only) + ESLint guard + CI (lint/build/bundle-grep/SQL assertions) + Vercel deploy (FND-03, FND-05)
 
 ### Phase 1: Ingestion (Enable Banking)
 **Goal**: Trustworthy transaction and balance data flows in automatically once a day, deduplicated and correctly typed, with staleness and reconnect states loudly visible — and the €4k investment contribution is correctly classified at the source.
@@ -135,7 +139,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation | 0/TBD | Not started | - |
+| 0. Foundation | 0/4 | Not started | - |
 | 1. Ingestion (Enable Banking) | 0/TBD | Not started | - |
 | 2. Core BI + house-as-business | 0/TBD | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |

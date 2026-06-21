@@ -39,7 +39,7 @@ key-files:
     - drizzle/meta/_journal.json
 
 key-decisions:
-  - "RLS allowlist emails hardcoded in 0001: redacted@example.com, redacted@example.com (lowercase) — keep ALLOWED_EMAILS env in sync (Plan 03)"
+  - "RLS allowlist was hardcoded in 0001 at this time; SUPERSEDED by Phase-0 hardening (00-05) which moved it to the env-seeded app_allowlist table (no emails in committed SQL)"
   - "Applied via drizzle-kit migrate (journal ordering 0000->0001->0002), not push+psql"
   - "test:rls retargeted from psql to a Node postgres-js verifier (no psql binary in this environment)"
   - "Renamed generated 0000 to 0000_init.sql and synced the journal tag to match"
@@ -96,7 +96,7 @@ status: complete
 - `drizzle/meta/_journal.json` - journal entries for 0000_init / 0001_rls_policies / 0002_seed.
 
 ## Decisions Made
-- **RLS allowlist emails hardcoded** in 0001 (`redacted@example.com`, `redacted@example.com`) per A5/D-15 — emails are not secret. A migration comment flags they must stay in sync with the app-layer `ALLOWED_EMAILS` (Plan 03 middleware).
+- **RLS allowlist emails were hardcoded** in 0001 at this time per A5/D-15. SUPERSEDED by Phase-0 hardening (00-05): the allowlist now lives in the `app_allowlist` table, seeded from the `ALLOWED_EMAILS` env, and NO email literal remains in any committed file (the repo is going public).
 - **Migrate path used:** `pnpm drizzle-kit migrate` (journal-ordered 0000 → 0001 → 0002). The `migrate` path worked first try; no fallback to `push` + `psql` was needed.
 - **Renamed the generated 0000 file to `0000_init.sql`** (drizzle-kit emitted `0000_tired_loners.sql`) and updated the journal `tag` so `migrate` still resolves it — keeps filenames matching the plan and PROJECT structure.
 
@@ -134,7 +134,7 @@ None - Supabase was already provisioned and validated in Plan 00-01; the live `D
 ## Next Phase Readiness
 - Plan 00-03 can read the seeded data through `@supabase/ssr` (RLS-bound) to prove the protected-page gate; the schema + RLS wall it depends on are live.
 - Plan 00-04 (Vercel deploy) needs `DATABASE_URL` + Supabase env vars in Vercel — unchanged from Plan 01's provisioning notes.
-- **Sync note for Plan 03:** the app-layer `ALLOWED_EMAILS` must equal the 2 hardcoded RLS emails: `redacted@example.com`, `redacted@example.com`.
+- **Sync note for Plan 03:** the app-layer `ALLOWED_EMAILS` must equal the allowlist the RLS wall enforces. As of Phase-0 hardening (00-05) both derive from the SAME `ALLOWED_EMAILS` env (the env seeds the `app_allowlist` table), so they cannot drift; no email literals are committed.
 
 ## Self-Check: PASSED
 

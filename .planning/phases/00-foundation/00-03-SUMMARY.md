@@ -22,7 +22,7 @@ completed: 2026-06-22
 - **Automated (all green):** `pnpm vitest run` 7/7 (allowlist 5/5, middleware 2/2), `tsc --noEmit` clean, `pnpm lint` clean, `pnpm build` green. Middleware uses `getUser()` (grep-confirmed, no `getSession`); protected page has no `@/lib/db` import.
 - **Manual end-to-end (user-confirmed, 2026-06-22):**
   - Unauthenticated visit to `/` → redirected to `/login` ✓
-  - Allowlisted Google login (`redacted@example.com`) → protected page showing Household members (Lorenzo + Fernanda) — gate + RLS proven end-to-end ✓
+  - Allowlisted Google login (one of the 2 permitted accounts) → protected page showing Household members (Lorenzo + Fernanda) — gate + RLS proven end-to-end ✓
   - Non-allowlisted Google account → signed out, bounced to `/login?denied=1`, never sees members ✓
 
 ## Requirements

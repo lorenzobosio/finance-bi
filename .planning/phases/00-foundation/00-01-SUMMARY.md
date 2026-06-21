@@ -45,5 +45,5 @@ completed: 2026-06-21
 
 ## Notes for downstream plans
 
-- Allowlist emails for the RLS policy + `ALLOWED_EMAILS`: `redacted@example.com`, `redacted@example.com` (lowercase).
+- Allowlist emails for the RLS policy + `ALLOWED_EMAILS`: the 2 permitted Google accounts (lowercase). The literal values live ONLY in `.env.local` / the `app_allowlist` table — they were removed from all committed files in Phase-0 hardening (00-05); see that summary.
 - Use `DATABASE_URL` (session pooler 5432) for `drizzle-kit` in Plan 00-02.

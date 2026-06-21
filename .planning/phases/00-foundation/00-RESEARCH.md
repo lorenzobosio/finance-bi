@@ -672,7 +672,9 @@ const rows = days.map(d => ({
 | A6 | A direct `DATABASE_URL` (beyond the locked 4 env vars) is required for Drizzle | User Constraints / Seam 1 | Without it Drizzle can't migrate; trivially obtained from the Supabase dashboard. LOW. |
 | A7 | The exact per-table field shapes follow PROJECT.md/master spec (not fully enumerated here) | Schema section | Minor column differences; the planner/discuss-phase should confirm field lists against the master spec before writing `schema.ts`. MEDIUM. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Each item below carries a recommendation that the Phase 0 plans implement (key-style mapping → Plan 01; per-table columns → Plan 02; hardcoded RLS allowlist → Plan 02). None blocks planning or execution.
 
 1. **Which Supabase key style does the (to-be-created) project use?**
    - What we know: new projects (2025+) default to `sb_publishable_`/`sb_secret_`; legacy `anon`/`service_role` still work until late 2026.

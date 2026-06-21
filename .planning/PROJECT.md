@@ -50,7 +50,7 @@ The product must answer four questions in **under a minute**: how far to €100k
 
 - CSV / manual import — automatic open-banking ingestion from the MVP; no CSV path planned
 - Revolut's own API — not accessible to an individual (requires TPP status); Enable Banking used instead
-- Banks beyond the 3 Revolut accounts (e.g. N26 DE) — deferred until the Revolut flow is proven
+- Banks beyond the 3 Revolut accounts — deferred until the Revolut flow is proven (no other bank accounts exist today)
 - Live ETF market value / multicurrency in MVP — investment positions usually sit outside PSD2; deferred to Phase 6
 - Automated AI in MVP — automated Claude jobs burn metered credits; AI starts manual (Phase 5)
 - Reminders / notifications in MVP — deferred to Phase 7 (after AI)
@@ -87,7 +87,7 @@ The product must answer four questions in **under a minute**: how far to €100k
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Enable Banking (AISP) instead of Revolut's own API | Revolut API requires TPP status (not available to an individual); Enable Banking Restricted Production connects own accounts free and covers Revolut + N26 DE | — Pending |
+| Enable Banking (AISP) instead of Revolut's own API | Revolut API requires TPP status (not available to an individual); Enable Banking Restricted Production connects own accounts (the 3 Revolut accounts) for free | — Pending |
 | Supabase Auth (Google) + 2-email allowlist, RLS on all tables | Simplest secure auth for a 2-person private app; allowlist + RLS keep all data behind login | — Pending |
 | EUR only in MVP; FX deferred to Phase 6 | All accounts are EUR; conversion only matters for the USD-priced ETF valuation | — Pending |
 | AI starts manual, automates in Phase 5 | Automated Claude jobs draw metered credits; interactive local use is covered by subscription | — Pending |

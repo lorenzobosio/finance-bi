@@ -57,6 +57,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] 00-04-PLAN.md — service_role chokepoint (server-only) + ESLint guard + CI (lint/build/bundle-grep/SQL assertions) + Vercel deploy (FND-03, FND-05)
 
+**Wave 5** *(hardening — public-repo prep)*
+
+- [x] 00-05 — Allowlist hardening: replace hardcoded RLS emails with env-seeded `app_allowlist` table + SECURITY DEFINER `is_email_allowed()`; remove all email literals from committed source/migrations/docs; source-cleanliness guard test; live DB re-applied and verified table-driven
+
 ### Phase 1: Ingestion (Enable Banking)
 
 **Goal**: Trustworthy transaction and balance data flows in automatically once a day, deduplicated and correctly typed, with staleness and reconnect states loudly visible — and the €4k investment contribution is correctly classified at the source.

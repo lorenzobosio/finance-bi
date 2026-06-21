@@ -6,15 +6,15 @@ current_phase: 0
 current_phase_name: foundation
 status: executing
 stopped_at: Phase 0 context gathered
-last_updated: "2026-06-21T22:06:27.093Z"
+last_updated: "2026-06-21T23:03:58.019Z"
 last_activity: 2026-06-21
 last_activity_desc: Phase 0 execution started
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 2
-  percent: 0
+  completed_plans: 4
+  percent: 13
 ---
 
 # Project State
@@ -67,6 +67,8 @@ Recent decisions affecting current work:
 - [Stack]: Tremor Raw (copy-paste, Tailwind v4 + Recharts) instead of the frozen `@tremor/react` npm package — research-confirmed deviation; resolve in Phase 0
 - [Phase 1]: First task is a discovery spike enumerating which Revolut accounts/pockets Enable Banking exposes + the real consent-window duration; gates Phase 3 and Phase 6 design
 - [Correctness]: `flow_type=investimento`/`transferência` excluded from all cost/revenue aggregations; €4k fed to goal exactly once — a Phase 1/2 contract, not retrofittable
+- [Phase 0]: Phase-0 hardening (00-05): allowlist moved from hardcoded RLS emails to env-seeded app_allowlist table + SECURITY DEFINER is_email_allowed(); no email literal in any committed file (public-repo safe)
+- [Phase 0]: members.email made nullable; members seeded by display name only (PII removed)
 
 ### Pending Todos
 
@@ -91,6 +93,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-21T22:06:27.085Z
+Last session: 2026-06-21T23:03:58.011Z
 Stopped at: Phase 0 context gathered
 Resume file: .planning/phases/00-foundation/00-CONTEXT.md

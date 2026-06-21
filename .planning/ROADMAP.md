@@ -172,6 +172,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Plans**: TBD
 
+## Ops Backlog (not blocking phases)
+
+Deferred operational / repo-hardening items, to pick up later:
+
+- [ ] **Branch protection — require PRs + green CI to merge `main`** (deferred per user, 2026-06-22). Today `main` blocks force-pushes + deletions. Upgrade to "require a pull request + passing CI (CodeQL + the lint/build/bundle-grep/RLS workflow) before merge." This shifts to a feature-branch → PR → merge flow; flip GSD `branching_strategy` to per-phase and use `/gsd-ship` PRs.
+
 ## Progress
 
 **Execution Order:**

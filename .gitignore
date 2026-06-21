@@ -45,3 +45,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# gsd research web-fetch cache (not source)
+.planning/research/.cache/

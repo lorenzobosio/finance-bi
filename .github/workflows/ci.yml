@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Pin pnpm to the version the project runs locally (Plan 00-01: 9.15.9 for Node 20).
       - name: Set up pnpm

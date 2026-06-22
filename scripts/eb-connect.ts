@@ -37,8 +37,28 @@ import { readFile, writeFile, mkdir, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { SignJWT, importPKCS8 } from "jose";
 import { z } from "zod";
+
+// Production modules built in Tasks 1 & 2 of this plan (01-03). The script no longer
+// inlines its own signer/client — it uses the audited boundary-validated ones.
+import { signEbJwt } from "@/lib/ingestion/enable-banking/jwt";
+import {
+  aspsps as ebAspsps,
+  auth as ebAuth,
+  sessions as ebSessions,
+} from "@/lib/ingestion/enable-banking/client";
+import {
+  TxPageSchema,
+  type SessionAccount,
+  type SessionsResponse,
+} from "@/lib/ingestion/enable-banking/schemas";
+// NB: src/lib/supabase/service.ts begins with `import "server-only"`, which THROWS the
+// moment the module is loaded outside an RSC graph (e.g. the vitest runner). The
+// service_role client is therefore imported LAZILY inside createServiceWriter() (the only
+// place it is actually constructed) so the contract test — which injects a fake writer and
+// never builds the live one — can import this script without tripping the server-only guard.
+// The FND-03 posture is unchanged: the service module is still server-only; we just defer
+// its load to the live `pnpm eb:connect` run.
 
 const EB_BASE = "https://api.enablebanking.com";
 // This project is CommonJS (no "type":"module" in package.json) and `tsx` compiles these
@@ -47,125 +67,203 @@ const EB_BASE = "https://api.enablebanking.com";
 // CJS conventions (`require.main === module`).
 const REPO_ROOT = resolve(__dirname, "..");
 
+// JWT signing + the EB client + the zod boundary schemas now live in the audited
+// production modules src/lib/ingestion/enable-banking/{jwt,client,schemas}.ts
+// (Tasks 1 & 2 of this plan). This script imports them rather than re-deriving them.
+// Local aliases keep the scrub helpers below readable.
+type SessionsResponseT = SessionsResponse;
+type TxPageT = z.infer<typeof TxPageSchema>;
+
 // ---------------------------------------------------------------------------
-// JWT signing (mirrors the frozen src/lib/ingestion/enable-banking/jwt.ts contract
-// in test/jwt.test.ts — RS256, kid=appId, iss/aud, exp-iat = 3600). The real jwt.ts
-// module is created GREEN in plan 01-04; the spike inlines an equivalent signer.
+// Consent persistence (ING-01 / ING-05 / D-10 / D-22).
+//
+// persistSession UPSERTS the durable consent state into Postgres via the
+// server-only service_role client (createServiceClient, D-16):
+//   - exactly ONE connections row (session_id, consent_status='active',
+//     expires_at = the REAL access.valid_until — read, never hardcoded);
+//   - one accounts row per returned account (enable_banking_id=uid, iban, name,
+//     default_cost_center mapped from the account identity, is_synced=true);
+//   - a virtual is_investment=true accounts row (enable_banking_id=null,
+//     is_synced=false) because the spike confirmed the investing account is NOT
+//     exposed over PSD2 (A2/D-22);
+//   - one import_batches heartbeat row (source='enable_banking', status='success').
+//
+// The DB writer is INJECTABLE so the contract test (test/connect.test.ts) can assert
+// expires_at === access.valid_until against a thin in-memory writer with NO live DB
+// connection. The default writer is built lazily from createServiceClient() and only
+// constructed when the live `pnpm eb:connect` run actually persists.
 // ---------------------------------------------------------------------------
-export async function signEbJwt(
-  appId: string,
-  privateKeyPem: string,
-): Promise<string> {
-  const key = await importPKCS8(privateKeyPem, "RS256");
-  return new SignJWT({})
-    .setProtectedHeader({ typ: "JWT", alg: "RS256", kid: appId })
-    .setIssuer("enablebanking.com")
-    .setAudience("api.enablebanking.com")
-    .setIssuedAt()
-    .setExpirationTime("1h")
-    .sign(key);
+
+/** A row to UPSERT into accounts (the subset eb-connect controls). */
+export interface AccountUpsert {
+  enableBankingId: string | null;
+  iban: string | null;
+  name: string;
+  defaultCostCenter: string | null;
+  isInvestment: boolean;
+  isSynced: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// zod schemas for the untrusted EB responses (V5 — validate at the boundary).
-// Kept permissive (.passthrough / optional) so a real Revolut response that carries
-// extra fields still parses; the spike's job is to OBSERVE the shape, not reject it.
-// ---------------------------------------------------------------------------
-const AspspSchema = z
-  .object({
-    name: z.string(),
-    country: z.string(),
-    maximum_consent_validity: z.number().nullish(),
-    psu_types: z.array(z.string()).nullish(),
-  })
-  .passthrough();
-const AspspsResponse = z
-  .object({ aspsps: z.array(AspspSchema) })
-  .passthrough();
+/** A row to UPSERT into connections. */
+export interface ConnectionUpsert {
+  provider: "enable_banking";
+  sessionId: string;
+  consentStatus: "active";
+  expiresAt: string;
+}
 
-const AuthResponse = z
-  .object({
-    url: z.string(),
-    authorization_id: z.string().nullish(),
-    psu_id_hash: z.string().nullish(),
-  })
-  .passthrough();
+/**
+ * The minimal write surface persistSession needs. The default implementation drives
+ * the Supabase service_role client; the test injects an in-memory fake. Keeping this
+ * thin keeps PII out of the test and keeps the live writer in one audited place.
+ */
+export interface ConsentWriter {
+  upsertConnection(row: ConnectionUpsert): Promise<void>;
+  upsertAccount(row: AccountUpsert): Promise<void>;
+  writeHeartbeat(): Promise<void>;
+}
 
-const AccountIdentification = z
-  .object({ iban: z.string().nullish(), other: z.unknown().nullish() })
-  .passthrough();
-const SessionAccount = z
-  .object({
-    uid: z.string(),
-    account_id: AccountIdentification.nullish(),
-    name: z.string().nullish(),
-    currency: z.string().nullish(),
-    cash_account_type: z.string().nullish(),
-    usage: z.string().nullish(),
-    product: z.string().nullish(),
-  })
-  .passthrough();
-const SessionsResponse = z
-  .object({
-    session_id: z.string(),
-    accounts: z.array(SessionAccount),
-    access: z.object({ valid_until: z.string() }).passthrough(),
-    aspsp: z.unknown().nullish(),
-  })
-  .passthrough();
-export type SessionsResponseT = z.infer<typeof SessionsResponse>;
+/**
+ * Map a returned EB account to its analytical cost center (CAT-07 default, D-15 —
+ * a LABEL, never an access boundary). Inference is by account name from the spike's
+ * identities: "Lorenzo — personal" -> lorenzo, "Fernanda — personal" -> fernanda,
+ * "Joint (shared)" -> compartilhado. Returns null when ownership cannot be inferred;
+ * the live run then prompts the operator (this is a one-time human-run script).
+ */
+export function inferCostCenter(name: string | null | undefined): string | null {
+  const n = (name ?? "").toLowerCase();
+  if (n.includes("lorenzo")) return "lorenzo";
+  if (n.includes("fernanda")) return "fernanda";
+  if (n.includes("joint") || n.includes("shared") || n.includes("compartilhado")) {
+    return "compartilhado";
+  }
+  return null;
+}
 
-// Transaction-page schema (matches RESEARCH § Code Examples). Permissive on purpose.
-const RawTx = z
-  .object({
-    transaction_id: z.string().nullish(),
-    entry_reference: z.string().nullish(),
-    status: z.string().nullish(),
-    booking_date: z.string().nullish(),
-    value_date: z.string().nullish(),
-    credit_debit_indicator: z.string().nullish(),
-    transaction_amount: z
-      .object({ currency: z.string(), amount: z.string() })
-      .partial()
-      .nullish(),
-    creditor: z.object({ name: z.string().nullish() }).passthrough().nullish(),
-    creditor_account: z
-      .object({ iban: z.string().nullish() })
-      .passthrough()
-      .nullish(),
-    debtor: z.object({ name: z.string().nullish() }).passthrough().nullish(),
-    debtor_account: z
-      .object({ iban: z.string().nullish() })
-      .passthrough()
-      .nullish(),
-    remittance_information: z.array(z.string()).nullish(),
-  })
-  .passthrough();
-const TxPage = z
-  .object({
-    transactions: z.array(RawTx),
-    continuation_key: z.string().nullish(),
-  })
-  .passthrough();
-type TxPageT = z.infer<typeof TxPage>;
+/** Heuristic: does this account look like an investing/securities/savings pocket? */
+const INVESTING_SIGNALS = ["invest", "securit", "stock", "brokerage"];
+export function looksLikeInvesting(a: Pick<SessionAccount, "name" | "cash_account_type" | "usage" | "product">): boolean {
+  const hay = `${a.name ?? ""} ${a.cash_account_type ?? ""} ${a.usage ?? ""} ${a.product ?? ""}`.toLowerCase();
+  return INVESTING_SIGNALS.some((s) => hay.includes(s));
+}
 
-// ---------------------------------------------------------------------------
-// persistSession — exported for the 01-03 connections write-path contract
-// (test/connect.test.ts, currently describe.todo). In the spike form it just maps the
-// validated /sessions response to the durable consent fields. The DB write lands in
-// plan 01-03 once the schema columns exist; here we only return the values that will be
-// stored, so the contract (expires_at === response access.valid_until — read, never
-// hardcoded; ING-05) is already expressible.
-// ---------------------------------------------------------------------------
-export function persistSession(session: {
-  session_id: string;
-  accounts: { uid: string }[];
-  access: { valid_until: string };
-}): { sessionId: string; accountUids: string[]; expiresAt: string } {
+/**
+ * Build the default service_role-backed writer. Constructed lazily so importing this
+ * module (e.g. from the test) never touches Supabase env vars.
+ */
+export async function createServiceWriter(): Promise<ConsentWriter> {
+  // Lazy dynamic import — keeps `import "server-only"` out of the test's import graph (see
+  // the import-section note). The test injects a fake writer and never reaches this path.
+  const { createServiceClient } = await import("@/lib/supabase/service");
+  const sb = createServiceClient();
+  return {
+    async upsertConnection(row) {
+      const { error } = await sb
+        .from("connections")
+        .upsert(
+          {
+            provider: row.provider,
+            session_id: row.sessionId,
+            consent_status: row.consentStatus,
+            expires_at: row.expiresAt, // the REAL valid_until — never hardcoded
+          },
+          { onConflict: "session_id" },
+        );
+      if (error) throw new Error(`connections upsert failed: ${error.message}`);
+    },
+    async upsertAccount(row) {
+      const { error } = await sb.from("accounts").upsert(
+        {
+          enable_banking_id: row.enableBankingId,
+          iban: row.iban,
+          name: row.name,
+          default_cost_center: row.defaultCostCenter,
+          is_investment: row.isInvestment,
+          is_synced: row.isSynced,
+        },
+        { onConflict: "enable_banking_id" },
+      );
+      if (error) throw new Error(`accounts upsert failed: ${error.message}`);
+    },
+    async writeHeartbeat() {
+      const now = new Date().toISOString();
+      const { error } = await sb.from("import_batches").insert({
+        source: "enable_banking",
+        status: "success",
+        started_at: now,
+        finished_at: now,
+      });
+      if (error) throw new Error(`heartbeat insert failed: ${error.message}`);
+    },
+  };
+}
+
+/**
+ * Persist a successful /sessions response to Postgres (ING-01 / ING-05).
+ *
+ * Writes (via the injected or default service_role writer):
+ *   1. one connections row — expires_at === session.access.valid_until (D-10);
+ *   2. one accounts row per returned account (cost center inferred, is_synced=true);
+ *   3. a virtual is_investment=true accounts row when no investing account is
+ *      exposed (A2/D-22 — the confirmed Revolut case);
+ *   4. one import_batches heartbeat (source='enable_banking', status='success').
+ *
+ * @returns { sessionId, accountUids, expiresAt } — expiresAt is the REAL consent
+ *          window read from the response (the contract test asserts this equals the
+ *          fixture access.valid_until; never a hardcoded 90/180).
+ */
+export async function persistSession(
+  session: SessionsResponseT,
+  writer?: ConsentWriter,
+  costCenterByUid: Record<string, string> = {},
+): Promise<{ sessionId: string; accountUids: string[]; expiresAt: string }> {
+  const w = writer ?? (await createServiceWriter());
+  const expiresAt = session.access.valid_until;
+
+  // 1. The single connections row — the source of truth the cron reuses.
+  await w.upsertConnection({
+    provider: "enable_banking",
+    sessionId: session.session_id,
+    consentStatus: "active",
+    expiresAt,
+  });
+
+  // 2. One accounts row per returned account. The operator-confirmed override (if any)
+  //    wins over name inference for default_cost_center.
+  let anyInvestingExposed = false;
+  for (const a of session.accounts) {
+    const investing = looksLikeInvesting(a);
+    if (investing) anyInvestingExposed = true;
+    await w.upsertAccount({
+      enableBankingId: a.uid,
+      iban: a.account_id?.iban ?? null,
+      name: a.name ?? a.uid,
+      defaultCostCenter: costCenterByUid[a.uid] ?? inferCostCenter(a.name),
+      isInvestment: investing,
+      isSynced: true,
+    });
+  }
+
+  // 3. Virtual investing row (A2/D-22) — investing pocket is NOT PSD2-exposed for
+  //    Revolut, so investimento is matched on the OUTGOING leg against this row.
+  if (!anyInvestingExposed) {
+    await w.upsertAccount({
+      enableBankingId: null, // virtual — no live bank account behind it
+      iban: null, // the counterparty signature is set when the contribution rule lands (01-04)
+      name: "Investing (virtual)",
+      defaultCostCenter: null,
+      isInvestment: true,
+      isSynced: false, // the daily pull does not refresh a virtual account
+    });
+  }
+
+  // 4. Heartbeat — the connect run itself counts as a keep-alive.
+  await w.writeHeartbeat();
+
   return {
     sessionId: session.session_id,
     accountUids: session.accounts.map((a) => a.uid),
-    expiresAt: session.access.valid_until,
+    expiresAt,
   };
 }
 
@@ -305,6 +403,42 @@ async function prompt(question: string): Promise<string> {
   }
 }
 
+const VALID_COST_CENTERS = ["lorenzo", "fernanda", "compartilhado"] as const;
+
+/**
+ * Confirm the default_cost_center for each account with the operator (a one-time
+ * human-run script). Accounts whose owner is inferred from the name are auto-confirmed;
+ * only ambiguous ones prompt. Returns a uid -> cost_center map passed to persistSession
+ * as an explicit override (so the account name is never mutated).
+ *
+ * Each value must be a seeded cost_centers code (lorenzo/fernanda/compartilhado, D-24).
+ */
+async function confirmCostCenters(
+  accounts: SessionAccount[],
+): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  for (const a of accounts) {
+    let cc = inferCostCenter(a.name);
+    if (!cc) {
+      const answer = (
+        await prompt(
+          `  Cost center for account "${a.name ?? a.uid}" — one of ${VALID_COST_CENTERS.join(
+            "/",
+          )}: `,
+        )
+      ).toLowerCase();
+      if (!(VALID_COST_CENTERS as readonly string[]).includes(answer)) {
+        throw new Error(
+          `Invalid cost center "${answer}" — expected one of ${VALID_COST_CENTERS.join(", ")}.`,
+        );
+      }
+      cc = answer;
+    }
+    map[a.uid] = cc;
+  }
+  return map;
+}
+
 // ---------------------------------------------------------------------------
 // Main flow
 // ---------------------------------------------------------------------------
@@ -331,13 +465,9 @@ async function main() {
   const jwt = await signEbJwt(appId, privateKeyPem);
   console.log("      JWT signed (1h TTL). App ID + key are not printed.");
 
-  // 2. GET /aspsps — find Revolut, read the consent ceiling.
+  // 2. GET /aspsps — find Revolut, read the consent ceiling (audited client, zod-validated).
   console.log("\n[2/5] GET /aspsps?country=DE&psu_type=personal …");
-  const aspspsRaw = await ebFetch(
-    "/aspsps?country=DE&psu_type=personal",
-    jwt,
-  );
-  const aspsps = AspspsResponse.parse(aspspsRaw);
+  const aspsps = await ebAspsps(jwt, "DE", "personal");
   const revolut = aspsps.aspsps.find((a) =>
     a.name.toLowerCase().includes("revolut"),
   );
@@ -359,17 +489,13 @@ async function main() {
   const validUntil = new Date(Date.now() + ceilingSeconds * 1000).toISOString();
   const state = randomUUID();
   console.log("\n[3/5] POST /auth (requesting bank authorization URL)…");
-  const authRaw = await ebFetch("/auth", jwt, {
-    method: "POST",
-    body: JSON.stringify({
-      access: { valid_until: validUntil },
-      aspsp: { name: revolut.name, country: revolut.country },
-      psu_type: "personal",
-      state,
-      redirect_url: redirectUrl, // exact whitelisted constant (T-01-05), never built from input
-    }),
+  const auth = await ebAuth(jwt, {
+    access: { valid_until: validUntil },
+    aspsp: { name: revolut.name, country: revolut.country },
+    psu_type: "personal",
+    state,
+    redirect_url: redirectUrl, // exact whitelisted constant (T-01-05), never built from input
   });
-  const auth = AuthResponse.parse(authRaw);
 
   console.log("\n────────────────────────────────────────────────────────────");
   console.log(`  ACTION REQUIRED for: ${person}`);
@@ -383,35 +509,48 @@ async function main() {
   const code = await prompt("Paste the `code` from the /eb/callback page here: ");
   if (!code) throw new Error("No code pasted — aborting.");
 
-  // 5. POST /sessions — exchange the code for the session + accounts.
+  // 5. POST /sessions — exchange the code for the session + accounts (zod-validated).
   console.log("\n[4/5] POST /sessions (exchanging code)…");
-  const sessionsRaw = await ebFetch("/sessions", jwt, {
-    method: "POST",
-    body: JSON.stringify({ code }),
-  });
-  const session = SessionsResponse.parse(sessionsRaw);
-  const persisted = persistSession(session);
+  const session = await ebSessions(jwt, code);
 
   // Enumerate accounts + flag an investing/securities account.
   console.log("\n  Accounts exposed by this consent:");
-  const investingSignals = ["invest", "securit", "stock", "brokerage", "saving"];
   let investingFound = false;
   for (const [i, a] of session.accounts.entries()) {
     const type = a.cash_account_type ?? a.product ?? "(no type)";
     const usage = a.usage ?? "(no usage)";
-    const hay = `${a.name ?? ""} ${type} ${usage} ${a.product ?? ""}`.toLowerCase();
-    const isInvesting = investingSignals.some((s) => hay.includes(s));
+    const isInvesting = looksLikeInvesting(a);
     if (isInvesting) investingFound = true;
+    const cc = inferCostCenter(a.name);
     console.log(
       `    [${i + 1}] name="${a.name ?? "(none)"}" type=${type} usage=${usage} currency=${
         a.currency ?? "?"
-      } iban=${a.account_id?.iban ? "present" : "absent"}${isInvesting ? "  <-- INVESTING?" : ""}`,
+      } iban=${a.account_id?.iban ? "present" : "absent"} cost_center=${cc ?? "(unknown)"}${
+        isInvesting ? "  <-- INVESTING?" : ""
+      }`,
     );
   }
   console.log(
     `\n  Investing/securities account present? ${investingFound ? "YES (see flag above)" : "NO (not exposed over PSD2)"}`,
   );
-  console.log(`  access.valid_until = ${persisted.expiresAt}`);
+  console.log(`  access.valid_until = ${session.access.valid_until}`);
+
+  // 5b. Confirm the cost-center mapping with the operator before persisting. This is a
+  //     one-time human-run script, so an interactive confirm is the right gate when the
+  //     account identity cannot be inferred from EB metadata (default_cost_center, CAT-07).
+  const costCenterByUid = await confirmCostCenters(session.accounts);
+
+  // 5c. PERSIST the consent: connections (expires_at = the real valid_until) + accounts
+  //     (+ a virtual investing row since the spike confirmed it is NOT exposed) + heartbeat.
+  console.log("\n  Persisting consent to Postgres (service_role)…");
+  const writer = await createServiceWriter();
+  await persistSession(session, writer, costCenterByUid);
+  const persisted = { expiresAt: session.access.valid_until };
+  console.log(
+    `  Persisted: 1 connections row (expires_at=${persisted.expiresAt}), ${
+      session.accounts.length
+    } account row(s)${investingFound ? "" : " + 1 virtual investing row"}, 1 heartbeat.`,
+  );
 
   // 8. Save the session locally (gitignored).
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
@@ -454,7 +593,7 @@ async function main() {
         `/accounts/${uid}/transactions?date_from=${dateFrom}`,
         jwt,
       );
-      const page = TxPage.parse(txRaw);
+      const page = TxPageSchema.parse(txRaw);
       const scrubbed = scrubTxPage(page);
       await writeFile(
         resolve(REPO_ROOT, "test/fixtures/eb-transactions-page.json"),

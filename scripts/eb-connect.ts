@@ -650,7 +650,10 @@ async function main() {
     revolutName: revolut.name,
     maxConsentValidity: revolut.maximum_consent_validity ?? undefined,
     accounts: session.accounts.map((a) => ({
-      name: a.name ?? undefined,
+      // MASK the real account-holder name to its cost-center ROLE label before it reaches
+      // the committed 01-SPIKE.md (public repo — no PII/legal names; D-09). The role
+      // (lorenzo/fernanda/compartilhado) is the analytically useful identity anyway.
+      name: inferCostCenter(a.name) ?? "(account)",
       type: a.cash_account_type ?? a.product ?? undefined,
       usage: a.usage ?? undefined,
       currency: a.currency ?? undefined,

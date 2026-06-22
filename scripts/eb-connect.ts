@@ -75,8 +75,8 @@ const AspspSchema = z
   .object({
     name: z.string(),
     country: z.string(),
-    maximum_consent_validity: z.number().optional(),
-    psu_types: z.array(z.string()).optional(),
+    maximum_consent_validity: z.number().nullish(),
+    psu_types: z.array(z.string()).nullish(),
   })
   .passthrough();
 const AspspsResponse = z
@@ -86,23 +86,23 @@ const AspspsResponse = z
 const AuthResponse = z
   .object({
     url: z.string(),
-    authorization_id: z.string().optional(),
-    psu_id_hash: z.string().optional(),
+    authorization_id: z.string().nullish(),
+    psu_id_hash: z.string().nullish(),
   })
   .passthrough();
 
 const AccountIdentification = z
-  .object({ iban: z.string().optional(), other: z.unknown().optional() })
+  .object({ iban: z.string().nullish(), other: z.unknown().nullish() })
   .passthrough();
 const SessionAccount = z
   .object({
     uid: z.string(),
-    account_id: AccountIdentification.optional(),
-    name: z.string().optional(),
-    currency: z.string().optional(),
-    cash_account_type: z.string().optional(),
-    usage: z.string().optional(),
-    product: z.string().optional(),
+    account_id: AccountIdentification.nullish(),
+    name: z.string().nullish(),
+    currency: z.string().nullish(),
+    cash_account_type: z.string().nullish(),
+    usage: z.string().nullish(),
+    product: z.string().nullish(),
   })
   .passthrough();
 const SessionsResponse = z
@@ -110,7 +110,7 @@ const SessionsResponse = z
     session_id: z.string(),
     accounts: z.array(SessionAccount),
     access: z.object({ valid_until: z.string() }).passthrough(),
-    aspsp: z.unknown().optional(),
+    aspsp: z.unknown().nullish(),
   })
   .passthrough();
 export type SessionsResponseT = z.infer<typeof SessionsResponse>;
@@ -118,33 +118,33 @@ export type SessionsResponseT = z.infer<typeof SessionsResponse>;
 // Transaction-page schema (matches RESEARCH § Code Examples). Permissive on purpose.
 const RawTx = z
   .object({
-    transaction_id: z.string().optional(),
-    entry_reference: z.string().optional(),
-    status: z.string().optional(),
-    booking_date: z.string().optional(),
-    value_date: z.string().optional(),
-    credit_debit_indicator: z.string().optional(),
+    transaction_id: z.string().nullish(),
+    entry_reference: z.string().nullish(),
+    status: z.string().nullish(),
+    booking_date: z.string().nullish(),
+    value_date: z.string().nullish(),
+    credit_debit_indicator: z.string().nullish(),
     transaction_amount: z
       .object({ currency: z.string(), amount: z.string() })
       .partial()
-      .optional(),
-    creditor: z.object({ name: z.string().optional() }).passthrough().optional(),
+      .nullish(),
+    creditor: z.object({ name: z.string().nullish() }).passthrough().nullish(),
     creditor_account: z
-      .object({ iban: z.string().optional() })
+      .object({ iban: z.string().nullish() })
       .passthrough()
-      .optional(),
-    debtor: z.object({ name: z.string().optional() }).passthrough().optional(),
+      .nullish(),
+    debtor: z.object({ name: z.string().nullish() }).passthrough().nullish(),
     debtor_account: z
-      .object({ iban: z.string().optional() })
+      .object({ iban: z.string().nullish() })
       .passthrough()
-      .optional(),
-    remittance_information: z.array(z.string()).optional(),
+      .nullish(),
+    remittance_information: z.array(z.string()).nullish(),
   })
   .passthrough();
 const TxPage = z
   .object({
     transactions: z.array(RawTx),
-    continuation_key: z.string().optional(),
+    continuation_key: z.string().nullish(),
   })
   .passthrough();
 type TxPageT = z.infer<typeof TxPage>;
@@ -461,12 +461,12 @@ async function main() {
   await appendSpike({
     person,
     revolutName: revolut.name,
-    maxConsentValidity: revolut.maximum_consent_validity,
+    maxConsentValidity: revolut.maximum_consent_validity ?? undefined,
     accounts: session.accounts.map((a) => ({
-      name: a.name,
-      type: a.cash_account_type ?? a.product,
-      usage: a.usage,
-      currency: a.currency,
+      name: a.name ?? undefined,
+      type: a.cash_account_type ?? a.product ?? undefined,
+      usage: a.usage ?? undefined,
+      currency: a.currency ?? undefined,
       ibanPresent: Boolean(a.account_id?.iban),
     })),
     investingFound,

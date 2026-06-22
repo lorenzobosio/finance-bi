@@ -15,7 +15,6 @@ export default defineConfig({
     // DELETE each line the moment its target module lands — that re-arms the test:
     exclude: [
       ...configDefaults.exclude,
-      "test/jwt.test.ts", // -> src/lib/ingestion/enable-banking/jwt.ts (plan 01-03 connect)
       "test/normalize.test.ts", // -> src/lib/ingestion/normalize.ts (plan 01-04)
       "test/dedupe.test.ts", // -> src/lib/ingestion/dedupe.ts (plan 01-04)
       "test/rules.test.ts", // -> src/lib/ingestion/rules/engine.ts (plan 01-04)

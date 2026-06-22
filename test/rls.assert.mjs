@@ -34,6 +34,8 @@ const DATA_TABLES = [
   'members', 'accounts', 'transactions', 'categories', 'rules', 'budgets',
   'investment_contributions', 'goals', 'milestones', 'balances', 'insights',
   'connections', 'dim_calendar',
+  // Phase-1 ingestion tables (RLS enabled in 0004; existence + rowsecurity covered here).
+  'import_batches', 'cost_centers',
 ];
 const ALL_TABLES = ['app_allowlist', ...DATA_TABLES];
 
@@ -150,7 +152,14 @@ try {
   if (deniedRows[0].c !== 0)
     fail(`FND-02b: non-allowlisted email saw ${deniedRows[0].c} dim_calendar rows (expected 0)`);
 
-  console.log('RLS + seed + hardening assertions passed (FND-02a/b, FND-04a/b/c, table-driven allowlist).');
+  // (k) Phase-1 (D-24 / CAT-07): cost_centers seeded with EXACTLY the 4 extensible codes.
+  const ccRows = await sql`select code from public.cost_centers`;
+  const ccCodes = ccRows.map((r) => r.code).sort();
+  const expectedCC = ['compartilhado', 'fernanda', 'lorenzo', 'sublocacao'];
+  if (ccCodes.length !== expectedCC.length || ccCodes.some((c, i) => c !== expectedCC[i]))
+    fail(`Phase-1: cost_centers has [${ccCodes.join(',')}] (expected the 4 D-24 codes: ${expectedCC.join(',')})`);
+
+  console.log('RLS + seed + hardening assertions passed (FND-02a/b, FND-04a/b/c, table-driven allowlist, cost_centers seeded).');
   console.log(
     `  tables=${ALL_TABLES.length} app_allowlist=${allow_count}rows is_email_allowed=SECURITY DEFINER ` +
       `dim_calendar=${cal.day_rows}rows/${cal.distinct_periods}periods [${cal.min_period}..${cal.max_period}] ` +

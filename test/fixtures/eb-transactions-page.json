@@ -1,0 +1,30 @@
+{
+  "_note": "PLACEHOLDER — fully synthetic, no real PII. Overwritten (PII-scrubbed) by a live `pnpm eb:connect` run during the ING-01 spike. Shape mirrors Enable Banking GET /accounts/{uid}/transactions (RESEARCH § Code Examples).",
+  "transactions": [
+    {
+      "transaction_id": "txn-1",
+      "entry_reference": "entry-1",
+      "status": "BOOK",
+      "booking_date": "2026-06-18",
+      "value_date": "2026-06-19",
+      "credit_debit_indicator": "DBDT",
+      "transaction_amount": { "currency": "EUR", "amount": "38.00" },
+      "creditor": { "name": "Counterparty A" },
+      "creditor_account": { "iban": "DE89100000000000101" },
+      "remittance_information": ["remittance line 1"]
+    },
+    {
+      "transaction_id": "txn-2",
+      "entry_reference": "entry-2",
+      "status": "BOOK",
+      "booking_date": "2026-06-17",
+      "value_date": "2026-06-17",
+      "credit_debit_indicator": "CRDT",
+      "transaction_amount": { "currency": "EUR", "amount": "75.00" },
+      "debtor": { "name": "Counterparty B" },
+      "debtor_account": { "iban": "DE89100000000000201" },
+      "remittance_information": ["remittance line 1", "remittance line 2"]
+    }
+  ],
+  "continuation_key": "cont-REDACTED"
+}

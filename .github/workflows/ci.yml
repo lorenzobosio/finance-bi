@@ -97,6 +97,12 @@ jobs:
         run: pnpm test
 
       - name: Live RLS + seed assertions
+        # Skipped on Dependabot PRs: they run with the read-only Dependabot token and CANNOT
+        # see Actions secrets (GitHub's secret-exfiltration guard), so DATABASE_URL is absent
+        # there by design — failing them would make every dependency PR un-mergeable. The
+        # full assertion still runs (and still fails loudly on a missing secret) on every
+        # human push/merge, which is where main is actually protected.
+        if: github.actor != 'dependabot[bot]'
         # Gated on DATABASE_URL being configured as a repo secret. If absent, the job fails
         # loudly so the missing secret is fixed rather than silently skipping the security check.
         env:

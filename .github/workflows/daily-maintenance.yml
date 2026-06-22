@@ -1,0 +1,115 @@
+# Daily maintenance — autonomous project health check (security first).
+#
+# Runs once a day on GitHub's servers (no local machine needed) and reports the things
+# that keep the project "up and running": open security alerts, dependency PRs the bots
+# raised, and whether `main` is green. Safe Dependabot PRs are merged automatically by the
+# companion `dependabot-auto-merge.yml`; THIS job is the daily safety net — it surfaces
+# whatever still needs a human (e.g. major bumps, transitive-only CVEs, a red main) by
+# writing a run summary and upserting a single tracking issue.
+#
+# Designed to GROW: add new check blocks under "Collect signals" over time
+# (stale branches, Vercel deploy health, secret-scanning alerts, coverage drift, …).
+name: Daily maintenance
+
+on:
+  schedule:
+    # 06:23 UTC daily — deliberately an off-:00 minute to avoid the cron stampede.
+    - cron: "23 6 * * *"
+  workflow_dispatch: {} # manual "Run workflow" button for on-demand checks
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  security-events: read
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect signals & build report
+        id: report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set +e # best-effort: a single failing API call must not fail the whole routine
+          TODAY="$(date -u +%Y-%m-%d)"
+          REPORT="$(mktemp)"
+          ACTIONABLE=0
+
+          {
+            echo "## 🔧 Daily maintenance — $TODAY"
+            echo ""
+
+            # --- 1. Open Dependabot security alerts (best-effort; may 403 on token scope) ---
+            echo "### 🛡️ Open Dependabot alerts"
+            ALERTS="$(gh api "repos/$REPO/dependabot/alerts?state=open&per_page=100" 2>/dev/null)"
+            if echo "$ALERTS" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              COUNT="$(echo "$ALERTS" | jq 'length')"
+              if [ "$COUNT" -gt 0 ]; then
+                ACTIONABLE=1
+                echo "$ALERTS" | jq -r '.[] | "- **[\(.security_advisory.severity | ascii_upcase)]** \(.dependency.package.name) \(.security_vulnerability.vulnerable_version_range) → fix \(.security_vulnerability.first_patched_version.identifier // "n/a") · \(.security_advisory.summary) (#\(.number))"'
+              else
+                echo "_None_ ✅"
+              fi
+            else
+              echo "_Could not read alerts via GITHUB_TOKEN — check the Security tab manually._"
+            fi
+            echo ""
+
+            # --- 2. Open dependency PRs from bots ---
+            echo "### 📦 Open dependency PRs"
+            PRS="$(gh pr list --repo "$REPO" --state open --author 'app/dependabot' --json number,title,createdAt 2>/dev/null)"
+            PRCOUNT="$(echo "${PRS:-[]}" | jq 'length' 2>/dev/null || echo 0)"
+            if [ "${PRCOUNT:-0}" -gt 0 ]; then
+              ACTIONABLE=1
+              echo "${PRS}" | jq -r '.[] | "- #\(.number) — \(.title) _(opened \(.createdAt[0:10]))_"'
+              echo ""
+              echo "> Safe (patch/minor) PRs auto-merge once CI is green; anything lingering here likely needs a look (major bump or a red check)."
+            else
+              echo "_None_ ✅"
+            fi
+            echo ""
+
+            # --- 3. Is main green? ---
+            echo "### 🚦 main CI"
+            MAIN_CI="$(gh run list --repo "$REPO" --branch main --workflow CI --limit 1 --json conclusion,headSha,createdAt 2>/dev/null | jq -r '.[0] | "\(.conclusion // "running") (\(.headSha[0:7]), \(.createdAt[0:10]))"' 2>/dev/null)"
+            echo "- Latest CI on main: **${MAIN_CI:-unknown}**"
+            case "$MAIN_CI" in
+              success*) : ;;
+              *) ACTIONABLE=1 ;;
+            esac
+          } > "$REPORT"
+
+          echo "actionable=$ACTIONABLE" >> "$GITHUB_OUTPUT"
+          echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
+
+          # Always publish to the run summary (the at-a-glance dashboard).
+          cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upsert tracking issue (only when something needs attention)
+        if: ${{ steps.report.outputs.actionable == '1' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REPORT_PATH: ${{ steps.report.outputs.report_path }}
+        run: |
+          set -e
+          gh label create maintenance --repo "$REPO" --color FBCA04 \
+            --description "Automated maintenance / security housekeeping" 2>/dev/null || true
+
+          # One rolling issue keyed by the `maintenance` label — update it instead of spamming.
+          EXISTING="$(gh issue list --repo "$REPO" --label maintenance --state open \
+            --json number --jq '.[0].number' 2>/dev/null)"
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --repo "$REPO" --body-file "$REPORT_PATH"
+            gh issue comment "$EXISTING" --repo "$REPO" \
+              --body "🔄 Refreshed by the daily maintenance run ($(date -u +%Y-%m-%d))."
+            echo "Updated tracking issue #$EXISTING"
+          else
+            gh issue create --repo "$REPO" --label maintenance \
+              --title "🔧 Maintenance: items needing attention" \
+              --body-file "$REPORT_PATH"
+          fi

@@ -1,30 +1,1671 @@
 {
-  "_note": "PLACEHOLDER — fully synthetic, no real PII. Overwritten (PII-scrubbed) by a live `pnpm eb:connect` run during the ING-01 spike. Shape mirrors Enable Banking GET /accounts/{uid}/transactions (RESEARCH § Code Examples).",
   "transactions": [
     {
-      "transaction_id": "txn-1",
+      "transaction_id": null,
       "entry_reference": "entry-1",
       "status": "BOOK",
-      "booking_date": "2026-06-18",
-      "value_date": "2026-06-19",
-      "credit_debit_indicator": "DBDT",
-      "transaction_amount": { "currency": "EUR", "amount": "38.00" },
-      "creditor": { "name": "Counterparty A" },
-      "creditor_account": { "iban": "DE89100000000000101" },
-      "remittance_information": ["remittance line 1"]
+      "booking_date": "2026-06-22",
+      "value_date": "2026-06-22",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "38.07"
+      },
+      "creditor": {
+        "name": "Counterparty A",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty N",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000020",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
     },
     {
-      "transaction_id": "txn-2",
+      "transaction_id": null,
       "entry_reference": "entry-2",
+      "status": "PDNG",
+      "booking_date": "2026-06-22",
+      "value_date": null,
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "75.14"
+      },
+      "creditor": {
+        "name": "Counterparty B",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty O",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CARD_PAYMENT",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": [
+        {
+          "identification": "8017",
+          "scheme_name": "CPAN",
+          "issuer": "VISA"
+        }
+      ],
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-3",
+      "status": "BOOK",
+      "booking_date": "2026-06-20",
+      "value_date": "2026-06-20",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "112.21"
+      },
+      "creditor": {
+        "name": "Counterparty C",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty P",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000020",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-4",
+      "status": "BOOK",
+      "booking_date": "2026-06-20",
+      "value_date": "2026-06-21",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "149.28"
+      },
+      "creditor": {
+        "name": "Counterparty D",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty Q",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CARD_PAYMENT",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": [
+        {
+          "identification": "8017",
+          "scheme_name": "CPAN",
+          "issuer": "VISA"
+        }
+      ],
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-5",
+      "status": "BOOK",
+      "booking_date": "2026-06-20",
+      "value_date": "2026-06-20",
+      "credit_debit_indicator": "CRDT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "186.35"
+      },
+      "creditor": {
+        "name": "Counterparty E",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty R",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-6",
+      "status": "BOOK",
+      "booking_date": "2026-06-19",
+      "value_date": "2026-06-19",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "223.42"
+      },
+      "creditor": {
+        "name": "Counterparty F",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty S",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-7",
       "status": "BOOK",
       "booking_date": "2026-06-17",
       "value_date": "2026-06-17",
       "credit_debit_indicator": "CRDT",
-      "transaction_amount": { "currency": "EUR", "amount": "75.00" },
-      "debtor": { "name": "Counterparty B" },
-      "debtor_account": { "iban": "DE89100000000000201" },
-      "remittance_information": ["remittance line 1", "remittance line 2"]
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "260.49"
+      },
+      "creditor": {
+        "name": "Counterparty G",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty T",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000020",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TOPUP",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-8",
+      "status": "BOOK",
+      "booking_date": "2026-06-17",
+      "value_date": "2026-06-17",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "297.56"
+      },
+      "creditor": {
+        "name": "Counterparty H",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty U",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000020",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-9",
+      "status": "BOOK",
+      "booking_date": "2026-06-17",
+      "value_date": "2026-06-17",
+      "credit_debit_indicator": "CRDT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "334.63"
+      },
+      "creditor": {
+        "name": "Counterparty I",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty V",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000020",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TOPUP",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-10",
+      "status": "BOOK",
+      "booking_date": "2026-06-15",
+      "value_date": "2026-06-15",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "371.70"
+      },
+      "creditor": {
+        "name": "Counterparty J",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000010",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty W",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-11",
+      "status": "BOOK",
+      "booking_date": "2026-06-15",
+      "value_date": "2026-06-15",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "408.77"
+      },
+      "creditor": {
+        "name": "Counterparty K",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty X",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000021",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-12",
+      "status": "BOOK",
+      "booking_date": "2026-06-15",
+      "value_date": "2026-06-16",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "445.84"
+      },
+      "creditor": {
+        "name": "Counterparty L",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty Y",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CARD_PAYMENT",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": [
+        {
+          "identification": "8017",
+          "scheme_name": "CPAN",
+          "issuer": "VISA"
+        }
+      ],
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-13",
+      "status": "BOOK",
+      "booking_date": "2026-06-13",
+      "value_date": "2026-06-13",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "482.91"
+      },
+      "creditor": {
+        "name": "Counterparty M",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty Z",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000021",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-14",
+      "status": "BOOK",
+      "booking_date": "2026-06-13",
+      "value_date": "2026-06-14",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "519.98"
+      },
+      "creditor": {
+        "name": "Counterparty N",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty A",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CARD_PAYMENT",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": [
+        {
+          "identification": "8017",
+          "scheme_name": "CPAN",
+          "issuer": "VISA"
+        }
+      ],
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-15",
+      "status": "BOOK",
+      "booking_date": "2026-06-13",
+      "value_date": "2026-06-13",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "556.05"
+      },
+      "creditor": {
+        "name": "Counterparty O",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty B",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "LOAN_PAYMENT",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-16",
+      "status": "BOOK",
+      "booking_date": "2026-06-10",
+      "value_date": "2026-06-10",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "593.12"
+      },
+      "creditor": {
+        "name": "Counterparty P",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty C",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000021",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-17",
+      "status": "BOOK",
+      "booking_date": "2026-06-10",
+      "value_date": "2026-06-11",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "630.19"
+      },
+      "creditor": {
+        "name": "Counterparty Q",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty D",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CARD_PAYMENT",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": [
+        {
+          "identification": "8017",
+          "scheme_name": "CPAN",
+          "issuer": "VISA"
+        }
+      ],
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-18",
+      "status": "BOOK",
+      "booking_date": "2026-06-10",
+      "value_date": "2026-06-10",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "667.26"
+      },
+      "creditor": {
+        "name": "Counterparty R",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty E",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-19",
+      "status": "BOOK",
+      "booking_date": "2026-06-07",
+      "value_date": "2026-06-07",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "704.33"
+      },
+      "creditor": {
+        "name": "Counterparty S",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000011",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty F",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-20",
+      "status": "BOOK",
+      "booking_date": "2026-06-07",
+      "value_date": "2026-06-07",
+      "credit_debit_indicator": "CRDT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "741.40"
+      },
+      "creditor": {
+        "name": "Counterparty T",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty G",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000022",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TOPUP",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-21",
+      "status": "BOOK",
+      "booking_date": "2026-06-04",
+      "value_date": "2026-06-04",
+      "credit_debit_indicator": "CRDT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "778.47"
+      },
+      "creditor": {
+        "name": "Counterparty U",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000012",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty H",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000022",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-22",
+      "status": "BOOK",
+      "booking_date": "2026-06-03",
+      "value_date": "2026-06-03",
+      "credit_debit_indicator": "CRDT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "815.54"
+      },
+      "creditor": {
+        "name": "Counterparty V",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty I",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000022",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TOPUP",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-23",
+      "status": "BOOK",
+      "booking_date": "2026-06-02",
+      "value_date": "2026-06-02",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "852.61"
+      },
+      "creditor": {
+        "name": "Counterparty W",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000012",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty J",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-24",
+      "status": "BOOK",
+      "booking_date": "2026-06-02",
+      "value_date": "2026-06-02",
+      "credit_debit_indicator": "CRDT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "889.68"
+      },
+      "creditor": {
+        "name": "Counterparty X",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000012",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty K",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000022",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-25",
+      "status": "BOOK",
+      "booking_date": "2026-06-02",
+      "value_date": "2026-06-02",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "926.75"
+      },
+      "creditor": {
+        "name": "Counterparty Y",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty L",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-26",
+      "status": "BOOK",
+      "booking_date": "2026-06-01",
+      "value_date": "2026-06-01",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "963.82"
+      },
+      "creditor": {
+        "name": "Counterparty Z",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000012",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty M",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-27",
+      "status": "BOOK",
+      "booking_date": "2026-06-01",
+      "value_date": "2026-06-01",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1000.89"
+      },
+      "creditor": {
+        "name": "Counterparty A",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty N",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-28",
+      "status": "BOOK",
+      "booking_date": "2026-06-01",
+      "value_date": "2026-06-01",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1037.96"
+      },
+      "creditor": {
+        "name": "Counterparty B",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty O",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-29",
+      "status": "BOOK",
+      "booking_date": "2026-05-30",
+      "value_date": "2026-06-01",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1074.03"
+      },
+      "creditor": {
+        "name": "Counterparty C",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000012",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty P",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-30",
+      "status": "BOOK",
+      "booking_date": "2026-05-29",
+      "value_date": "2026-05-29",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1111.10"
+      },
+      "creditor": {
+        "name": "Counterparty D",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000012",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty Q",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-31",
+      "status": "BOOK",
+      "booking_date": "2026-05-27",
+      "value_date": "2026-05-27",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1148.17"
+      },
+      "creditor": {
+        "name": "Counterparty E",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "DE891000000000000013",
+        "other": null
+      },
+      "debtor": {
+        "name": "Counterparty R",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1",
+        "remittance line 2"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-32",
+      "status": "BOOK",
+      "booking_date": "2026-05-24",
+      "value_date": "2026-05-24",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1185.24"
+      },
+      "creditor": {
+        "name": "Counterparty F",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty S",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "DE891000000000000023",
+        "other": null
+      },
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "TRANSFER",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "transaction_id": null,
+      "entry_reference": "entry-33",
+      "status": "BOOK",
+      "booking_date": "2026-05-24",
+      "value_date": "2026-05-25",
+      "credit_debit_indicator": "DBIT",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1222.31"
+      },
+      "creditor": {
+        "name": "Counterparty G",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "debtor": {
+        "name": "Counterparty T",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": null,
+      "remittance_information": [
+        "remittance line 1"
+      ],
+      "merchant_category_code": null,
+      "creditor_agent": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CARD_PAYMENT",
+        "sub_code": null
+      },
+      "transaction_date": null,
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "debtor_account_additional_identification": [
+        {
+          "identification": "8017",
+          "scheme_name": "CPAN",
+          "issuer": "VISA"
+        }
+      ],
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null
     }
-  ],
-  "continuation_key": "cont-REDACTED"
+  ]
 }

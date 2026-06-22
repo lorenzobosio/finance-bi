@@ -229,14 +229,42 @@ function scrubSession(session: SessionsResponseT): SessionsResponseT {
   return {
     ...session,
     session_id: "sess-REDACTED",
-    accounts: session.accounts.map((a, i) => ({
-      ...a,
-      uid: `uid-${i + 1}`,
-      name: a.name ? `Account ${i + 1}` : a.name,
-      account_id: a.account_id
-        ? { ...a.account_id, iban: a.account_id.iban ? fakeIban(i + 1) : undefined }
-        : a.account_id,
-    })),
+    accounts: session.accounts.map((a, i) => {
+      // The base schema is `.passthrough()`, so Revolut fields it doesn't model
+      // (all_account_ids, identification_hash[es], postal_address, …) survive the
+      // spread — and several of them carry real PII (IBANs, addresses, stable account
+      // tokens). Redact those explicitly; a public repo must never hold real values.
+      const scrubbed = {
+        ...a,
+        uid: `uid-${i + 1}`,
+        name: a.name ? `Account ${i + 1}` : a.name,
+        account_id: a.account_id
+          ? { ...a.account_id, iban: a.account_id.iban ? fakeIban(i + 1) : undefined }
+          : a.account_id,
+      } as Record<string, unknown>;
+
+      if (Array.isArray(scrubbed.all_account_ids)) {
+        scrubbed.all_account_ids = (
+          scrubbed.all_account_ids as Array<Record<string, unknown>>
+        ).map((id) => ({
+          ...id,
+          identification: id.identification ? fakeIban(i + 1) : id.identification,
+        }));
+      }
+      if ("identification_hash" in scrubbed && scrubbed.identification_hash) {
+        scrubbed.identification_hash = "hash-REDACTED";
+      }
+      if (Array.isArray(scrubbed.identification_hashes)) {
+        scrubbed.identification_hashes = (
+          scrubbed.identification_hashes as unknown[]
+        ).map(() => "hash-REDACTED");
+      }
+      // Defensively drop free-text PII carriers we never need in a fixture.
+      for (const k of ["postal_address", "account_servicer", "details"] as const) {
+        if (scrubbed[k]) scrubbed[k] = null;
+      }
+      return scrubbed as (typeof session.accounts)[number];
+    }),
   };
 }
 

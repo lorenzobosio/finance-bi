@@ -1,23 +1,55 @@
 {
-  "_note": "PLACEHOLDER — fully synthetic, no real PII. Overwritten (PII-scrubbed) by a live `pnpm eb:connect` run during the ING-01 spike. Shape mirrors Enable Banking POST /sessions (RESEARCH § Pattern 1).",
   "session_id": "sess-REDACTED",
   "accounts": [
     {
       "uid": "uid-1",
-      "account_id": { "iban": "DE89100000000000001" },
+      "account_id": {
+        "iban": "DE891000000000000000",
+        "other": null
+      },
       "name": "Account 1",
       "currency": "EUR",
       "cash_account_type": "CACC",
-      "usage": "PRIV"
-    },
-    {
-      "uid": "uid-2",
-      "account_id": { "iban": "DE89100000000000002" },
-      "name": "Account 2",
-      "currency": "EUR",
-      "cash_account_type": "CACC",
-      "usage": "PRIV"
+      "usage": "PRIV",
+      "product": null,
+      "all_account_ids": [
+        {
+          "identification": "DE891000000000000000",
+          "scheme_name": "IBAN",
+          "issuer": null
+        },
+        {
+          "identification": "DE891000000000000000",
+          "scheme_name": "IBAN",
+          "issuer": null
+        }
+      ],
+      "account_servicer": null,
+      "details": null,
+      "psu_status": null,
+      "credit_limit": null,
+      "legal_age": null,
+      "postal_address": null,
+      "identification_hash": "hash-REDACTED",
+      "identification_hashes": [
+        "hash-REDACTED",
+        "hash-REDACTED",
+        "hash-REDACTED",
+        "hash-REDACTED",
+        "hash-REDACTED",
+        "hash-REDACTED"
+      ]
     }
   ],
-  "access": { "valid_until": "2026-09-20T00:00:00.000Z" }
+  "access": {
+    "valid_until": "2026-12-19T08:54:41.218000Z",
+    "accounts": null,
+    "balances": true,
+    "transactions": true
+  },
+  "aspsp": {
+    "name": "Revolut",
+    "country": "DE"
+  },
+  "psu_type": "personal"
 }

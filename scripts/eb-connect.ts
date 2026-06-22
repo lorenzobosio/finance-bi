@@ -132,11 +132,20 @@ export interface ConsentWriter {
  */
 export function inferCostCenter(name: string | null | undefined): string | null {
   const n = (name ?? "").toLowerCase();
-  if (n.includes("lorenzo")) return "lorenzo";
-  if (n.includes("fernanda")) return "fernanda";
-  if (n.includes("joint") || n.includes("shared") || n.includes("compartilhado")) {
+  const hasLorenzo = n.includes("lorenzo");
+  const hasFernanda = n.includes("fernanda");
+  // A JOINT account names BOTH partners (e.g. "FERNANDA BOSIO & LORENZO BOSIO") — check
+  // this BEFORE the single-name cases, else "lorenzo" would win and mis-label it. D-25.
+  if (
+    (hasLorenzo && hasFernanda) ||
+    n.includes("joint") ||
+    n.includes("shared") ||
+    n.includes("compartilhado")
+  ) {
     return "compartilhado";
   }
+  if (hasLorenzo) return "lorenzo";
+  if (hasFernanda) return "fernanda";
   return null;
 }
 
@@ -152,10 +161,18 @@ export function looksLikeInvesting(a: Pick<SessionAccount, "name" | "cash_accoun
  * module (e.g. from the test) never touches Supabase env vars.
  */
 export async function createServiceWriter(): Promise<ConsentWriter> {
-  // Lazy dynamic import — keeps `import "server-only"` out of the test's import graph (see
-  // the import-section note). The test injects a fake writer and never reaches this path.
-  const { createServiceClient } = await import("@/lib/supabase/service");
-  const sb = createServiceClient();
+  // Build the service_role client DIRECTLY here — NOT via src/lib/supabase/service.ts, whose
+  // `import "server-only"` THROWS outside a Next RSC build (i.e. in this tsx Node script:
+  // "This module cannot be imported from a Client Component module"). This script runs only
+  // in Node (server tier, never bundled to the browser), so the server-only guard is
+  // unnecessary; the secret key comes from env (.env.local / GitHub secret) and is never
+  // logged. Client options mirror createServiceClient() in service.ts.
+  const { createClient } = await import("@supabase/supabase-js");
+  const sb = createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
   return {
     async upsertConnection(row) {
       const { error } = await sb

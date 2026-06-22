@@ -121,6 +121,8 @@ export interface ConsentWriter {
   upsertConnection(row: ConnectionUpsert): Promise<void>;
   upsertAccount(row: AccountUpsert): Promise<void>;
   writeHeartbeat(): Promise<void>;
+  /** Release the underlying DB connection (the postgres-driver writer). Optional for fakes. */
+  close?(): Promise<void>;
 }
 
 /**
@@ -161,83 +163,54 @@ export function looksLikeInvesting(a: Pick<SessionAccount, "name" | "cash_accoun
  * module (e.g. from the test) never touches Supabase env vars.
  */
 export async function createServiceWriter(): Promise<ConsentWriter> {
-  // Build the service_role client DIRECTLY here — NOT via src/lib/supabase/service.ts, whose
-  // `import "server-only"` THROWS outside a Next RSC build (i.e. in this tsx Node script:
-  // "This module cannot be imported from a Client Component module"). This script runs only
-  // in Node (server tier, never bundled to the browser), so the server-only guard is
-  // unnecessary; the secret key comes from env (.env.local / GitHub secret) and is never
-  // logged. Client options mirror createServiceClient() in service.ts.
-  const { createClient } = await import("@supabase/supabase-js");
-  const sb = createClient(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
+  // Use the `postgres` driver + DATABASE_URL — the project's established Node-side DB pattern
+  // (test:rls, drizzle). NOT @supabase/supabase-js: its client eagerly inits a Realtime
+  // WebSocket, absent on Node 20 ("Node.js 20 detected without native WebSocket support"),
+  // and NOT src/lib/supabase/service.ts, whose `import "server-only"` throws outside a Next
+  // RSC build. A direct DB connection runs as the connection role and BYPASSES RLS (the
+  // service_role-equivalent the cron also needs). DATABASE_URL is a secret (.env.local / GH
+  // secret), never logged. The connection is released via close() in persistSession.
+  const postgres = (await import("postgres")).default;
+  const sql = postgres(requireEnv("DATABASE_URL"), { max: 1, onnotice: () => {} });
   return {
     async upsertConnection(row) {
-      const { error } = await sb
-        .from("connections")
-        .upsert(
-          {
-            provider: row.provider,
-            session_id: row.sessionId,
-            consent_status: row.consentStatus,
-            expires_at: row.expiresAt, // the REAL valid_until — never hardcoded
-          },
-          { onConflict: "session_id" },
-        );
-      if (error) throw new Error(`connections upsert failed: ${error.message}`);
+      // connections.session_id has no UNIQUE constraint, so upsert by hand: update the row
+      // for this session if it exists, else insert. expires_at is the REAL valid_until.
+      const existing =
+        await sql`select id from connections where session_id = ${row.sessionId} limit 1`;
+      if (existing.length > 0) {
+        await sql`update connections set provider = ${row.provider}, consent_status = ${row.consentStatus}, expires_at = ${row.expiresAt} where session_id = ${row.sessionId}`;
+      } else {
+        await sql`insert into connections (provider, session_id, consent_status, expires_at) values (${row.provider}, ${row.sessionId}, ${row.consentStatus}, ${row.expiresAt})`;
+      }
     },
     async upsertAccount(row) {
-      // The virtual investing row (D-22) carries enable_banking_id=null, and Postgres
-      // treats NULLs as DISTINCT in a unique index — so `onConflict:"enable_banking_id"`
-      // cannot dedupe it, and connecting BOTH logins (Lorenzo + Fernanda) would insert two
-      // duplicate virtual rows. Make that path idempotent with a check-then-insert keyed on
+      // The virtual investing row (D-22) carries enable_banking_id=null; Postgres treats
+      // NULLs as DISTINCT in a unique index, so ON CONFLICT cannot dedupe it and connecting
+      // BOTH logins would insert two. Make it idempotent with a check-then-insert keyed on
       // (enable_banking_id IS NULL AND is_investment) so exactly one virtual row ever exists.
       if (row.enableBankingId === null) {
-        const { data: existing, error: selErr } = await sb
-          .from("accounts")
-          .select("id")
-          .is("enable_banking_id", null)
-          .eq("is_investment", true)
-          .limit(1);
-        if (selErr)
-          throw new Error(`accounts (virtual) lookup failed: ${selErr.message}`);
-        if (existing && existing.length > 0) return; // already present — idempotent no-op
-        const { error } = await sb.from("accounts").insert({
-          enable_banking_id: null,
-          iban: row.iban,
-          name: row.name,
-          default_cost_center: row.defaultCostCenter,
-          is_investment: row.isInvestment,
-          is_synced: row.isSynced,
-        });
-        if (error)
-          throw new Error(`accounts (virtual) insert failed: ${error.message}`);
+        const existing =
+          await sql`select id from accounts where enable_banking_id is null and is_investment = true limit 1`;
+        if (existing.length > 0) return; // already present — idempotent no-op
+        await sql`insert into accounts (enable_banking_id, iban, name, default_cost_center, is_investment, is_synced)
+                  values (null, ${row.iban}, ${row.name}, ${row.defaultCostCenter}, ${row.isInvestment}, ${row.isSynced})`;
         return;
       }
-      const { error } = await sb.from("accounts").upsert(
-        {
-          enable_banking_id: row.enableBankingId,
-          iban: row.iban,
-          name: row.name,
-          default_cost_center: row.defaultCostCenter,
-          is_investment: row.isInvestment,
-          is_synced: row.isSynced,
-        },
-        { onConflict: "enable_banking_id" },
-      );
-      if (error) throw new Error(`accounts upsert failed: ${error.message}`);
+      // Real account: enable_banking_id is UNIQUE (0003), so ON CONFLICT dedupes re-runs.
+      await sql`insert into accounts (enable_banking_id, iban, name, default_cost_center, is_investment, is_synced)
+                values (${row.enableBankingId}, ${row.iban}, ${row.name}, ${row.defaultCostCenter}, ${row.isInvestment}, ${row.isSynced})
+                on conflict (enable_banking_id) do update set
+                  iban = excluded.iban, name = excluded.name,
+                  default_cost_center = excluded.default_cost_center,
+                  is_investment = excluded.is_investment, is_synced = excluded.is_synced`;
     },
     async writeHeartbeat() {
       const now = new Date().toISOString();
-      const { error } = await sb.from("import_batches").insert({
-        source: "enable_banking",
-        status: "success",
-        started_at: now,
-        finished_at: now,
-      });
-      if (error) throw new Error(`heartbeat insert failed: ${error.message}`);
+      await sql`insert into import_batches (source, status, started_at, finished_at) values ('enable_banking', 'success', ${now}, ${now})`;
+    },
+    async close() {
+      await sql.end({ timeout: 5 });
     },
   };
 }
@@ -261,6 +234,7 @@ export async function persistSession(
   writer?: ConsentWriter,
   costCenterByUid: Record<string, string> = {},
 ): Promise<{ sessionId: string; accountUids: string[]; expiresAt: string }> {
+  const ownWriter = !writer;
   const w = writer ?? (await createServiceWriter());
   const expiresAt = session.access.valid_until;
 
@@ -303,6 +277,8 @@ export async function persistSession(
 
   // 4. Heartbeat — the connect run itself counts as a keep-alive.
   await w.writeHeartbeat();
+
+  if (ownWriter) await w.close?.();
 
   return {
     sessionId: session.session_id,

@@ -21,6 +21,7 @@ import {
   numeric,
   timestamp,
   integer,
+  boolean,
   date,
   uniqueIndex,
   index,
@@ -40,8 +41,10 @@ export const flowType = pgEnum('flow_type', [
   'transferencia',
 ]);
 
-// Analytical label only — NOT an access boundary (D-15).
-export const costCenter = pgEnum('cost_center', ['lorenzo', 'fernanda', 'shared']);
+// NOTE: `cost_center` is NO LONGER a fixed enum. Phase 1 replaced it with the extensible
+// `costCenters` lookup table (D-24) so new centers (e.g. `sublocacao`) add a row instead
+// of a breaking enum migration. The four former enum columns are now text FKs to
+// costCenters.code. It remains an analytical label only, NEVER an access boundary (D-15).
 
 export const categoryGroup = pgEnum('category_group', [
   'essential',
@@ -65,6 +68,16 @@ export const appAllowlist = pgTable('app_allowlist', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Extensible cost-center lookup (D-24) — replaces the fixed `cost_center` enum so a new
+// center (e.g. `sublocacao`) is one INSERT, not a breaking enum migration. Seeded
+// lorenzo/fernanda/compartilhado/sublocacao in 0003. Analytical label only (D-15) —
+// FK-referenced by accounts.default_cost_center, rules.set_cost_center,
+// transactions.cost_center, budgets.cost_center.
+export const costCenters = pgTable('cost_centers', {
+  code: text('code').primaryKey(),
+  label: text('label'),
+});
+
 // The 2 household members (Lorenzo + Fernanda). Seeded in 0002 (names only — no emails).
 export const members = pgTable('members', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -76,26 +89,38 @@ export const members = pgTable('members', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Bank accounts (the 3 Revolut accounts). `default_cost_center` is the analytical
-// label new transactions inherit; `currency` is EUR-only in the MVP.
+// Bank accounts (the 3 Revolut accounts + a virtual investing account). `default_cost_center`
+// is the analytical label new transactions inherit; `currency` is EUR-only in the MVP.
+// Phase-1 ingestion fields: `is_investment` flags the (virtual) ETF pocket — investimento is
+// keyed on ANY is_investment account (D-22); `enable_banking_id`/`iban` link a row to the
+// live bank account; `is_synced` marks accounts the daily pull should refresh.
 export const accounts = pgTable('accounts', {
   id: uuid('id').primaryKey().defaultRandom(),
   memberId: uuid('member_id').references(() => members.id),
   name: text('name').notNull(),
   kind: text('kind'),
-  defaultCostCenter: costCenter('default_cost_center'),
+  defaultCostCenter: text('default_cost_center').references(() => costCenters.code),
   currency: text('currency').notNull().default('EUR'),
+  isInvestment: boolean('is_investment').notNull().default(false),
+  enableBankingId: text('enable_banking_id').unique(),
+  iban: text('iban'),
+  isSynced: boolean('is_synced').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Open-banking consent / connection state. `expires_at` tracks the 90-day PSD2
-// reconnect cadence (Phase 1 stores real consent expiry).
+// Open-banking consent / connection state. `expires_at` tracks the PSD2 reconnect cadence
+// (Phase 1 stores the real 180-day consent expiry from access.valid_until). Phase-1 fields:
+// `consent_status` (active|expired), `last_pull_at` (daily-pull heartbeat), `session_id`
+// (the Enable Banking session uid the pull reuses).
 export const connections = pgTable('connections', {
   id: uuid('id').primaryKey().defaultRandom(),
   accountRef: text('account_ref'),
   provider: text('provider'),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   status: text('status'),
+  consentStatus: text('consent_status'),
+  lastPullAt: timestamp('last_pull_at', { withTimezone: true }),
+  sessionId: text('session_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -120,13 +145,17 @@ export const rules = pgTable('rules', {
   version: integer('version').notNull().default(1),
   matchCriteria: text('match_criteria'),
   setCategory: uuid('set_category').references(() => categories.id),
-  setCostCenter: costCenter('set_cost_center'),
+  setCostCenter: text('set_cost_center').references(() => costCenters.code),
   setFlowType: flowType('set_flow_type'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // The fact table. `amount_eur` is signed numeric(14,2). `dedupe_hash` is NOT NULL +
 // UNIQUE — the idempotency contract that makes Phase-1 daily pulls safe to re-run.
+// Phase-1 ingestion fields: `description_raw` (untouched bank memo), `counterparty` +
+// `counterparty_iban` (drive transferencia/investimento matching — IBANs ARE returned,
+// per the spike), `is_recurring` (rule hint), `status` (BOOK/PEND; PEND is filtered at
+// normalize time but kept here for audit).
 export const transactions = pgTable(
   'transactions',
   {
@@ -139,11 +168,16 @@ export const transactions = pgTable(
     amountEur: numeric('amount_eur', { precision: 14, scale: 2 }).notNull(),
     description: text('description'),
     flowType: flowType('flow_type'),
-    costCenter: costCenter('cost_center'),
+    costCenter: text('cost_center').references(() => costCenters.code),
     categoryId: uuid('category_id').references(() => categories.id),
     ruleId: uuid('rule_id').references(() => rules.id),
     importBatchId: text('import_batch_id'),
     dedupeHash: text('dedupe_hash').notNull(),
+    descriptionRaw: text('description_raw'),
+    counterparty: text('counterparty'),
+    counterpartyIban: text('counterparty_iban'),
+    isRecurring: boolean('is_recurring').notNull().default(false),
+    status: text('status'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -156,7 +190,9 @@ export const transactions = pgTable(
 // Per cost-center monthly budgets. `period_key` is YYYYMM (joins dim_calendar).
 export const budgets = pgTable('budgets', {
   id: uuid('id').primaryKey().defaultRandom(),
-  costCenter: costCenter('cost_center').notNull(),
+  costCenter: text('cost_center')
+    .notNull()
+    .references(() => costCenters.code),
   periodKey: integer('period_key').notNull(),
   amountEur: numeric('amount_eur', { precision: 14, scale: 2 }).notNull(),
 });
@@ -220,4 +256,20 @@ export const dimCalendar = pgTable('dim_calendar', {
   month: integer('month').notNull(),
   quarter: integer('quarter').notNull(),
   periodKey: integer('period_key').notNull(),
+});
+
+// Per-pull ingestion audit + heartbeat (ING-04). The daily cron writes ONE row per pull
+// (via service_role, server-only) so a zero-new-tx run AND an auth-expired run both leave
+// a trace — the freshness/reconnect banners (01-05) read the latest row. RLS-gated like
+// every table (0004). transactions.import_batch_id stores this id as text (no FK, D-low-risk).
+export const importBatches = pgTable('import_batches', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  status: text('status'),
+  source: text('source'),
+  fetched: integer('fetched'),
+  inserted: integer('inserted'),
+  skipped: integer('skipped'),
+  error: text('error'),
 });

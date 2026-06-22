@@ -19,10 +19,12 @@ Out of scope (later phases): the rule-**management UI** — recategorize / creat
 ### Investment flow & the €4k contribution (CAT-03)
 - **D-01:** The couple invests by moving money from any of the **3 cash accounts** (Lorenzo / Fernanda / joint) into a **separate Revolut investing account** where the ETF is bought. Mark that account with an **`is_investment` boolean flag** on `accounts`.
 - **D-02:** The €4k is a **monthly aggregate, not a single transaction** — it can arrive from any of the 3 cash accounts, in one or more transfers.
-- **D-03:** **Contribution rule:** a transfer whose **destination is the investing account** → `flow_type=investimento`. **Source-agnostic and amount-agnostic.** It counts toward the €100k goal and is **excluded from P&L** (revenue and costs).
+- **D-03:** **Contribution rule:** a transfer whose **destination is *any* account flagged `is_investment=true`** → `flow_type=investimento`. **Source-agnostic and amount-agnostic.** It counts toward the €100k goal and is **excluded from P&L** (revenue and costs).
 - **D-04:** Plain internal transfers **among the 3 cash accounts** → `flow_type=transferência` (excluded from P&L, **NOT** counted toward the goal). Only transfers **into the investing account** count as `investimento`. (Phase 1 establishes the investimento destination rule; the broader transferência two-leg pairing engine is Phase 2 / CAT-06.)
 - **D-05:** **"Hit €4k this month" + streak** = sum of `investimento` contributions in the calendar month **≥ €4000** — a **monthly rollup**, replacing the per-transaction `is_planned_4k` flag.
 - **D-06:** **"Total invested" (MVP)** = **cumulative contributions (cost basis)**. Market value is Phase 6 (Enable Banking holdings if exposed, else a prices API: units × ETF price, ISIN **IE000716YHJ7**, with a manual override). The goal denominator stays cost-basis now, swappable later (GOAL-06 / ETF-04).
+- **D-22:** **Multiple investing accounts, generically.** The `investimento` rule keys on **ANY `is_investment=true` account — never a hardcoded account id**. So a future second investing account (e.g. the Adventures/Vanguard **VWCE**, ISIN **IE00BK5BQT80**) classifies correctly from day 1 with zero rework. **Which bucket** a contribution belongs to (Patrimônio/Invesco vs Adventures/Vanguard) is **Phase 3** routing — not Phase 1. **Rationale:** ingestion is forward-only (no backfill), and Adventures contributions may start *before* Phase 3 exists, so they must be classified right immediately. If an investing account is **not exposed over PSD2**, represent it as a **virtual `accounts` row** (`is_investment=true`, marked not-synced) so the outgoing transfer's destination can still resolve to it.
+- **D-23:** **Contribution write-path — single source of truth = `transactions`.** Phase 1 classifies `investimento` on `transactions` and does **NOT** populate `investment_contributions`. "Total invested" (the €100k denominator) is **derived**: `SUM(amount_eur) WHERE flow_type = investimento`. This structurally prevents double-counting. The `investment_contributions` table is reserved for **Phase 3** (per-bucket attribution) / **Phase 6** (units + valuation) — materialize it there only if needed.
 
 ### Classification on ingest — basic rules engine (CAT-01, CAT-02, CAT-07, brought forward from Phase 2)
 - **D-17:** Phase 1 produces **classified** transactions. A basic **versioned `rules` engine** assigns `category`, `cost_center`, and `flow_type` on ingest, plus an `is_recurring` flag. (The `rules` table already exists from Phase 0.) Rules are versioned; a transaction records which rule/version classified it.
@@ -54,11 +56,11 @@ Out of scope (later phases): the rule-**management UI** — recategorize / creat
 
 ### Schema additions implied (planner: confirm against the LIVE schema, add via a migration)
 The Phase 0 schema has the core fields (`dedupe_hash` UNIQUE, `booking_date`, `value_date`, `amount_eur`, `flow_type`, `cost_center`, `expires_at`) but a scout found these likely MISSING and needed for ingestion:
-- `accounts.is_investment` (boolean) and `accounts.enable_banking_id` (the EB account uid)
+- `accounts.is_investment` (boolean — may be a **virtual, not-synced** row for an investing account not exposed over PSD2, D-22) and `accounts.enable_banking_id` (the EB account uid, nullable for virtual rows)
 - `transactions.description_raw`, `transactions.counterparty`, `transactions.is_recurring`
 - `connections.consent_status`, `connections.last_pull_at`
 - an **`import_batches`** table (audit + heartbeat; `transactions.import_batch_id` references it)
-- replace the per-transaction `is_planned_4k` with the monthly-rollup approach (D-05)
+- **Do NOT write `investment_contributions` in Phase 1** (D-23): the €100k total + the €4k monthly streak (D-05) derive from `transactions` (`flow_type=investimento`). The per-transaction `is_planned_4k` flag is unused here.
 </decisions>
 
 <canonical_refs>

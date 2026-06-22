@@ -1,6 +1,6 @@
 {
-  "id": "f2e51d3f-c750-4cd5-86cd-a67081136583",
-  "prevId": "0d4dbb2a-104d-4f52-99df-9e92d3b1aa19",
+  "id": "526b50d5-4b47-4865-a97a-9cf875cba63e",
+  "prevId": "f2e51d3f-c750-4cd5-86cd-a67081136583",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -35,8 +35,7 @@
         },
         "default_cost_center": {
           "name": "default_cost_center",
-          "type": "cost_center",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -46,6 +45,32 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'EUR'"
+        },
+        "is_investment": {
+          "name": "is_investment",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "enable_banking_id": {
+          "name": "enable_banking_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iban": {
+          "name": "iban",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_synced": {
+          "name": "is_synced",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -69,10 +94,31 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "accounts_default_cost_center_cost_centers_code_fk": {
+          "name": "accounts_default_cost_center_cost_centers_code_fk",
+          "tableFrom": "accounts",
+          "tableTo": "cost_centers",
+          "columnsFrom": [
+            "default_cost_center"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "accounts_enable_banking_id_unique": {
+          "name": "accounts_enable_banking_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "enable_banking_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -184,8 +230,7 @@
         },
         "cost_center": {
           "name": "cost_center",
-          "type": "cost_center",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -203,7 +248,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "budgets_cost_center_cost_centers_code_fk": {
+          "name": "budgets_cost_center_cost_centers_code_fk",
+          "tableFrom": "budgets",
+          "tableTo": "cost_centers",
+          "columnsFrom": [
+            "cost_center"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -314,12 +373,55 @@
           "primaryKey": false,
           "notNull": false
         },
+        "consent_status": {
+          "name": "consent_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_pull_at": {
+          "name": "last_pull_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cost_centers": {
+      "name": "cost_centers",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -402,6 +504,74 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'cost_basis'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.import_batches": {
+      "name": "import_batches",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fetched": {
+          "name": "fetched",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inserted": {
+          "name": "inserted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skipped": {
+          "name": "skipped",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -666,8 +836,7 @@
         },
         "set_cost_center": {
           "name": "set_cost_center",
-          "type": "cost_center",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -697,6 +866,19 @@
           ],
           "columnsTo": [
             "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "rules_set_cost_center_cost_centers_code_fk": {
+          "name": "rules_set_cost_center_cost_centers_code_fk",
+          "tableFrom": "rules",
+          "tableTo": "cost_centers",
+          "columnsFrom": [
+            "set_cost_center"
+          ],
+          "columnsTo": [
+            "code"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -758,8 +940,7 @@
         },
         "cost_center": {
           "name": "cost_center",
-          "type": "cost_center",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -786,6 +967,37 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "description_raw": {
+          "name": "description_raw",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "counterparty": {
+          "name": "counterparty",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "counterparty_iban": {
+          "name": "counterparty_iban",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_recurring": {
+          "name": "is_recurring",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -856,6 +1068,19 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
+        "transactions_cost_center_cost_centers_code_fk": {
+          "name": "transactions_cost_center_cost_centers_code_fk",
+          "tableFrom": "transactions",
+          "tableTo": "cost_centers",
+          "columnsFrom": [
+            "cost_center"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "transactions_category_id_categories_id_fk": {
           "name": "transactions_category_id_categories_id_fk",
           "tableFrom": "transactions",
@@ -898,15 +1123,6 @@
         "essential",
         "desire",
         "investment"
-      ]
-    },
-    "public.cost_center": {
-      "name": "cost_center",
-      "schema": "public",
-      "values": [
-        "lorenzo",
-        "fernanda",
-        "shared"
       ]
     },
     "public.flow_type": {

@@ -75,15 +75,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Every dashboard shows a "data as of {date}" freshness banner, and stale or disconnected data is visibly flagged; `connections.expires_at` is stored from the real API response (never hardcoded)
   5. The €4k contribution is classified `flow_type=investimento`, its credit leg is never counted as revenue, and it is excluded from both costs and revenue in every aggregation
 
-**Plans**: 5 plans
+**Plans**: 2/5 plans executed
 
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Wave-0 TDD test scaffolds (jwt/dedupe/normalize/rules + integration stubs) + the discovery spike (ING-01): run pnpm eb:connect once, enumerate exposed accounts + real consent window, capture fixtures (resolves A2/A6/valid_until) (ING-01)
+- [x] 01-01-PLAN.md — Wave-0 TDD test scaffolds (jwt/dedupe/normalize/rules + integration stubs) + the discovery spike (ING-01): run pnpm eb:connect once, enumerate exposed accounts + real consent window, capture fixtures (resolves A2/A6/valid_until) (ING-01)
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 01-02-PLAN.md — Schema migration: ingestion columns + extensible cost_centers lookup (D-24) + import_batches table (RLS) + extend test:rls; [BLOCKING] live Supabase migration push (ING-03, ING-04, CAT-01, CAT-07)
+- [x] 01-02-PLAN.md — Schema migration: ingestion columns + extensible cost_centers lookup (D-24) + import_batches table (RLS) + extend test:rls; [BLOCKING] live Supabase migration push (ING-03, ING-04, CAT-01, CAT-07)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -207,7 +207,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
-| 1. Ingestion (Enable Banking) | 0/5 | Not started | - |
+| 1. Ingestion (Enable Banking) | 2/5 | In Progress|  |
 | 2. Core BI + house-as-business | 0/TBD | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |

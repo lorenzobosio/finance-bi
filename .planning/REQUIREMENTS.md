@@ -120,12 +120,12 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FND-01 | Phase 0 | Pending |
+| FND-01 | Phase 0 | Complete |
 | FND-02 | Phase 0 | Complete |
-| FND-03 | Phase 0 | Pending |
+| FND-03 | Phase 0 | Complete |
 | FND-04 | Phase 0 | Complete |
-| FND-05 | Phase 0 | Pending |
-| FND-06 | Phase 0 | Pending |
+| FND-05 | Phase 0 | Complete |
+| FND-06 | Phase 0 | Complete |
 | ING-01 | Phase 1 | Pending |
 | ING-02 | Phase 1 | Pending |
 | ING-03 | Phase 1 | Pending |
@@ -133,12 +133,12 @@ Which phases cover which requirements. Populated during roadmap creation.
 | ING-05 | Phase 1 | Pending |
 | ING-06 | Phase 1 | Pending |
 | CAT-03 | Phase 1 | Pending |
-| CAT-01 | Phase 2 | Pending |
-| CAT-02 | Phase 2 | Pending |
+| CAT-01 | Phase 1 | Pending |
+| CAT-02 | Phase 1 | Pending |
 | CAT-04 | Phase 2 | Pending |
 | CAT-05 | Phase 2 | Pending |
 | CAT-06 | Phase 2 | Pending |
-| CAT-07 | Phase 2 | Pending |
+| CAT-07 | Phase 1 | Pending |
 | BI-01 | Phase 2 | Pending |
 | BI-02 | Phase 2 | Pending |
 | BI-03 | Phase 2 | Pending |

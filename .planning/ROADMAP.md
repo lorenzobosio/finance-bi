@@ -66,7 +66,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal**: Trustworthy transaction and balance data flows in automatically once a day, deduplicated and correctly typed, with staleness and reconnect states loudly visible — and the €4k investment contribution is correctly classified at the source.
 **Mode:** mvp
 **Depends on**: Phase 0
-**Requirements**: ING-01, ING-02, ING-03, ING-04, ING-05, ING-06, CAT-03
+**Requirements**: ING-01, ING-02, ING-03, ING-04, ING-05, ING-06, CAT-03, CAT-01, CAT-02, CAT-07
 **Success Criteria** (what must be TRUE):
 
   1. The Revolut accounts are connected via Enable Banking, with a documented enumeration (discovery spike) of exactly which accounts/pockets PSD2 exposes and the real consent-window duration
@@ -82,7 +82,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal**: The household-as-a-business derivation and UI layer exists: a fully versioned rules engine assigns category/cost-center/flow_type, and calendar-joined SQL views power P&L, cost-center budgets, spending breakdowns, balance trends, and the Home KPIs — all month-over-month comparable.
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: CAT-01, CAT-02, CAT-04, CAT-05, CAT-06, CAT-07, BI-01, BI-02, BI-03, BI-04, BI-05, BI-06, BI-07
+**Requirements**: CAT-04, CAT-05, CAT-06, BI-01, BI-02, BI-03, BI-04, BI-05, BI-06, BI-07
+<!-- CAT-01, CAT-02, CAT-07 moved to Phase 1 (classify-on-ingest) per the user's saved Phase-1 plan, 2026-06-22 -->>
 **Success Criteria** (what must be TRUE):
 
   1. A versioned rules engine assigns `category`, `cost_center`, and `flow_type` by priority on ingest over a fixed taxonomy (`group` = essential | desire | investment); each account has a default cost center applied automatically with per-transaction override

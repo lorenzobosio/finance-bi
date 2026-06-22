@@ -6,11 +6,11 @@
 <domain>
 ## Phase Boundary
 
-A daily, automatic, **idempotent** pull of the couple's Revolut accounts via Enable Banking (AISP, pull-only, PSD2) → normalized into `transactions` + `balances`, deduplicated, with **staleness/reconnect states loudly visible**, and the **€4k investment contribution classified at source** (`flow_type=investimento`). Covers requirements **ING-01..06** and **CAT-03**.
+A daily, automatic, **idempotent** pull of the couple's Revolut accounts via Enable Banking (AISP, pull-only, PSD2) → normalized into `transactions` + `balances`, deduplicated, **classified on ingest**, with **staleness/reconnect states loudly visible**. Covers requirements **ING-01..06**, **CAT-03**, and — brought forward from Phase 2 per the user's saved Phase-1 plan + acceptance criteria — **CAT-01, CAT-02, CAT-07**.
 
-In scope: the discovery spike (which Revolut accounts/pockets are exposed + real consent window), the JWT/consent connection flow, the daily GitHub Actions cron (incremental transactions + balances snapshot, `dedupe_hash` idempotency, keep-alive heartbeat), the investimento destination rule, `connections` consent tracking, and the "data as of" freshness + reconnect UX.
+In scope: the discovery spike (which Revolut accounts/pockets are exposed + real consent window), the JWT/consent connection flow, the daily GitHub Actions cron (incremental transactions + balances snapshot, `dedupe_hash` idempotency, keep-alive heartbeat), `connections` consent tracking, the "data as of" freshness + reconnect UX, **and a basic versioned `rules` engine that classifies each transaction on ingest** — `flow_type` (faturamento / investimento / custo / transferência), a default `cost_center` per account, and an `is_recurring` flag — so transactions land **already classified** (the acceptance criteria: salary → faturamento, the €4k → investimento, internal transfers never become costs).
 
-Out of scope (later phases): the full versioned rules engine + transferência two-leg pairing + default cost-center (Phase 2 / CAT-01,02,04,05,06,07); P&L / dashboards (Phase 2); the €100k goal page (Phase 3); live ETF market value (Phase 6); push/active alerts (Phase 7); historical backfill (forward-only, never).
+Out of scope (later phases): the rule-**management UI** — recategorize / create-rule from a transaction, explicit re-apply (Phase 2 / CAT-04, CAT-05); the transferência **two-leg pairing** refinement (Phase 2 / CAT-06); P&L + dashboards + cost-center budgets (Phase 2 / BI); the €100k goal page (Phase 3); live ETF market value (Phase 6); push/active alerts (Phase 7); historical backfill (forward-only, never).
 </domain>
 
 <decisions>
@@ -23,6 +23,13 @@ Out of scope (later phases): the full versioned rules engine + transferência tw
 - **D-04:** Plain internal transfers **among the 3 cash accounts** → `flow_type=transferência` (excluded from P&L, **NOT** counted toward the goal). Only transfers **into the investing account** count as `investimento`. (Phase 1 establishes the investimento destination rule; the broader transferência two-leg pairing engine is Phase 2 / CAT-06.)
 - **D-05:** **"Hit €4k this month" + streak** = sum of `investimento` contributions in the calendar month **≥ €4000** — a **monthly rollup**, replacing the per-transaction `is_planned_4k` flag.
 - **D-06:** **"Total invested" (MVP)** = **cumulative contributions (cost basis)**. Market value is Phase 6 (Enable Banking holdings if exposed, else a prices API: units × ETF price, ISIN **IE000716YHJ7**, with a manual override). The goal denominator stays cost-basis now, swappable later (GOAL-06 / ETF-04).
+
+### Classification on ingest — basic rules engine (CAT-01, CAT-02, CAT-07, brought forward from Phase 2)
+- **D-17:** Phase 1 produces **classified** transactions. A basic **versioned `rules` engine** assigns `category`, `cost_center`, and `flow_type` on ingest, plus an `is_recurring` flag. (The `rules` table already exists from Phase 0.) Rules are versioned; a transaction records which rule/version classified it.
+- **D-18:** `flow_type` rules: **salary / employer income → faturamento**; **transfer into the investing account → investimento** (D-03, destination-based); **transfer among the 3 cash accounts → transferência**; **everything else → custo** (default). Investimento and transferência are excluded from P&L.
+- **D-19:** **Default `cost_center` per account** (CAT-07): Lorenzo's personal → Lorenzo, Fernanda's → Fernanda, joint → Shared — applied automatically on ingest. (Per-transaction override + the recategorize/create-rule UI are Phase 2 / CAT-04.)
+- **D-20:** **Fixed category taxonomy** (CAT-01): `group` = essential | desire | investment, seeded (some seeded in Phase 0). Phase 1 ensures the taxonomy is sufficient for the ingest-time rules; rich category management is Phase 2.
+- **D-21:** Suggested plan shape (from the user's saved Phase-1 plan — planner may refine): **1.1 Connect** (consent, list accounts, fetch, write `connections` + `import_batches`), **1.2 Normalize + dedupe** (raw→staging, EUR, `dedupe_hash`, idempotent upsert), **1.3 Rules + scheduler** (rules engine classifying flow_type/cost_center/recurrence + the daily cron with failure handling).
 
 ### Connecting the bank (one-time consent)
 - **D-07:** One-time consent done **in the browser** (authorize at Revolut) via a **local script `pnpm eb:connect`** run **once**, which saves the session. **No in-app admin page in the MVP.**
@@ -103,7 +110,8 @@ The Phase 0 schema has the core fields (`dedupe_hash` UNIQUE, `booking_date`, `v
 <deferred>
 ## Deferred Ideas
 
-- Full versioned rules engine, transferência two-leg pairing (CAT-06), default cost-center per account (CAT-07) → Phase 2.
+- Rule-**management UI** — recategorize / create-rule from a transaction (CAT-04), explicit re-apply (CAT-05) — and the transferência **two-leg pairing** refinement (CAT-06) → Phase 2. (The ingest-time rules engine + default cost-center themselves are now in Phase 1.)
+- P&L, cost-center budgets, spending views, dashboards (BI-01..07) → Phase 2.
 - In-app admin/connection management page → not in MVP (local `pnpm eb:connect` instead).
 - Active reconnect/budget alerts (push/email) → Phase 7.
 - Live ETF market value / holdings valuation → Phase 6 (the cost-basis denominator is swappable).

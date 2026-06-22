@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 0
-current_phase_name: foundation
+current_phase: 1
+current_phase_name: ingestion-enable-banking
 status: executing
-stopped_at: Phase 1 UI-SPEC written (checker deferred — API 529)
-last_updated: "2026-06-22T01:15:16.064Z"
-last_activity: 2026-06-21
-last_activity_desc: Phase 0 execution started
+stopped_at: "01-01 paused at blocking-human checkpoint — provision Enable Banking app before the live discovery spike (ING-01)"
+last_updated: "2026-06-22T06:39:00.000Z"
+last_activity: 2026-06-22
+last_activity_desc: "01-01 Task 1 done (Wave-0 RED tests committed 239231d); awaiting Enable Banking provisioning for the spike"
 progress:
   total_phases: 8
   completed_phases: 1
-  total_plans: 4
+  total_plans: 9
   completed_plans: 5
   percent: 13
 ---
@@ -24,16 +24,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** Show, at a glance and with trustworthy automatic data, exactly how far the couple is from €100k invested — and whether this month's money behaved like a healthy business.
-**Current focus:** Phase 0 — foundation
+**Current focus:** Phase 1 — ingestion-enable-banking
 
 ## Current Position
 
-Phase: 0 (foundation) — EXECUTING
-Plan: 2 of 4
-Status: Ready to execute
-Last activity: 2026-06-21 — Phase 0 execution started
+Phase: 1 (ingestion-enable-banking) — EXECUTING
+Plan: 1 of 5
+Status: 01-01 paused at a blocking-human checkpoint (Task 1/2 complete)
+Last activity: 2026-06-22 — 01-01 Wave-0 RED tests committed (239231d); spike awaits EB credentials
 
 Progress: [░░░░░░░░░░] 0%
+
+### 01-01 progress
+- Task 1 (Wave-0 RED test scaffolds) — DONE, commit 239231d. All 7 test files fail RED at import-resolution (modules built in 01-03/01-04).
+- Checkpoint (provision Enable Banking app + RSA key + redirect_url, set ENABLE_BANKING_APP_ID / ENABLE_BANKING_PRIVATE_KEY) — BLOCKED on human. EB creds absent in .env.local.
+- Task 2 (live SCA spike + fixtures + 01-SPIKE.md, ING-01) — NOT STARTED (gated by the checkpoint; must not be fabricated).
 
 ## Performance Metrics
 

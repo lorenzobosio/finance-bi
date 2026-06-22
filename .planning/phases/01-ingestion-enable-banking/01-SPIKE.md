@@ -1,11 +1,10 @@
 # 01-SPIKE — Enable Banking discovery spike (ING-01)
 
-**Status:** AWAITING LIVE RUN. The connect tooling (`pnpm eb:connect` + the deployed
-`/eb/callback` page) is built and pushed. The interactive SCA at Revolut is a human step
-(D-07/D-08): run `pnpm eb:connect` ONCE PER PERSON (Lorenzo, then Fernanda). Each run
-appends a `## Live run — <person>` section below with the real findings and writes the
-PII-scrubbed fixtures. **Do not finalize the plan SUMMARY until the sections below are
-populated from a real run.**
+**Status:** ✅ COMPLETE (2026-06-22). Both consents run live (Lorenzo + Fernanda). All
+five unknowns resolved (see the runs below): A2 investing NOT exposed · A5 180-day window ·
+A6 counterparty IBANs present · A3 only `entry_reference` (no `transaction_id`) · A4 no PEND.
+Account-holder names are redacted to role labels here (public repo — no PII); the real
+session (with names/IBANs) lives only in the gitignored `.secrets/` file.
 
 ## What this spike must resolve
 
@@ -33,3 +32,42 @@ They cannot be answered from docs — only from a real SCA run.
 ## Findings
 
 *(Each `pnpm eb:connect` run appends a `## Live run — <person>` section here.)*
+
+
+---
+
+## Live run — Lorenzo (2026-06-22T08:12:36.939Z)
+
+**ASPSP:** Revolut · **maximum_consent_validity:** 15552000s
+
+### Exposed accounts (resolves A2)
+
+| # | name | type | usage | currency | iban |
+|---|------|------|-------|----------|------|
+| 1 | Lorenzo — personal | CACC | PRIV | EUR | present |
+| 2 | Joint (shared) | CACC | PRIV | EUR | present |
+
+- **Investing/securities account exposed? NO** — investing account NOT exposed over PSD2 (the expected case) — investimento is detected on the OUTGOING leg via a VIRTUAL is_investment=true account row matched by counterparty IBAN/description (D-22).
+- **Real consent window (resolves A5): `access.valid_until` = 2026-12-19T08:11:30.035000Z** — this drives `connections.expires_at`; read, never hardcoded.
+- **Counterparty IBAN availability (resolves A6):** YES — creditor/debtor IBANs present on at least one tx.
+- **Stable transaction id (informs A3):** only entry_reference present.
+- **PEND rows (informs A4):** NO — only BOOK in this window.
+
+
+---
+
+## Live run — Fernanda (2026-06-22T08:57:52.009Z)
+
+**ASPSP:** Revolut · **maximum_consent_validity:** 15552000s
+
+### Exposed accounts (resolves A2)
+
+| # | name | type | usage | currency | iban |
+|---|------|------|-------|----------|------|
+| 1 | Fernanda — personal | CACC | PRIV | EUR | present |
+
+- **Investing/securities account exposed? NO** — investing account NOT exposed over PSD2 (the expected case) — investimento is detected on the OUTGOING leg via a VIRTUAL is_investment=true account row matched by counterparty IBAN/description (D-22).
+- **Real consent window (resolves A5): `access.valid_until` = 2026-12-19T08:54:41.218000Z** — this drives `connections.expires_at`; read, never hardcoded.
+- **Counterparty IBAN availability (resolves A6):** YES — creditor/debtor IBANs present on at least one tx.
+- **Stable transaction id (informs A3):** only entry_reference present.
+- **PEND rows (informs A4):** NO — only BOOK in this window.

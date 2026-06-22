@@ -1,0 +1,23 @@
+{
+  "_note": "PLACEHOLDER — fully synthetic, no real PII. Overwritten (PII-scrubbed) by a live `pnpm eb:connect` run during the ING-01 spike. Shape mirrors Enable Banking POST /sessions (RESEARCH § Pattern 1).",
+  "session_id": "sess-REDACTED",
+  "accounts": [
+    {
+      "uid": "uid-1",
+      "account_id": { "iban": "DE89100000000000001" },
+      "name": "Account 1",
+      "currency": "EUR",
+      "cash_account_type": "CACC",
+      "usage": "PRIV"
+    },
+    {
+      "uid": "uid-2",
+      "account_id": { "iban": "DE89100000000000002" },
+      "name": "Account 2",
+      "currency": "EUR",
+      "cash_account_type": "CACC",
+      "usage": "PRIV"
+    }
+  ],
+  "access": { "valid_until": "2026-09-20T00:00:00.000Z" }
+}

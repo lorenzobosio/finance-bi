@@ -39,6 +39,9 @@ yarn-error.log*
 .env*.local
 !.env.example
 
+# enable banking — saved SCA sessions (session_id + account uids); never commit
+.secrets/
+
 # vercel
 .vercel
 

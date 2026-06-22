@@ -17,7 +17,7 @@ export default async function ProtectedHome() {
   // returned under RLS for the allowlisted caller.
   const { data: members, error } = await supabase
     .from("members")
-    .select("email, display_name")
+    .select("id, display_name") // key on id — emails are intentionally null (Phase-0 PII removal)
     .order("display_name", { ascending: true });
 
   return (
@@ -41,11 +41,10 @@ export default async function ProtectedHome() {
           <ul className="divide-y divide-border rounded-xl border border-border bg-card text-card-foreground">
             {(members ?? []).map((m) => (
               <li
-                key={m.email}
+                key={m.id}
                 className="flex items-center justify-between gap-4 px-4 py-3"
               >
                 <span className="font-medium">{m.display_name}</span>
-                <span className="text-sm text-muted-foreground">{m.email}</span>
               </li>
             ))}
             {(members ?? []).length === 0 && (

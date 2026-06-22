@@ -5,16 +5,15 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: ingestion-enable-banking
 status: executing
-stopped_at: "01-01 connect tooling built + pushed (callback page + pnpm eb:connect); awaiting the human-action live SCA run to populate 01-SPIKE.md (ING-01)"
-last_updated: "2026-06-22T09:40:00.000Z"
+stopped_at: "Wave 2 complete — 01-02 ingestion schema applied to the live Supabase DB (0003+0004); test:rls green (16 tables, cost_centers seeded). Next: Wave 3 (01-03 connect)"
+last_updated: "2026-06-22T13:48:10.204Z"
 last_activity: 2026-06-22
-last_activity_desc: "01-01 Task 2 tooling built: /eb/callback page (9a97638) + pnpm eb:connect script + spike scaffolding (af8920b), pushed; SUMMARY withheld until the live run fills 01-SPIKE.md"
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 9
-  completed_plans: 5
-  percent: 13
+  completed_plans: 7
+  percent: 78
 ---
 
 # Project State
@@ -29,17 +28,17 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 ## Current Position
 
 Phase: 1 (ingestion-enable-banking) — EXECUTING
-Plan: 1 of 5
-Status: 01-01 connect tooling built + pushed; awaiting the human-action live SCA run
-Last activity: 2026-06-22 — /eb/callback page + pnpm eb:connect built, deps installed, pushed to deploy
+Plan: 2 of 5 complete (Waves 1-2 done)
+Status: Wave 2 complete — ingestion schema live-applied + test:rls green. Wave 3 (01-03 connect) next.
+Last activity: 2026-06-22 — 01-02 schema migration applied to the live DB (cost_centers lookup D-24 + import_batches + RLS)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████░░] 78%
 
-### 01-01 progress
-- Task 1 (Wave-0 RED test scaffolds) — DONE, commit 239231d. All 7 test files fail RED at import-resolution (modules built in 01-03/01-04).
-- Checkpoint (provision Enable Banking app + RSA key + redirect_url) — RESOLVED. EB provisioned; .env.local has ENABLE_BANKING_APP_ID / ENABLE_BANKING_PRIVATE_KEY_PATH (eb-private-key.pem, gitignored) / ENABLE_BANKING_REDIRECT_URL (deployed /eb/callback, D-07).
-- Task 2 connect tooling — BUILT + PUSHED. /eb/callback page + PUBLIC_PATHS (9a97638); scripts/eb-connect.ts (pnpm eb:connect) + jose/tsx + scrubbed fixtures + 01-SPIKE.md skeleton (af8920b). pnpm lint + build green; Wave-0 tests stay RED for 01-03/04 targets (expected). Smoke: JWT signs OK; /aspsps 403 "Application is not active" (expected for the Inactive app — key + App ID wired).
-- Task 2 LIVE SCA — AWAITING HUMAN. Run `pnpm eb:connect` ONCE PER PERSON (Lorenzo, then Fernanda) after the Vercel deploy: open the auth URL, approve at Revolut, paste the code from /eb/callback. That run populates 01-SPIKE.md (A2 investing-account exposure, A5 valid_until, A6 IBANs, A3 id stability, A4 PEND). SUMMARY is withheld until 01-SPIKE.md is real — must NOT be fabricated.
+### Phase 1 progress
+
+- **01-01 (Wave 1) — COMPLETE.** Wave-0 TDD harness (7 RED suites; 6 quarantined in `vitest.config.ts` exclude until their modules land — re-arm per plan) + discovery spike: both Revolut consents run live; A2/A3/A4/A5/A6 resolved (investing NOT exposed → virtual is_investment; 180-day window; counterparty IBANs present; only entry_reference; no PEND). SUMMARY + PII-scrubbed fixtures committed (PR #12).
+- **01-02 (Wave 2) — COMPLETE.** Ingestion columns on accounts/transactions/connections; `cost_center` enum → extensible `cost_centers` lookup (D-24, FK); `import_batches` (RLS). `0003`+`0004` applied to the LIVE Supabase DB; `test:rls` green (16 tables, 4 cost-center codes seeded). On branch `phase-01-wave2-schema` → PR.
+- **Next: 01-03 (Wave 3)** — Enable Banking JWT signer + zod client + production `eb:connect` that persists the consent. Re-arm `test/jwt.test.ts` (delete its line from the vitest `exclude`).
 
 ## Performance Metrics
 

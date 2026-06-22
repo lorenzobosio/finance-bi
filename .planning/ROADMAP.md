@@ -75,7 +75,27 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Every dashboard shows a "data as of {date}" freshness banner, and stale or disconnected data is visibly flagged; `connections.expires_at` is stored from the real API response (never hardcoded)
   5. The €4k contribution is classified `flow_type=investimento`, its credit leg is never counted as revenue, and it is excluded from both costs and revenue in every aggregation
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+**Wave 1**
+
+- [ ] 01-01-PLAN.md — Wave-0 TDD test scaffolds (jwt/dedupe/normalize/rules + integration stubs) + the discovery spike (ING-01): run pnpm eb:connect once, enumerate exposed accounts + real consent window, capture fixtures (resolves A2/A6/valid_until) (ING-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 01-02-PLAN.md — Schema migration: ingestion columns + extensible cost_centers lookup (D-24) + import_batches table (RLS) + extend test:rls; [BLOCKING] live Supabase migration push (ING-03, ING-04, CAT-01, CAT-07)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 01-03-PLAN.md — Connect slice: EB RS256 JWT (jose) + zod-validated typed client + pnpm eb:connect persists connections/accounts/heartbeat (expires_at from the real valid_until) (ING-01, ING-02, ING-05)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 01-04-PLAN.md — Normalize + dedupe + versioned rules engine (classify-on-ingest) + headless scripts/ingest.ts: incremental idempotent pull, balances snapshot, ON CONFLICT DO NOTHING, heartbeat, 403 fail-soft (ING-02, ING-03, ING-04, ING-05, CAT-02, CAT-03, CAT-07)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 01-05-PLAN.md — Daily GitHub Actions cron + the freshness ("data as of") and reconnect status banners per the UI-SPEC, read under RLS (ING-02, ING-05, ING-06)
 
 ### Phase 2: Core BI + house-as-business
 
@@ -187,7 +207,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
-| 1. Ingestion (Enable Banking) | 0/TBD | Not started | - |
+| 1. Ingestion (Enable Banking) | 0/5 | Not started | - |
 | 2. Core BI + house-as-business | 0/TBD | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |

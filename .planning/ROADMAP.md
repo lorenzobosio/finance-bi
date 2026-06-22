@@ -75,7 +75,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Every dashboard shows a "data as of {date}" freshness banner, and stale or disconnected data is visibly flagged; `connections.expires_at` is stored from the real API response (never hardcoded)
   5. The €4k contribution is classified `flow_type=investimento`, its credit leg is never counted as revenue, and it is excluded from both costs and revenue in every aggregation
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 **Wave 1**
 
@@ -91,7 +91,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 01-04-PLAN.md — Normalize + dedupe + versioned rules engine (classify-on-ingest) + headless scripts/ingest.ts: incremental idempotent pull, balances snapshot, ON CONFLICT DO NOTHING, heartbeat, 403 fail-soft (ING-02, ING-03, ING-04, ING-05, CAT-02, CAT-03, CAT-07)
+- [x] 01-04-PLAN.md — Normalize + dedupe + versioned rules engine (classify-on-ingest) + headless scripts/ingest.ts: incremental idempotent pull, balances snapshot, ON CONFLICT DO NOTHING, heartbeat, 403 fail-soft (ING-02, ING-03, ING-04, ING-05, CAT-02, CAT-03, CAT-07)
 
 **Wave 5** *(blocked on Wave 4)*
 
@@ -207,7 +207,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
-| 1. Ingestion (Enable Banking) | 3/5 | In Progress|  |
+| 1. Ingestion (Enable Banking) | 4/5 | In Progress|  |
 | 2. Core BI + house-as-business | 0/TBD | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |

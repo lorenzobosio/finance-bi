@@ -33,6 +33,12 @@ Out of scope (later phases): the rule-**management UI** — recategorize / creat
 - **D-20:** **Fixed category taxonomy** (CAT-01): `group` = essential | desire | investment, seeded (some seeded in Phase 0). Phase 1 ensures the taxonomy is sufficient for the ingest-time rules; rich category management is Phase 2.
 - **D-21:** Suggested plan shape (from the user's saved Phase-1 plan — planner may refine): **1.1 Connect** (consent, list accounts, fetch, write `connections` + `import_batches`), **1.2 Normalize + dedupe** (raw→staging, EUR, `dedupe_hash`, idempotent upsert), **1.3 Rules + scheduler** (rules engine classifying flow_type/cost_center/recurrence + the daily cron with failure handling).
 
+### Cost centers (extensible) & revenue refinements
+- **D-24:** `cost_center` is an **extensible list, NOT a fixed 3-value enum**. Values now: `lorenzo`, `fernanda`, `compartilhado`, **`sublocacao`** (the sublet — a profit-center unit). Model it so new cost centers can be added **without a breaking migration** — prefer a `cost_centers` lookup table referenced by FK over a Postgres enum (planner/research confirm the cleanest path vs the Phase-0 representation). The CAT-07 default cost_center per account still applies; sublet transactions get `cost_center=sublocacao` via rules.
+- **D-25:** **Sublet (`sublocacao`) classification:** sublet rent **received** → `flow_type=faturamento` (revenue) with `cost_center=sublocacao`; the sublet's own **rent + utilities paid** → `flow_type=custo` with `cost_center=sublocacao`. Rules tag both. **Ring-fenced sublet P&L + net roll-up is Phase 2** — Phase 1 only tags + classifies the transactions correctly so the roll-up is possible later.
+- **D-26:** **Revenue = net salary.** Income tax / health / social security are deducted **pre-bank** (never visible to us), so the salary deposit the bank shows **is** the net revenue → `flow_type=faturamento`. **Bonuses = one-off revenue** (also `faturamento`).
+- **D-27 (resolves research A1):** Reconcile the `flow_type` enum **labels** against the live `schema.ts` and keep ONE consistent set (the Phase-0 schema's existing values). The conceptual mapping is fixed — revenue=faturamento, investment=investimento, cost=custo, transfer=transferência — only the literal enum strings need reconciling.
+
 ### Connecting the bank (one-time consent)
 - **D-07:** One-time consent done **in the browser** (authorize at Revolut) via a **local script `pnpm eb:connect`** run **once**, which saves the session. **No in-app admin page in the MVP.**
 - **D-08:** A **single consent connects all 3 cash accounts** (+ the investing account **if** the spike finds it exposed).
@@ -60,6 +66,7 @@ The Phase 0 schema has the core fields (`dedupe_hash` UNIQUE, `booking_date`, `v
 - `transactions.description_raw`, `transactions.counterparty`, `transactions.is_recurring`
 - `connections.consent_status`, `connections.last_pull_at`
 - an **`import_batches`** table (audit + heartbeat; `transactions.import_batch_id` references it)
+- **Make `cost_center` extensible** (D-24): move off the fixed enum to a `cost_centers` lookup (table or equivalent) seeded with `lorenzo`, `fernanda`, `compartilhado`, **`sublocacao`**; `transactions.cost_center` + `accounts.default_cost_center` reference it. RLS on the new table.
 - **Do NOT write `investment_contributions` in Phase 1** (D-23): the €100k total + the €4k monthly streak (D-05) derive from `transactions` (`flow_type=investimento`). The per-transaction `is_planned_4k` flag is unused here.
 </decisions>
 

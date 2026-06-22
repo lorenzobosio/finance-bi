@@ -172,6 +172,33 @@ export async function createServiceWriter(): Promise<ConsentWriter> {
       if (error) throw new Error(`connections upsert failed: ${error.message}`);
     },
     async upsertAccount(row) {
+      // The virtual investing row (D-22) carries enable_banking_id=null, and Postgres
+      // treats NULLs as DISTINCT in a unique index — so `onConflict:"enable_banking_id"`
+      // cannot dedupe it, and connecting BOTH logins (Lorenzo + Fernanda) would insert two
+      // duplicate virtual rows. Make that path idempotent with a check-then-insert keyed on
+      // (enable_banking_id IS NULL AND is_investment) so exactly one virtual row ever exists.
+      if (row.enableBankingId === null) {
+        const { data: existing, error: selErr } = await sb
+          .from("accounts")
+          .select("id")
+          .is("enable_banking_id", null)
+          .eq("is_investment", true)
+          .limit(1);
+        if (selErr)
+          throw new Error(`accounts (virtual) lookup failed: ${selErr.message}`);
+        if (existing && existing.length > 0) return; // already present — idempotent no-op
+        const { error } = await sb.from("accounts").insert({
+          enable_banking_id: null,
+          iban: row.iban,
+          name: row.name,
+          default_cost_center: row.defaultCostCenter,
+          is_investment: row.isInvestment,
+          is_synced: row.isSynced,
+        });
+        if (error)
+          throw new Error(`accounts (virtual) insert failed: ${error.message}`);
+        return;
+      }
       const { error } = await sb.from("accounts").upsert(
         {
           enable_banking_id: row.enableBankingId,

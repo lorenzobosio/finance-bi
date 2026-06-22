@@ -13,7 +13,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed-allowlist": "node scripts/seed-allowlist.mjs",
-    "eb:connect": "tsx scripts/eb-connect.ts"
+    "eb:connect": "tsx scripts/eb-connect.ts",
+    "ingest": "tsx scripts/ingest.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

@@ -24,13 +24,18 @@ import { createHash } from "node:crypto";
 /** The frozen hash version. Bumping it is a migration (every dedupe_hash changes). */
 export const HASH_VERSION = "v1";
 
-/** The minimal Normalized fields the hash consumes. */
+/**
+ * The minimal Normalized fields the hash consumes. `valueDate` (and any other Normalized
+ * field) is accepted but DELIBERATELY ignored — the hash is stable across value_date flips.
+ */
 interface HashableTx {
   accountId: string;
   bankTxId: string | null;
   bookingDate: string;
   amount: number;
   normalizedDescription: string;
+  /** Accepted but never hashed — kept so a full Normalized row passes without a cast. */
+  valueDate?: string | null;
 }
 
 function sha256(input: string): string {

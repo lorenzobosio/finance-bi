@@ -13,11 +13,7 @@ export default defineConfig({
     // have not built yet, so they throw ERR_MODULE_NOT_FOUND at collection time
     // (a top-level `import` fails before any `describe.skip` could run).
     // DELETE each line the moment its target module lands — that re-arms the test:
-    exclude: [
-      ...configDefaults.exclude,
-      "test/ingest.consent.test.ts", // -> scripts/ingest.ts (plan 01-05 cron)
-      "test/ingest.heartbeat.test.ts", // -> scripts/ingest.ts (plan 01-05 cron)
-    ],
+    exclude: [...configDefaults.exclude],
     // No watch mode — `vitest run` is invoked explicitly via the `test` script.
   },
   resolve: {

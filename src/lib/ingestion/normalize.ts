@@ -20,7 +20,25 @@
 // This function + dedupe.ts's HASH_VERSION are FROZEN: changing the normalization changes
 // every downstream hash, so a change here is a data migration, not a refactor.
 
-import type { RawTx } from "./enable-banking/schemas";
+/**
+ * The structural subset of a raw Enable Banking transaction `normalize` reads. Declared as a
+ * plain interface (no index signature) so a closed test literal AND the zod `.passthrough()`
+ * `RawTx` both satisfy it. Field names + nullability mirror the schema exactly.
+ */
+export interface RawTxInput {
+  transaction_id?: string | null;
+  entry_reference?: string | null;
+  status?: string | null;
+  booking_date?: string | null;
+  value_date?: string | null;
+  credit_debit_indicator?: "CRDT" | "DBIT" | null;
+  transaction_amount?: { amount: string } | null;
+  creditor?: { name?: string | null } | null;
+  creditor_account?: { iban?: string | null } | null;
+  debtor?: { name?: string | null } | null;
+  debtor_account?: { iban?: string | null } | null;
+  remittance_information?: string[] | null;
+}
 
 /** The canonical, signed-EUR transaction shape every downstream module consumes. */
 export interface Normalized {
@@ -51,7 +69,7 @@ export interface Normalized {
  * a Normalized object. The sign is derived from credit_debit_indicator (DBIT -> negative,
  * CRDT -> positive); the period key is booking_date (never value_date).
  */
-export function normalize(raw: RawTx, accountId: string): Normalized | null {
+export function normalize(raw: RawTxInput, accountId: string): Normalized | null {
   // PDNG (pending) rows are not durable — exclude them. Anything that is not an explicit
   // "BOOK" is excluded defensively (a missing/unknown status is not a booked row).
   if (raw.status !== "BOOK") return null;

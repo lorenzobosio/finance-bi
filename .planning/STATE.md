@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 0
 current_phase_name: foundation
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-06-22T00:36:23.958Z"
+stopped_at: Phase 1 UI-SPEC written (checker deferred — API 529)
+last_updated: "2026-06-22T01:15:16.064Z"
 last_activity: 2026-06-21
 last_activity_desc: Phase 0 execution started
 progress:
@@ -93,6 +93,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-22T00:36:23.944Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-ingestion-enable-banking/01-CONTEXT.md
+Last session: 2026-06-22T01:15:16.049Z
+Stopped at: Phase 1 UI-SPEC written (checker deferred — API 529)
+Resume file: .planning/phases/01-ingestion-enable-banking/01-UI-SPEC.md

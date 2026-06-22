@@ -1,0 +1,89 @@
+# Daily ingestion cron (ING-02) — the headless Enable Banking pull + the Supabase keep-alive.
+#
+# Runs `scripts/ingest.ts` (via `pnpm ingest`) once a day, off-peak. Each run signs a 1h
+# Enable Banking JWT, pulls new transactions/balances for the synced accounts, upserts them
+# idempotently, and ALWAYS writes an `import_batches` heartbeat (the freshness/reconnect
+# banners read the latest row — D-13/D-15/D-16). The heartbeat write doubles as the Supabase
+# free-tier keep-alive (ING-04).
+#
+# Fail-soft (NOT a red CI run on the normal lapse path): ingest.ts exits 0 on a 403
+# consent-expired (it flags connections.consent_status='expired' so the in-app reconnect
+# banner is the alert — never a silent freeze), and exits 1 only on a transient error.
+#
+# WRITE PLANE: scripts/ingest.ts writes via the `postgres` driver using DATABASE_URL (the
+# project's Node-side DB pattern — a direct connection that bypasses RLS, the service_role
+# equivalent the cron needs). It does NOT use the Supabase service_role client, so this
+# workflow intentionally does NOT reference SUPABASE_SERVICE_ROLE_KEY. The env vars
+# ingest.ts actually reads are DATABASE_URL, ENABLE_BANKING_APP_ID, and
+# ENABLE_BANKING_PRIVATE_KEY_PATH (a path to the RS256 .pem on disk).
+#
+# Secrets are read ONLY from GitHub Actions encrypted secrets and are NEVER echoed. The
+# private key arrives as the multi-line .pem CONTENT in the ENABLE_BANKING_PRIVATE_KEY
+# secret and is written to a runner temp file at runtime (a CI runner has no committed .pem).
+
+name: Daily ingestion
+
+on:
+  # 17 5 * * * UTC = 06:17 Europe/Berlin in winter (CET, UTC+1) / 07:17 in summer (CEST,
+  # UTC+2). Off-peak, an odd minute to avoid the top-of-hour cron stampede. ONE run/day
+  # only (do NOT add a second schedule) to respect the ~4 EB calls/account/day budget — the
+  # ±1h CET/CEST drift is harmless for a once-daily go-forward pull (D-11).
+  schedule:
+    - cron: "17 5 * * *"
+  # Manual trigger for on-demand pulls / first run after a reconnect.
+  workflow_dispatch: {}
+
+# One ingestion at a time; never let a manual run race the scheduled run.
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    name: Pull Enable Banking transactions (daily)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Pin pnpm to the version the project runs locally (Plan 00-01: 9.15.9 for Node 20).
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The RS256 private key is a GitHub Secret holding the .pem CONTENT (multi-line,
+      # preserved by GitHub Secrets). A CI runner has no committed key file, so write it to a
+      # private temp file (chmod 600) and hand ingest.ts its PATH. `printf '%s'` writes the
+      # value verbatim without echoing it; GitHub masks the secret in any accidental output.
+      - name: Materialise the Enable Banking private key
+        env:
+          ENABLE_BANKING_PRIVATE_KEY: ${{ secrets.ENABLE_BANKING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ENABLE_BANKING_PRIVATE_KEY" > "$RUNNER_TEMP/eb-private-key.pem"
+          chmod 600 "$RUNNER_TEMP/eb-private-key.pem"
+
+      - name: Run the daily pull
+        # The env vars scripts/ingest.ts actually reads (postgres driver + EB JWT):
+        #   DATABASE_URL                   — the direct Postgres connection (write plane)
+        #   ENABLE_BANKING_APP_ID          — the JWT `kid` / app credential
+        #   ENABLE_BANKING_PRIVATE_KEY_PATH — path to the .pem written in the step above
+        # NO secret is echoed; ingest.ts logs only counts/status (V7). It exits 0 on
+        # auth_expired (the banner is the alert) and 1 only on a transient error.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ENABLE_BANKING_APP_ID: ${{ secrets.ENABLE_BANKING_APP_ID }}
+          ENABLE_BANKING_PRIVATE_KEY_PATH: ${{ runner.temp }}/eb-private-key.pem
+        run: pnpm ingest

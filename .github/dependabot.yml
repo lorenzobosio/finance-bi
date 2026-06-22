@@ -11,6 +11,25 @@ updates:
         dependency-type: "production"
       development-dependencies:
         dependency-type: "development"
+    # Pin major versions we've deliberately chosen (see ROADMAP / Phase 0 decisions):
+    # Next stays on 15 for MVP stability; toolchain majors (TS/ESLint) and @types/node
+    # are bumped manually so they stay aligned with the Node 20 runtime. Patches, minors,
+    # and security updates still flow.
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   # GitHub Actions versions
   - package-ecosystem: "github-actions"
     directory: "/"

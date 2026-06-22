@@ -75,7 +75,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Every dashboard shows a "data as of {date}" freshness banner, and stale or disconnected data is visibly flagged; `connections.expires_at` is stored from the real API response (never hardcoded)
   5. The €4k contribution is classified `flow_type=investimento`, its credit leg is never counted as revenue, and it is excluded from both costs and revenue in every aggregation
 
-**Plans**: 2/5 plans executed
+**Plans**: 3/5 plans executed
 
 **Wave 1**
 
@@ -87,7 +87,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 01-03-PLAN.md — Connect slice: EB RS256 JWT (jose) + zod-validated typed client + pnpm eb:connect persists connections/accounts/heartbeat (expires_at from the real valid_until) (ING-01, ING-02, ING-05)
+- [x] 01-03-PLAN.md — Connect slice: EB RS256 JWT (jose) + zod-validated typed client + pnpm eb:connect persists connections/accounts/heartbeat (expires_at from the real valid_until) (ING-01, ING-02, ING-05)
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -207,7 +207,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
-| 1. Ingestion (Enable Banking) | 2/5 | In Progress|  |
+| 1. Ingestion (Enable Banking) | 3/5 | In Progress|  |
 | 2. Core BI + house-as-business | 0/TBD | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |

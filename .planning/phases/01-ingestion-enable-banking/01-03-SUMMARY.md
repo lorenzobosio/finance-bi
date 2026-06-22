@@ -99,33 +99,50 @@ OUTGOING leg against it (counterparty signature wired in 01-04).
 - Task greps: `ConsentExpiredError`/`continuation_key`/`.parse(` in client.ts;
   `createServiceClient`/`valid_until` in eb-connect.ts — all present.
 
-## Deviations from Plan
+## Deviations from Plan (incl. live-run integration fixes)
 
-- **[Rule 3 — Blocking issue] `server-only` guard broke the test import.**
-  `scripts/eb-connect.ts` writes via `src/lib/supabase/service.ts`, whose first line is
-  `import "server-only"` — which throws the moment it is loaded in the vitest runner (no RSC
-  graph), so `connect.test.ts` failed at collection. Fix: the service client is now imported
-  **lazily** (`await import("@/lib/supabase/service")`) inside `createServiceWriter()` — the only
-  place it is constructed. The test injects a fake `ConsentWriter` and never reaches that path,
-  so `server-only` stays out of the test graph. The FND-03 posture is unchanged: the module is
-  still server-only; only its load is deferred to the live run. `createServiceWriter`/
-  `persistSession` became `async` as a consequence. (Initial `require()` attempt was reverted —
-  it tripped `@typescript-eslint/no-require-imports`; dynamic `import()` is lint-clean.)
-- **[Quarantine re-arm]** Per the 01-01 carry-forward, removed `test/jwt.test.ts` from the
-  `vitest.config.ts` `exclude` so it actually runs (now GREEN). Documented here because it was
-  not in the original plan text.
+The unit tests (mocked writer) passed, but the LIVE run surfaced integration issues the mocks
+could not — each fixed on the branch after the executor's commits:
 
-Otherwise the plan executed as written.
+- **DB client: `supabase-js` → `postgres` driver** (`createServiceWriter`). Writing via
+  `src/lib/supabase/service.ts` hit two Node walls in sequence: `import "server-only"` throws
+  outside a Next RSC build (a lazy import only deferred the throw to the live run), and the
+  `supabase-js` client eagerly inits a Realtime **WebSocket**, absent on Node 20. Rewrote the
+  writer to use the `postgres` driver + `DATABASE_URL` (the project's Node DB path —
+  `test:rls`/drizzle; a direct connection is the service_role-equivalent the cron also needs).
+  Also fixed a latent bug: `connections` has no UNIQUE on `session_id`, so the supabase
+  `onConflict` would have failed — now a hand-rolled select-then-insert/update. `ConsentWriter`
+  gained an optional `close()`; `persistSession` releases the pool when it owns the writer.
+- **Virtual investing-row idempotency.** `enable_banking_id=null` can't be deduped by a unique
+  index (NULLs are distinct), so both logins would have inserted two virtual rows. The writer
+  now check-then-inserts → exactly one (verified live: 1 row across both runs).
+- **`credit_debit_indicator` `DBDT`→`DBIT`; pending `PEND`→`PDNG`.** The plans + schema carried
+  wrong literals; the real API rejected every transaction. Fixed in `schemas.ts` and the
+  (quarantined) normalize contract; locked by the new `test/schemas.test.ts`. **Critical** — the
+  indicator is the canonical sign source. See memory `enable-banking-real-tx-values`.
+- **Joint cost-center.** `inferCostCenter("FERNANDA & LORENZO")` returned `lorenzo` (first
+  match wins); now detects both names → `compartilhado` (D-25).
+- **PII.** The `01-SPIKE.md` append wrote real account-holder names; now masked to the
+  cost-center role label before reaching the committed doc (public repo, D-09).
+- **[Quarantine re-arm]** Removed `test/jwt.test.ts` from the `vitest.config.ts` `exclude` (per
+  the 01-01 carry-forward) so it runs GREEN.
 
-## Pending manual step (orchestrator checkpoint)
+Full suite after fixes: **6 files / 30 tests pass**; build + lint clean.
 
-The **live `pnpm eb:connect` SCA run is still PENDING.** Task 3 wrote the persistence *code* and
-proved it with a mocked `/sessions` + injected writer; it did **not** perform a real Revolut SCA
-or write the live DB (that needs a human browser login + live credentials). The orchestrator
-should run `pnpm eb:connect` once per Revolut login (Lorenzo, then Fernanda) with the user to:
-complete the SCA, then verify a `connections` row (`expires_at` == the real `valid_until`), one
-`accounts` row per exposed account, the virtual investing row, and a heartbeat. ING-01's "live
-session persisted" is verified at that checkpoint.
+## Live run — COMPLETE (2026-06-22)
+
+`pnpm eb:connect` was run live with the user for **both** Revolut logins (Lorenzo, then
+Fernanda). Read-back verified against the live Supabase DB:
+
+- **2 `connections`** — both `consent_status='active'`, `expires_at` = the real
+  `access.valid_until` (2026-12-19), one per login (D-08).
+- **4 `accounts`** — 3 real (`lorenzo`, `compartilhado` joint via Lorenzo's login, `fernanda`)
+  + exactly **1** virtual investing row (`is_investment=true`, `is_synced=false`) — idempotent
+  across both runs (the dedup fix held).
+- **2 `import_batches`** heartbeats.
+
+ING-01's "live session persisted" is satisfied. The transactions-page capture also succeeded
+(41 tx) once the schema accepted the real `DBIT` value.
 
 ## Deferred / notes
 

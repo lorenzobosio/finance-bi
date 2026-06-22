@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: ingestion-enable-banking
 status: executing
-stopped_at: "01-01 paused at blocking-human checkpoint — provision Enable Banking app before the live discovery spike (ING-01)"
-last_updated: "2026-06-22T06:39:00.000Z"
+stopped_at: "01-01 connect tooling built + pushed (callback page + pnpm eb:connect); awaiting the human-action live SCA run to populate 01-SPIKE.md (ING-01)"
+last_updated: "2026-06-22T09:40:00.000Z"
 last_activity: 2026-06-22
-last_activity_desc: "01-01 Task 1 done (Wave-0 RED tests committed 239231d); awaiting Enable Banking provisioning for the spike"
+last_activity_desc: "01-01 Task 2 tooling built: /eb/callback page (9a97638) + pnpm eb:connect script + spike scaffolding (af8920b), pushed; SUMMARY withheld until the live run fills 01-SPIKE.md"
 progress:
   total_phases: 8
   completed_phases: 1
@@ -30,15 +30,16 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 Phase: 1 (ingestion-enable-banking) — EXECUTING
 Plan: 1 of 5
-Status: 01-01 paused at a blocking-human checkpoint (Task 1/2 complete)
-Last activity: 2026-06-22 — 01-01 Wave-0 RED tests committed (239231d); spike awaits EB credentials
+Status: 01-01 connect tooling built + pushed; awaiting the human-action live SCA run
+Last activity: 2026-06-22 — /eb/callback page + pnpm eb:connect built, deps installed, pushed to deploy
 
 Progress: [░░░░░░░░░░] 0%
 
 ### 01-01 progress
 - Task 1 (Wave-0 RED test scaffolds) — DONE, commit 239231d. All 7 test files fail RED at import-resolution (modules built in 01-03/01-04).
-- Checkpoint (provision Enable Banking app + RSA key + redirect_url, set ENABLE_BANKING_APP_ID / ENABLE_BANKING_PRIVATE_KEY) — BLOCKED on human. EB creds absent in .env.local.
-- Task 2 (live SCA spike + fixtures + 01-SPIKE.md, ING-01) — NOT STARTED (gated by the checkpoint; must not be fabricated).
+- Checkpoint (provision Enable Banking app + RSA key + redirect_url) — RESOLVED. EB provisioned; .env.local has ENABLE_BANKING_APP_ID / ENABLE_BANKING_PRIVATE_KEY_PATH (eb-private-key.pem, gitignored) / ENABLE_BANKING_REDIRECT_URL (deployed /eb/callback, D-07).
+- Task 2 connect tooling — BUILT + PUSHED. /eb/callback page + PUBLIC_PATHS (9a97638); scripts/eb-connect.ts (pnpm eb:connect) + jose/tsx + scrubbed fixtures + 01-SPIKE.md skeleton (af8920b). pnpm lint + build green; Wave-0 tests stay RED for 01-03/04 targets (expected). Smoke: JWT signs OK; /aspsps 403 "Application is not active" (expected for the Inactive app — key + App ID wired).
+- Task 2 LIVE SCA — AWAITING HUMAN. Run `pnpm eb:connect` ONCE PER PERSON (Lorenzo, then Fernanda) after the Vercel deploy: open the auth URL, approve at Revolut, paste the code from /eb/callback. That run populates 01-SPIKE.md (A2 investing-account exposure, A5 valid_until, A6 IBANs, A3 id stability, A4 PEND). SUMMARY is withheld until 01-SPIKE.md is real — must NOT be fabricated.
 
 ## Performance Metrics
 

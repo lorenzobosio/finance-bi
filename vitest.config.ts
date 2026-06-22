@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["test/**/*.test.ts"],
+    // `.test.tsx` is included for the status-banner derivation suite; those tsx tests
+    // exercise PURE helpers only (no DOM render), so the node environment still applies.
+    include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
     // QUARANTINE — keeps `main` CI green during Phase 1 TDD.
     // These suites were written test-first and import modules the Phase-1 plans
     // have not built yet, so they throw ERR_MODULE_NOT_FOUND at collection time

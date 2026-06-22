@@ -6,22 +6,22 @@ import { describe, expect, it } from "vitest";
 //
 // Contract frozen here (RESEARCH § Code Examples — normalize):
 //   normalize(rawTx, accountId) -> Normalized | null
-//   - SIGN from credit_debit_indicator: DBDT -> negative, CRDT -> positive.
+//   - SIGN from credit_debit_indicator: DBIT -> negative, CRDT -> positive.
 //     The EB amount string is always positive magnitude; never trust its sign.
 //   - PERIOD/bookingDate comes from booking_date, NOT value_date.
-//   - COUNTERPARTY: on DBDT (outflow) the counterparty is the creditor; on CRDT
+//   - COUNTERPARTY: on DBIT (outflow) the counterparty is the creditor; on CRDT
 //     (inflow) it is the debtor.
-//   - PEND rows are EXCLUDED (returns null); BOOK rows are kept.
+//   - PDNG rows are EXCLUDED (returns null); BOOK rows are kept.
 import { normalize } from "@/lib/ingestion/normalize";
 
 // A raw EB transaction shape (subset) per RESEARCH § client.ts zod schema.
 interface RawTxLike {
   transaction_id?: string;
   entry_reference?: string;
-  status: string; // "BOOK" | "PEND"
+  status: string; // "BOOK" | "PDNG"
   booking_date: string; // YYYY-MM-DD
   value_date?: string;
-  credit_debit_indicator: "CRDT" | "DBDT";
+  credit_debit_indicator: "CRDT" | "DBIT";
   transaction_amount: { currency: string; amount: string };
   creditor?: { name?: string };
   creditor_account?: { iban?: string };
@@ -37,7 +37,7 @@ const debitRaw: RawTxLike = {
   status: "BOOK",
   booking_date: "2026-06-10",
   value_date: "2026-06-12",
-  credit_debit_indicator: "DBDT",
+  credit_debit_indicator: "DBIT",
   transaction_amount: { currency: "EUR", amount: "42.50" },
   creditor: { name: "REWE" },
   creditor_account: { iban: "DE00CREDITOR" },
@@ -60,8 +60,8 @@ const creditRaw: RawTxLike = {
   remittance_information: ["Salary June"],
 };
 
-describe("normalize — sign, period key, counterparty, PEND exclusion (Pitfall 5/2)", () => {
-  it("makes the amount NEGATIVE on a DBDT (outflow)", () => {
+describe("normalize — sign, period key, counterparty, PDNG exclusion (Pitfall 5/2)", () => {
+  it("makes the amount NEGATIVE on a DBIT (outflow)", () => {
     const n = normalize(debitRaw, ACCOUNT_ID);
     expect(n).not.toBeNull();
     expect(n!.amount).toBeLessThan(0);
@@ -81,7 +81,7 @@ describe("normalize — sign, period key, counterparty, PEND exclusion (Pitfall 
     expect(n!.bookingDate).not.toBe(debitRaw.value_date);
   });
 
-  it("resolves counterparty to the creditor on DBDT", () => {
+  it("resolves counterparty to the creditor on DBIT", () => {
     const n = normalize(debitRaw, ACCOUNT_ID);
     expect(n!.counterpartyName).toBe("REWE");
     expect(n!.counterpartyIban).toBe("DE00CREDITOR");
@@ -97,8 +97,8 @@ describe("normalize — sign, period key, counterparty, PEND exclusion (Pitfall 
     expect(normalize(debitRaw, ACCOUNT_ID)!.accountId).toBe(ACCOUNT_ID);
   });
 
-  it("EXCLUDES a PEND row (returns null)", () => {
-    const pending: RawTxLike = { ...debitRaw, status: "PEND" };
+  it("EXCLUDES a PDNG row (returns null)", () => {
+    const pending: RawTxLike = { ...debitRaw, status: "PDNG" };
     expect(normalize(pending, ACCOUNT_ID)).toBeNull();
   });
 

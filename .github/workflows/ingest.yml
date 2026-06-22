@@ -24,12 +24,17 @@
 name: Daily ingestion
 
 on:
-  # 17 5 * * * UTC = 06:17 Europe/Berlin in winter (CET, UTC+1) / 07:17 in summer (CEST,
-  # UTC+2). Off-peak, an odd minute to avoid the top-of-hour cron stampede. ONE run/day
-  # only (do NOT add a second schedule) to respect the ~4 EB calls/account/day budget — the
-  # ±1h CET/CEST drift is harmless for a once-daily go-forward pull (D-11).
+  # FOUR runs/day at ~08:00 / 13:00 / 16:00 / 21:00 Europe/Berlin (Lorenzo). Crons are UTC;
+  # in summer (CEST = UTC+2) the local times are exact, in winter (CET = UTC+1) they shift ~1h
+  # earlier — harmless for a go-forward pull (D-11). Odd minute avoids the top-of-hour stampede.
+  # NOTE: 4×/day sits at the edge of the ~4 EB calls/account/day PSD2 budget; if pulls begin
+  # rate-limiting (429), reduce the count — idempotency (dedupe_hash + ON CONFLICT) makes any
+  # retried/overlapping pull harmless (zero duplicate rows).
   schedule:
-    - cron: "17 5 * * *"
+    - cron: "17 6 * * *"   # ~08:17 Berlin (CEST) / 07:17 (CET)
+    - cron: "17 11 * * *"  # ~13:17 Berlin (CEST) / 12:17 (CET)
+    - cron: "17 14 * * *"  # ~16:17 Berlin (CEST) / 15:17 (CET)
+    - cron: "17 19 * * *"  # ~21:17 Berlin (CEST) / 20:17 (CET)
   # Manual trigger for on-demand pulls / first run after a reconnect.
   workflow_dispatch: {}
 

@@ -39,6 +39,7 @@ import type { Balance, RawTx } from "@/lib/ingestion/enable-banking/schemas";
 import { normalize, type Normalized } from "@/lib/ingestion/normalize";
 import { dedupeHash } from "@/lib/ingestion/dedupe";
 import { applyRules, type RuleAccount } from "@/lib/ingestion/rules/engine";
+import { INVESTING_SIGNATURE } from "@/lib/ingestion/rules/builtins";
 
 const REPO_ROOT = resolve(__dirname, "..");
 
@@ -162,14 +163,20 @@ export async function createServiceWriter(): Promise<IngestWriter> {
       const rows = await sql`
         select id, enable_banking_id, iban, default_cost_center, is_investment, is_synced
         from accounts`;
-      return rows.map((r) => ({
-        id: r.id as string,
-        enableBankingId: (r.enable_banking_id as string | null) ?? null,
-        iban: (r.iban as string | null) ?? null,
-        defaultCostCenter: (r.default_cost_center as string | null) ?? "shared",
-        isInvestment: Boolean(r.is_investment),
-        isSynced: Boolean(r.is_synced),
-      }));
+      return rows.map((r) => {
+        const isInvestment = Boolean(r.is_investment);
+        return {
+          id: r.id as string,
+          enableBankingId: (r.enable_banking_id as string | null) ?? null,
+          iban: (r.iban as string | null) ?? null,
+          defaultCostCenter: (r.default_cost_center as string | null) ?? "shared",
+          isInvestment,
+          isSynced: Boolean(r.is_synced),
+          // The non-PSD2-exposed investing pocket is matched by the contribution's description
+          // ("To investment account"); cash accounts carry no signature (D-22, €100k keystone).
+          counterpartySignature: isInvestment ? INVESTING_SIGNATURE : undefined,
+        };
+      });
     },
     async upsertTransactions(rows) {
       if (rows.length === 0) return 0;
@@ -271,11 +278,17 @@ export interface RunIngestResult {
   exitCode: 0 | 1;
 }
 
-/** Pick the incremental date_from: last_pull_at minus a small overlap, else a 30-day seed. */
+/** Go-forward analysis window: never pull or consider transactions before this date (Lorenzo,
+ * 2026-06-22). The MVP starts its monthly comparability at June 2026 — no historical backfill (D-14). */
+export const INGEST_START_DATE = "2026-06-01";
+
+/** Pick the incremental date_from: last_pull_at minus a small overlap, else a 30-day seed —
+ * floored at INGEST_START_DATE so nothing before the go-forward window is ever fetched. */
 function computeDateFrom(lastPullAt: string | null): string {
   const base = lastPullAt ? new Date(lastPullAt) : new Date(Date.now() - 30 * 24 * 3600 * 1000);
   base.setUTCDate(base.getUTCDate() - OVERLAP_DAYS);
-  return base.toISOString().slice(0, 10);
+  const computed = base.toISOString().slice(0, 10);
+  return computed < INGEST_START_DATE ? INGEST_START_DATE : computed; // lexical compare on YYYY-MM-DD
 }
 
 /** Pick the first numeric balance amount from an EB balances payload (EUR-only MVP). */

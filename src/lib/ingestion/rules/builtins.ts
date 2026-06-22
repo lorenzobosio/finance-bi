@@ -48,6 +48,18 @@ export const SUBLET_SIGNALS = ["sublocacao", "sublocação", "sublet", "untermie
 /** The cost-center code applied to sublet-tagged transactions (seeded in cost_centers). */
 export const SUBLET_COST_CENTER = "sublocacao";
 
+/**
+ * Investing-contribution signature (D-22 / the €100k keystone). The Revolut investing pocket
+ * is NOT PSD2-exposed (A2), so a contribution appears as an OUTGOING internal transfer from a
+ * cash account whose **description is "To investment account"** — there is no external
+ * counterparty/IBAN (both null). The investimento rule sets this as the virtual
+ * is_investment account's `counterpartySignature`, matched (case-insensitively) against the
+ * normalized description. The money is becoming equity (shares of Invesco FTSE All-World),
+ * never a cost. Add variants here if Revolut's wording changes or a second ETF/destination
+ * is added (confirmed against live data 2026-06-22 — Lorenzo).
+ */
+export const INVESTING_SIGNATURE = "investment account";
+
 /** Does the transaction text carry a sublet signature? */
 export function matchesSublet(haystack: string): boolean {
   const h = haystack.toLowerCase();

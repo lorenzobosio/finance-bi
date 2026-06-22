@@ -8,7 +8,7 @@
 //   1. investimento (HIGHEST) — an OUTFLOW whose destination resolves to ANY
 //      is_investment=true account. The investing pocket is NOT PSD2-exposed (A2/D-22), so
 //      the destination is matched on the OUTGOING leg against the virtual investing
-//      account's stored IBAN or its counterparty signature (e.g. "vanguard"). Source- and
+//      account's stored IBAN or its counterparty signature (e.g. "investment account"). Source- and
 //      amount-agnostic: the €4k may arrive from any cash account in one or more transfers.
 //   2. transferencia — counterparty IBAN is one of the couple's own cash accounts (D-04).
 //   3. revenue — a salary/employer inflow (D-18/D-26); sublet rent RECEIVED is revenue with
@@ -68,7 +68,7 @@ export interface Classification {
  *
  * The investing pocket is NOT PSD2-exposed (A2/D-22), so we match the OUTGOING leg against
  * the virtual account's stored IBAN (when the contribution carries the investing IBAN as
- * counterparty) OR its seeded counterparty/description signature (e.g. "vanguard").
+ * counterparty) OR its seeded counterparty/description signature (e.g. "investment account").
  */
 function resolvesToInvestingAccount(tx: RuleTx, inv: RuleAccount): boolean {
   // IBAN match — the contribution's counterparty IBAN is the investing account's IBAN.

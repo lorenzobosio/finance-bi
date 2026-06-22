@@ -71,7 +71,7 @@ const INVESTING: AccountLike = {
   iban: "DE00INVESTING",
   defaultCostCenter: "shared",
   isInvestment: true,
-  counterpartySignature: "vanguard",
+  counterpartySignature: "investment account", // real Revolut internal-transfer description (D-22)
 };
 
 const accountsById = new Map<string, AccountLike>([
@@ -102,6 +102,20 @@ describe("applyRules — classify-on-ingest (CAT-02/03/07, D-04/18/19/22/25)", (
       normalizedDescription: "vanguard vwce",
     };
     expect(applyRules(fromFernanda, accountsById).flowType).toBe("investimento");
+  });
+
+  it("matches the investing pocket by DESCRIPTION when the transfer has no counterparty/IBAN (real Revolut internal transfer to the brokerage, D-22)", () => {
+    // The investing pocket is NOT PSD2-exposed, so a contribution carries no counterparty
+    // name/IBAN — only "To investment account" in the description. This is the LIVE case the
+    // 2026-06-22 cron surfaced; money becoming equity, never a cost.
+    const internalTransfer: TxLike = {
+      accountId: FERNANDA.id,
+      amount: -5000,
+      counterpartyName: null,
+      counterpartyIban: null,
+      normalizedDescription: "to investment account",
+    };
+    expect(applyRules(internalTransfer, accountsById).flowType).toBe("investimento");
   });
 
   it("classifies a cash<->cash transfer as 'transferencia' (D-04)", () => {

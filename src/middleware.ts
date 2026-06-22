@@ -2,7 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // Routes reachable without an authenticated, allowlisted session (D-17).
-const PUBLIC_PATHS = ["/login", "/auth/callback"];
+// `/eb/callback` is the Enable Banking OAuth landing page (D-07): the browser arrives
+// here mid-SCA straight from Revolut/Enable Banking with no app session yet, so it must
+// be public for the redirect to land.
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/eb/callback"];
 
 /**
  * Session refresh + route protection + allowlist gate (D-13/D-17, FND-01/FND-02c).

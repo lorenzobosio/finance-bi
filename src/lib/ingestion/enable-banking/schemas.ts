@@ -107,7 +107,7 @@ export const RawTxSchema = z
   .object({
     transaction_id: z.string().nullish(), // A3: usually absent for Revolut
     entry_reference: z.string().nullish(), // A3: the stable id present here
-    status: z.string().nullish(), // "BOOK" | "PEND" (A4: only BOOK in window)
+    status: z.string().nullish(), // "BOOK" | "PDNG" (normalize keeps only BOOK; PDNG seen live)
     booking_date: z.string().nullish(), // "YYYY-MM-DD" — the period key
     value_date: z.string().nullish(),
     credit_debit_indicator: z.enum(["CRDT", "DBIT"]).nullish(), // Revolut sends DBIT (debit), not DBDT

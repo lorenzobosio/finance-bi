@@ -96,7 +96,7 @@ export type SessionsResponse = z.infer<typeof SessionsResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // GET /accounts/{uid}/transactions — paginated by continuation_key.
-// `credit_debit_indicator` (CRDT|DBDT) is the canonical sign source, NOT the
+// `credit_debit_indicator` (CRDT|DBIT) is the canonical sign source, NOT the
 // amount string (which EB returns as a positive magnitude).
 // ---------------------------------------------------------------------------
 export const TxAmountSchema = z
@@ -110,7 +110,7 @@ export const RawTxSchema = z
     status: z.string().nullish(), // "BOOK" | "PEND" (A4: only BOOK in window)
     booking_date: z.string().nullish(), // "YYYY-MM-DD" — the period key
     value_date: z.string().nullish(),
-    credit_debit_indicator: z.enum(["CRDT", "DBDT"]).nullish(),
+    credit_debit_indicator: z.enum(["CRDT", "DBIT"]).nullish(), // Revolut sends DBIT (debit), not DBDT
     transaction_amount: TxAmountSchema.nullish(),
     creditor: z.object({ name: z.string().nullish() }).passthrough().nullish(),
     creditor_account: z

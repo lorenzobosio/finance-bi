@@ -50,5 +50,12 @@
     "tsx": "^4.22.4",
     "typescript": "^5",
     "vitest": "^4.1.9"
+  },
+  "pnpm": {
+    "//overrides": "Security: force transitive deps off vulnerable ranges (Dependabot #1 esbuild, #2 postcss). Drop an entry once the parent package ships the fix natively.",
+    "overrides": {
+      "postcss@<8.5.10": ">=8.5.10",
+      "esbuild@<0.25.0": ">=0.25.0"
+    }
   }
 }

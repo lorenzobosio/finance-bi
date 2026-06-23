@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-import { StatusBanners } from "@/components/status/status-banners";
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -29,9 +27,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* Global status-banner slot — full-bleed, top of the authenticated app shell,
-            above page content, static (scrolls with the page) for Phase 1. */}
-        <StatusBanners />
+        {/* The status-banner trust strip is mounted inside the authenticated shell
+            ((protected)/layout.tsx), so it appears on every dashboard but never on the
+            public login page and never double-mounts. */}
         {children}
       </body>
     </html>

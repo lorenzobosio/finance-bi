@@ -8,9 +8,11 @@ import { describe, expect, it } from "vitest";
 // The write plane is a Next 15 Server Action under the 2-email allowlist RLS; every action
 // validates its payload with zod BEFORE touching the DB (untrusted client input, V5).
 //
+// The validators live in plain `*.schema.ts` modules (a Next 15 FILE-level `'use server'`
+// action module may export ONLY async functions, so the zod schemas are split out alongside).
 // Synthetic ids only (no PII, T-02-01).
-import { RecategorizeInputSchema } from "@/lib/actions/recategorize";
-import { BudgetInputSchema } from "@/lib/actions/budgets";
+import { RecategorizeInputSchema } from "@/lib/actions/recategorize.schema";
+import { BudgetInputSchema } from "@/lib/actions/budgets.schema";
 
 const VALID_UUID = "00000000-0000-4000-8000-000000000000";
 

@@ -188,11 +188,15 @@ export const transactions = pgTable(
 );
 
 // Per cost-center monthly budgets. `period_key` is YYYYMM (joins dim_calendar).
+// `category_id` (D2-14) is a NULLABLE FK to categories.id: NULL = a cost-center-grain
+// budget (the existing per-person / shared budget); set = a finer category-grain budget,
+// so budgeted-vs-actual (BI-02) works at BOTH grains without a breaking change.
 export const budgets = pgTable('budgets', {
   id: uuid('id').primaryKey().defaultRandom(),
   costCenter: text('cost_center')
     .notNull()
     .references(() => costCenters.code),
+  categoryId: uuid('category_id').references(() => categories.id),
   periodKey: integer('period_key').notNull(),
   amountEur: numeric('amount_eur', { precision: 14, scale: 2 }).notNull(),
 });

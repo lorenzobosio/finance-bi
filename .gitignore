@@ -51,3 +51,8 @@ next-env.d.ts
 
 # gsd research web-fetch cache (not source)
 .planning/research/.cache/
+
+# Private planning + tooling — kept OUT of the public CV repo (contains the couple's
+# detailed financial planning + GSD tooling/config; not secrets, but personal). Local-only.
+.planning/
+.claude/

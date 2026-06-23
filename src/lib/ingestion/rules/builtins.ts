@@ -25,6 +25,26 @@ export type RuleId =
 export const RULESET_VERSION = 1;
 
 /**
+ * Deterministic builtin-rule uuids (D2-04 — the audit fix). Each of the 6 builtin `RuleId`
+ * strings maps to a FIXED literal uuid that is seeded as a real `rules` row in
+ * drizzle/0005_builtin_rules_seed.sql (same fixed-literal convention as the 0002 category
+ * seed). The cron stamps THIS uuid onto every classified transaction's `rule_id` (never
+ * NULL) so each classification resolves to a real `rules.id` and stays auditable.
+ *
+ * The `6666…` namespace mirrors the seed's per-table literal prefixes (1111 categories,
+ * 2222 child categories, 3333 goals, 4444 milestones, 5555 members) — 6666 = rules. The
+ * trailing ordinal (0001…0006) follows the engine's first-match priority order.
+ */
+export const BUILTIN_RULE_IDS: Record<RuleId, string> = {
+  investimento: "66666666-6666-6666-6666-666666660001",
+  transferencia: "66666666-6666-6666-6666-666666660002",
+  revenue: "66666666-6666-6666-6666-666666660003",
+  sublocacao_revenue: "66666666-6666-6666-6666-666666660004",
+  sublocacao_cost: "66666666-6666-6666-6666-666666660005",
+  cost_default: "66666666-6666-6666-6666-666666660006",
+};
+
+/**
  * Salary / employer-inflow signature (D-18/D-26). Matched case-insensitively against the
  * normalized description (and counterparty name). Seeded from the spike's known employer
  * memos; DE/EN payroll keywords cover Revolut's incoming-salary remittance text.

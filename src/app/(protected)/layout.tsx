@@ -49,11 +49,6 @@ export default async function ProtectedLayout({
         } as React.CSSProperties
       }
     >
-      {/* Full-bleed status banners at the very top of the shell (above the inset). */}
-      <div className="w-full">
-        <StatusBanners />
-      </div>
-
       <CommandPaletteProvider categories={categories}>
         <AppSidebar
           collapsible="icon"
@@ -61,6 +56,9 @@ export default async function ProtectedLayout({
           userEmail={userEmail}
         />
         <SidebarInset>
+          {/* Status banners at the top of the inset (the "Data as of" trust strip). Must live
+              INSIDE SidebarInset — a full-width sibling of the sidebar breaks the flex-row shell. */}
+          <StatusBanners />
           <SiteHeader />
 
           {/* Page content. Extra bottom padding on mobile so the fixed bottom-nav never

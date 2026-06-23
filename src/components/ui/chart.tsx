@@ -4,6 +4,7 @@ import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 import type { TooltipValueType } from "recharts"
 
+import { formatEUR } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -254,8 +255,14 @@ function ChartTooltipContent({
                       </div>
                       {item.value != null && (
                         <span className="font-mono font-medium text-foreground tabular-nums">
+                          {/* de-DE single-source (DSN-02 / RESEARCH Pitfall 3): the default
+                              tooltip number used to fall back to the en-US default locale
+                              (`1,234.5`). Route numerics through `formatEUR` so amounts read
+                              `€1.234,50` like everywhere else. A caller that needs a non-EUR
+                              format (e.g. `formatPct`) still passes the tooltip `formatter`
+                              prop, which short-circuits this branch above. */}
                           {typeof item.value === "number"
-                            ? item.value.toLocaleString()
+                            ? formatEUR(item.value)
                             : String(item.value)}
                         </span>
                       )}

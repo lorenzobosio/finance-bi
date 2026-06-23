@@ -26,7 +26,13 @@ import type { CreateRuleClientFactory, CreateRuleInput } from "@/lib/actions/rec
  */
 export async function __createRuleFromTx(
   input: CreateRuleInput,
-  factory: CreateRuleClientFactory = createClient,
+  // The factory is the narrow structural `WriteClient` seam (so the unit test can inject a
+  // DB-free fake). Since `server.ts` now returns the fully-typed `createServerClient<Database>`
+  // client (DSN-06c), the deep recursive `rules.Insert`/`Json` generic makes TS2589 ("type
+  // instantiation excessively deep") fire when it tries to prove the typed client is assignable
+  // to the loose seam. The cast is safe and confined to THIS default-arg seam: the typed client
+  // structurally satisfies `WriteClient`, and every real mart READ stays fully typed.
+  factory: CreateRuleClientFactory = createClient as unknown as CreateRuleClientFactory,
 ): Promise<{ ok: true }> {
   const merchant = input.merchant?.trim();
   if (!merchant) return { ok: true }; // nothing to match forward — no rule written

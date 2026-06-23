@@ -30,7 +30,10 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function __recategorize(
   raw: unknown,
-  factory: WriteClientFactory = createClient,
+  // See create-rule.ts: the typed `createServerClient<Database>` client (DSN-06c) trips TS2589
+  // when checked against the loose structural `WriteClient` seam; the cast is confined to this
+  // default-arg and is safe (the typed client structurally satisfies the seam).
+  factory: WriteClientFactory = createClient as unknown as WriteClientFactory,
 ): Promise<{ ok: true }> {
   // V5: validate before any write — `.parse` throws on a bad payload (the action surfaces it).
   const input = RecategorizeInputSchema.parse(raw);

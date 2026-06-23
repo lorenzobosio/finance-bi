@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+import type { Database } from "@/lib/database.types";
+
 /**
  * Server (cookie-based, user-JWT) Supabase client for Server Components and Route
  * Handlers. Reads run under the user's session so RLS enforces the allowlist — this is
@@ -12,7 +14,11 @@ import { cookies } from "next/headers";
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  return createServerClient(
+  // <Database> (DSN-06c / D3-13): the generic flows the v_* view + table column shapes into
+  // `.from(...).select(...)`, so a renamed mart column is a TYPE error here, not a silent
+  // `undefined → 0`. The type is the pure `database.types.ts` file — NEVER the Drizzle
+  // `marts.ts` (which would drag postgres/DATABASE_URL into the app bundle; FND-03).
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {

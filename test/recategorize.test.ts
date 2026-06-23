@@ -20,7 +20,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { RecategorizeInputSchema } from "@/lib/actions/recategorize.schema";
-import { __recategorize, __createRuleFromTx } from "@/lib/actions/recategorize";
+import { __recategorize } from "@/lib/actions/recategorize";
+import { __createRuleFromTx } from "@/lib/actions/create-rule";
 
 const VALID_UUID = "00000000-0000-4000-8000-000000000000";
 const CAT_UUID = "11111111-1111-4111-8111-111111111111";

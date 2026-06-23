@@ -22,17 +22,42 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 /**
+ * Resolve a rule by its uuid id, or — when the caller passes a merchant string (the inline
+ * editor's re-apply dialog only knows the merchant) — by the most-recent forward rule whose
+ * `match_criteria.contains` equals that merchant. Returns null if no usable rule exists.
+ */
+async function resolveRule(sb: Awaited<ReturnType<typeof createClient>>, ruleKey: string) {
+  const isUuid = /^[0-9a-fA-F-]{36}$/.test(ruleKey);
+  if (isUuid) {
+    const { data } = await sb
+      .from("rules")
+      .select("id, match_criteria, set_cost_center")
+      .eq("id", ruleKey)
+      .maybeSingle();
+    return data ?? null;
+  }
+  // Merchant lookup: the forward rule recategorize/createRuleFromTx wrote stores
+  // `{ contains: merchant }`. Pick the most recent matching rule with a target cost center.
+  const { data } = await sb
+    .from("rules")
+    .select("id, match_criteria, set_cost_center, created_at")
+    .eq("match_criteria->>contains", ruleKey)
+    .not("set_cost_center", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/**
  * Load the rule + its candidate transactions under RLS, compute the affected set (pure), bulk-
  * UPDATE only those rows, and return `{ affected }`. A re-run computes an empty set → no-op.
+ * `ruleKey` is a rule uuid OR a merchant string (resolved to that merchant's forward rule).
  */
-export async function reapplyRuleToPast(ruleId: string): Promise<{ affected: number }> {
+export async function reapplyRuleToPast(ruleKey: string): Promise<{ affected: number }> {
   const sb = await createClient();
 
-  const { data: ruleRow } = await sb
-    .from("rules")
-    .select("id, match_criteria, set_cost_center")
-    .eq("id", ruleId)
-    .maybeSingle();
+  const ruleRow = await resolveRule(sb, ruleKey);
 
   if (!ruleRow?.set_cost_center) return { affected: 0 };
 

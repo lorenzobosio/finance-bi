@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: ingestion-enable-banking
 status: executing
-stopped_at: "Phase 1 COMPLETE — all 5 waves shipped (connect → schema → pipeline → cron + banners); bank data flows daily, app shows freshness/reconnect. Next: Phase 2 (Core BI + house-as-business)"
-last_updated: "2026-06-22T19:41:30.723Z"
+stopped_at: Phase 2 context gathered
+last_updated: "2026-06-23T05:41:58.387Z"
 last_activity: 2026-06-22
-last_activity_desc: 01-05 daily ingestion cron + freshness/reconnect banners; Phase 1 complete (5/5)
+last_activity_desc: 01-05 ingestion cron + status banners; visual-verified; Phase 1 closed
 progress:
   total_phases: 8
   completed_phases: 2
@@ -102,6 +102,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-22T01:15:16.049Z
-Stopped at: Phase 1 UI-SPEC written (checker deferred — API 529)
-Resume file: .planning/phases/01-ingestion-enable-banking/01-UI-SPEC.md
+Last session: 2026-06-23T05:41:58.373Z
+Stopped at: Phase 2 context gathered
+Resume file: .planning/phases/02-core-bi-house-as-business/02-CONTEXT.md

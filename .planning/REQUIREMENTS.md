@@ -42,8 +42,8 @@ Requirements for the initial roadmap. Each maps to exactly one phase.
 - [ ] **BI-01**: P&L view shows revenue vs investment vs costs, plus result and margin (% of revenue)
 - [ ] **BI-02**: Cost Centers (Lorenzo / Fernanda / Shared) show individual budgets — budgeted vs actual
 - [ ] **BI-03**: Spending views break down by category, by account, and by person
-- [ ] **BI-04**: All views are month-over-month comparable via the calendar dimension (empty months render as €0; current partial month flagged provisional; YoY shows "insufficient history" until ~12 months)
-- [ ] **BI-05**: Home dashboard (mobile-first) surfaces the 4 headline KPIs so each question is answerable in under a minute
+- [x] **BI-04**: All views are month-over-month comparable via the calendar dimension (empty months render as €0; current partial month flagged provisional; YoY shows "insufficient history" until ~12 months)
+- [x] **BI-05**: Home dashboard (mobile-first) surfaces the 4 headline KPIs so each question is answerable in under a minute
 - [ ] **BI-06**: Config supports managing categories, rules, and budgets
 - [ ] **BI-07**: Daily account balance snapshots are captured and stored (`balances` table) to show cash position, net-worth trend, and months-of-reserve over time
 
@@ -142,8 +142,8 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BI-01 | Phase 2 | Pending |
 | BI-02 | Phase 2 | Pending |
 | BI-03 | Phase 2 | Pending |
-| BI-04 | Phase 2 | Pending |
-| BI-05 | Phase 2 | Pending |
+| BI-04 | Phase 2 | Complete |
+| BI-05 | Phase 2 | Complete |
 | BI-06 | Phase 2 | Pending |
 | BI-07 | Phase 2 | Pending |
 | GOAL-01 | Phase 3 | Pending |

@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: ingestion-enable-banking
+current_phase: 02
+current_phase_name: core-bi-house-as-business
 status: executing
-stopped_at: Phase 2 planned (6 plans, checker PASSED)
-last_updated: "2026-06-23T11:52:35.896Z"
-last_activity: 2026-06-22
-last_activity_desc: 01-05 ingestion cron + status banners; visual-verified; Phase 1 closed
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-06-23T12:07:10.852Z"
+last_activity: 2026-06-23
+last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 11
   percent: 25
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** Show, at a glance and with trustworthy automatic data, exactly how far the couple is from €100k invested — and whether this month's money behaved like a healthy business.
-**Current focus:** Phase 1 — ingestion-enable-banking
+**Current focus:** Phase 02 — core-bi-house-as-business
 
 ## Current Position
 
-Phase: 1 (ingestion-enable-banking) — ✓ COMPLETE (5/5)
-Plan: 5 of 5 complete — Phase 1 done
-Status: Phase 1 COMPLETE — daily cron + freshness/reconnect banners shipped; bank data flows automatically. Next: Phase 2 (Core BI).
-Last activity: 2026-06-22 — 01-05 ingestion cron + status banners; visual-verified; Phase 1 closed
+Phase: 02 (core-bi-house-as-business) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-06-23 — Phase 02 execution started
 
 Progress (Phase 1): [██████████] 100%
 
@@ -65,6 +65,7 @@ Progress (Phase 1): [██████████] 100%
 
 *Updated after each plan completion*
 | Phase 00 P02 | 7min | 3 tasks | 11 files |
+| Phase 02 P01 | 5 | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Correctness]: `flow_type=investimento`/`transferência` excluded from all cost/revenue aggregations; €4k fed to goal exactly once — a Phase 1/2 contract, not retrofittable
 - [Phase 0]: Phase-0 hardening (00-05): allowlist moved from hardcoded RLS emails to env-seeded app_allowlist table + SECURITY DEFINER is_email_allowed(); no email literal in any committed file (public-repo safe)
 - [Phase 0]: members.email made nullable; members seeded by display name only (PII removed)
+- [Phase 02]: formatEUR/formatPct in src/lib/format.ts is the single Intl source; no ad-hoc new Intl.NumberFormat elsewhere (BI-05)
+- [Phase 02]: Mart test harness = pure-TS formula mirror (no pg-mem) — DB-free, deterministic, zero new deps
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-23T11:52:35.882Z
-Stopped at: Phase 2 planned (6 plans, checker PASSED)
+Last session: 2026-06-23T12:07:10.839Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: .planning/phases/02-core-bi-house-as-business/02-01-PLAN.md

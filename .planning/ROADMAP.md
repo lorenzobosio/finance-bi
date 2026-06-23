@@ -112,11 +112,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. The P&L view shows revenue vs investment vs costs with result and margin (% of revenue); cost centers (Lorenzo / Fernanda / Shared) show budgeted vs actual; spending breaks down by category, account, and person
   5. All views are month-over-month comparable via the calendar dimension (empty months render €0; current partial month flagged provisional; YoY shows "insufficient history" until ~12 months); the Home dashboard surfaces the 4 headline KPIs; Config manages categories, rules, and budgets; daily balance snapshots are stored in `balances` for cash-position / net-worth trend
 
-**Plans**: 6 plans
+**Plans**: 1/6 plans executed
 
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Foundation: de-DE format helpers (formatEUR/formatPct) + period/comparability pure helpers + the 6 Wave-0 test scaffolds (BI-04, BI-05)
+- [x] 02-01-PLAN.md — Foundation: de-DE format helpers (formatEUR/formatPct) + period/comparability pure helpers + the 6 Wave-0 test scaffolds (BI-04, BI-05)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -233,7 +233,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
 | 1. Ingestion (Enable Banking) | 5/5 | Complete   | 2026-06-22 |
-| 2. Core BI + house-as-business | 0/6 | Not started | - |
+| 2. Core BI + house-as-business | 1/6 | In Progress|  |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |
 | 5. AI Insights | 0/TBD | Not started | - |

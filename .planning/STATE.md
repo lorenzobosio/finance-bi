@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: ingestion-enable-banking
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-06-23T05:41:58.387Z"
+stopped_at: Phase 2 planned (6 plans, checker PASSED)
+last_updated: "2026-06-23T11:52:35.896Z"
 last_activity: 2026-06-22
 last_activity_desc: 01-05 ingestion cron + status banners; visual-verified; Phase 1 closed
 progress:
   total_phases: 8
   completed_phases: 2
-  total_plans: 9
+  total_plans: 15
   completed_plans: 10
   percent: 25
 ---
@@ -102,6 +102,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-23T05:41:58.373Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-core-bi-house-as-business/02-CONTEXT.md
+Last session: 2026-06-23T11:52:35.882Z
+Stopped at: Phase 2 planned (6 plans, checker PASSED)
+Resume file: .planning/phases/02-core-bi-house-as-business/02-01-PLAN.md

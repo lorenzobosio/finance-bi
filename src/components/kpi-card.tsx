@@ -62,8 +62,12 @@ export interface KpiStatus {
 export interface KpiCardProps {
   /** KPI label (e.g. "Invested (cost basis)"). */
   label: string;
-  /** Small decorative lucide glyph for the label row. */
-  icon: LucideIcon;
+  /**
+   * Small decorative glyph for the label row. Pass a RENDERED element (e.g. `<PiggyBank />`),
+   * NOT a bare component reference — a Server Component cannot serialize a component/class across
+   * the client boundary ("Only plain objects can be passed to Client Components").
+   */
+  icon: React.ReactNode;
   /** The headline value, ALREADY formatted via formatEUR/formatPct (used when no `valueNumber`). */
   value: string;
   /** Opt into the animated de-DE count-up: the raw numeric value (mutually exclusive with text-only `value`). */
@@ -87,7 +91,7 @@ export interface KpiCardProps {
 
 export function KpiCard({
   label,
-  icon: Icon,
+  icon,
   value,
   valueNumber,
   valueFormat,
@@ -127,7 +131,12 @@ export function KpiCard({
 
       {/* 1. Eyebrow label + glyph */}
       <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        <Icon aria-hidden="true" className="size-4 shrink-0" />
+        <span
+          aria-hidden="true"
+          className="flex shrink-0 [&>svg]:size-4 [&>svg]:shrink-0"
+        >
+          {icon}
+        </span>
         <span>{label}</span>
       </div>
 

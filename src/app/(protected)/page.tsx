@@ -231,7 +231,7 @@ export default async function Home({
         {/* €4k this month — the celebration moment + never red on the open month. */}
         <KpiCard
           label="This month invested"
-          icon={PiggyBank}
+          icon={<PiggyBank />}
           value={formatEUR(investimentoThisMonth, 0)}
           valueNumber={investimentoThisMonth}
           href="/cost-centers"
@@ -249,7 +249,7 @@ export default async function Home({
         {/* Per-person budget. */}
         <KpiCard
           label="Budgets"
-          icon={Users}
+          icon={<Users />}
           value={
             personBva.length === 0
               ? formatEUR(0, 0)
@@ -265,7 +265,7 @@ export default async function Home({
         {/* Months of reserve (secondary KPI). */}
         <KpiCard
           label="Months of reserve"
-          icon={ShieldCheck}
+          icon={<ShieldCheck />}
           value={monthsReserve === null ? "—" : formatMonths(monthsReserve)}
           status={
             monthsReserve === null

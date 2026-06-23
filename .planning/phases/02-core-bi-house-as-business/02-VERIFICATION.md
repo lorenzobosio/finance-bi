@@ -1,10 +1,12 @@
 ---
 phase: 02-core-bi-house-as-business
 verified: 2026-06-23T13:59:51Z
-status: human_needed
+status: passed
 score: 15/15
-behavior_unverified: 1
+behavior_unverified: 0
 bi07_ui_resolved: "2026-06-23 commit 373bba9 — Home renders Net worth + Months of reserve secondary KPIs"
+live_migrations_applied: "2026-06-23 — 0005/0006 (builtin rule uuids + budgets.category_id) and 0007/0008 (7 v_* mart views security_invoker=on + per-view RLS + balances UNIQUE) all applied; user-confirmed"
+rls_confirmed: "2026-06-23 pnpm test:rls GREEN — table-driven allowlist (2 rows) + SECURITY DEFINER is_email_allowed + cost_centers (5 codes incl. the Phase-2 shared alias) + dim_calendar 144 periods; the stale 4-code assertion was fixed in commit ba8878e"
 overrides_applied: 0
 human_verification:
   - test: "Confirm live DB has 7 v_* views with security_invoker=on and balances UNIQUE constraint; run pnpm test:rls"
@@ -25,9 +27,9 @@ behavior_unverified_items:
 # Phase 02: Core BI + house-as-business Verification Report
 
 **Phase Goal:** The household-as-a-business derivation and UI layer exists: a fully versioned rules engine assigns category/cost-center/flow_type, and calendar-joined SQL views power P&L, cost-center budgets, spending breakdowns, balance trends, and the Home KPIs — all month-over-month comparable.
-**Verified:** 2026-06-23T13:59:51Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-06-23T13:59:51Z (passed after gap-closure same day)
+**Status:** passed
+**Re-verification:** Closed 2026-06-23 — BI-07 UI surfaced (373bba9), both live migrations applied, `pnpm test:rls` GREEN (rls.assert fix ba8878e). 15/15 truths met, 0 unverified.
 
 ## Goal Achievement
 

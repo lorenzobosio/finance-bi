@@ -32,15 +32,15 @@ Requirements for the initial roadmap. Each maps to exactly one phase.
 - [ ] **CAT-01**: A fixed category taxonomy exists (`group` = essential | desire | investment, with `parent_id`)
 - [ ] **CAT-02**: A versioned `rules` engine assigns `category`, `cost_center`, and `flow_type` by priority on ingest
 - [ ] **CAT-03**: The €4k contribution is classified `flow_type=investimento` (internal transfer) and excluded from both costs and revenue in every aggregation; its credit leg is never counted as revenue
-- [ ] **CAT-04**: User can view a transactions table and re-categorize a transaction, create a rule from it, and assign its cost center
+- [x] **CAT-04**: User can view a transactions table and re-categorize a transaction, create a rule from it, and assign its cost center
 - [ ] **CAT-05**: Re-applying rules is an explicit action; raw transaction history is never silently rewritten
-- [ ] **CAT-06**: All internal movements between the couple's own accounts (personal↔joint, top-ups, and the investment-pocket contribution) are classified `flow_type=transferência` and excluded from both costs and revenue. Detection pairs the two legs (outflow in one account = inflow in another, same amount/date) with manual override available. (Generalizes CAT-03, which is the investment-specific case.)
+- [x] **CAT-06**: All internal movements between the couple's own accounts (personal↔joint, top-ups, and the investment-pocket contribution) are classified `flow_type=transferência` and excluded from both costs and revenue. Detection pairs the two legs (outflow in one account = inflow in another, same amount/date) with manual override available. (Generalizes CAT-03, which is the investment-specific case.)
 - [ ] **CAT-07**: Each account has a default cost center (Lorenzo's personal → Lorenzo, Fernanda's personal → Fernanda, joint → Shared) applied automatically on ingest, with per-transaction override
 
 ### Core BI (BI) — Phase 2
 
 - [ ] **BI-01**: P&L view shows revenue vs investment vs costs, plus result and margin (% of revenue)
-- [ ] **BI-02**: Cost Centers (Lorenzo / Fernanda / Shared) show individual budgets — budgeted vs actual
+- [x] **BI-02**: Cost Centers (Lorenzo / Fernanda / Shared) show individual budgets — budgeted vs actual
 - [ ] **BI-03**: Spending views break down by category, by account, and by person
 - [x] **BI-04**: All views are month-over-month comparable via the calendar dimension (empty months render as €0; current partial month flagged provisional; YoY shows "insufficient history" until ~12 months)
 - [x] **BI-05**: Home dashboard (mobile-first) surfaces the 4 headline KPIs so each question is answerable in under a minute
@@ -135,12 +135,12 @@ Which phases cover which requirements. Populated during roadmap creation.
 | CAT-03 | Phase 1 | Pending |
 | CAT-01 | Phase 1 | Pending |
 | CAT-02 | Phase 1 | Pending |
-| CAT-04 | Phase 2 | Pending |
+| CAT-04 | Phase 2 | Complete |
 | CAT-05 | Phase 2 | Pending |
-| CAT-06 | Phase 2 | Pending |
+| CAT-06 | Phase 2 | Complete |
 | CAT-07 | Phase 1 | Pending |
 | BI-01 | Phase 2 | Pending |
-| BI-02 | Phase 2 | Pending |
+| BI-02 | Phase 2 | Complete |
 | BI-03 | Phase 2 | Pending |
 | BI-04 | Phase 2 | Complete |
 | BI-05 | Phase 2 | Complete |

@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: core-bi-house-as-business
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-06-23T12:07:10.852Z"
+stopped_at: Plan 02-02 autonomous tasks complete; BLOCKING checkpoint pending (live migration)
+last_updated: "2026-06-23T12:21:28.852Z"
 last_activity: 2026-06-23
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 12
   percent: 25
 ---
 
@@ -66,6 +66,7 @@ Progress (Phase 1): [██████████] 100%
 *Updated after each plan completion*
 | Phase 00 P02 | 7min | 3 tasks | 11 files |
 | Phase 02 P01 | 5 | 3 tasks | 8 files |
+| Phase 02 P02 | 7 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 0]: members.email made nullable; members seeded by display name only (PII removed)
 - [Phase 02]: formatEUR/formatPct in src/lib/format.ts is the single Intl source; no ad-hoc new Intl.NumberFormat elsewhere (BI-05)
 - [Phase 02]: Mart test harness = pure-TS formula mirror (no pg-mem) — DB-free, deterministic, zero new deps
+- [Phase 02]: DB-backed rules engine: applyRules consults DB rules first (priority/version, first-match), falls back to frozen builtins; engine stays pure (cron loads rows)
+- [Phase 02]: Cost-center shared/compartilhado drift fixed via a 'shared' alias row in 0005 (frozen test untouched); builtins seeded as fixed 6666 uuids so rule_id is never NULL (D2-04)
 
 ### Pending Todos
 
@@ -94,6 +97,7 @@ None yet.
 
 - Enable Banking live behavior is unverified: which Revolut accounts/pockets appear, exact `expires_at` format/range, pending→booked lifecycle, 429 limits. Must be confirmed in the Phase 1 discovery spike before finalizing the Phase 1 plan.
 - Investment pocket likely NOT exposed via PSD2 — build the €100k goal on the outgoing €4k contribution leg (cost basis), not an investment balance.
+- Plan 02-02 paused at BLOCKING human-action checkpoint: 0005+0006 NOT yet applied to LIVE Supabase. User must (with DATABASE_URL): pnpm db:migrate, verify 6 seeded rule uuids + budgets.category_id exist, then pnpm test:rls. Until then the schema-applied must-have is UNMET.
 
 ## Deferred Items
 
@@ -105,6 +109,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-23T12:07:10.839Z
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-core-bi-house-as-business/02-01-PLAN.md
+Last session: 2026-06-23T12:21:28.837Z
+Stopped at: Plan 02-02 autonomous tasks complete; BLOCKING checkpoint pending (live migration)
+Resume file: .planning/phases/02-core-bi-house-as-business/02-02-PLAN.md

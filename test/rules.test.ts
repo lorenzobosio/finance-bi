@@ -218,4 +218,23 @@ describe("applyRules — classify-on-ingest (CAT-02/03/07, D-04/18/19/22/25)", (
       "revenue",
     );
   });
+
+  // Wave-0 RED (DSN-06b) — RED until Plan 03-02 inserts the `revenue_unclassified` catch.
+  // An UNMATCHED positive inflow that is NOT a salary signature, NOT sublet, NOT a transfer,
+  // and NOT a credit landing on an investing account is real money IN — it must classify as
+  // `revenue` (ruleId `revenue_unclassified`), never default to `cost`. Defaulting a positive
+  // inflow to cost is the negative-cost-margin bug (a guest payment subtracting from costs).
+  // Today this falls through to `cost` / `cost_default` → this assertion FAILS (the RED state).
+  it("classifies an unmatched positive non-salary inflow as 'revenue' / 'revenue_unclassified' (DSN-06b)", () => {
+    const guestPayment: TxLike = {
+      accountId: SHARED.id,
+      amount: 150, // positive: money IN
+      counterpartyName: "Guest",
+      counterpartyIban: "DE00GUEST", // NOT one of the couple's cash IBANs (not a transfer)
+      normalizedDescription: "payment received", // no salary/sublet/investment token
+    };
+    const out = applyRules(guestPayment, accountsById);
+    expect(out.flowType).toBe("revenue");
+    expect(out.ruleId).toBe("revenue_unclassified");
+  });
 });

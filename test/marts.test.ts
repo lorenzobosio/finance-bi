@@ -22,6 +22,7 @@ import {
   monthsOfReserve,
   type MartTx,
 } from "@/lib/db/marts";
+import { applyRules, type RuleAccount } from "@/lib/ingestion/rules/engine";
 
 // A minimal classified-transaction row the pure mart formulas consume. `flowType` and
 // `costCenter` are the engine's outputs (rules.test.ts contract); the marts read them.
@@ -104,5 +105,49 @@ describe("months-of-reserve (BI-07) — cash ÷ trailing-3-month avg costs", () 
   it("divides liquid cash by the trailing-3-month average monthly cost", () => {
     // cash 9000, trailing-3 costs [3000, 3000, 3000] → avg 3000 → 3 months
     expect(monthsOfReserve(9000, [3000, 3000, 3000])).toBeCloseTo(3, 5);
+  });
+});
+
+// Wave-0 RED (DSN-06b) — the negative-cost-margin bug guard, end-to-end engine→mart.
+// RED until Plan 03-02 classifies an unmatched positive inflow as `revenue`
+// (revenue_unclassified). TODAY `applyRules` returns `cost` for such an inflow, so the
+// mart would sum a positive €150 inflow INTO costs (inflating costs and crushing margin) and
+// NEVER into revenue — the exact bug this phase fixes. We classify with the real engine, then
+// feed the engine's output into the pure mart SUMs, proving the inflow lands in revenue, not
+// cost. Synthetic round numbers only — no real figures.
+describe("mart never sums a positive inflow as a negative cost (DSN-06b, engine→mart)", () => {
+  const SHARED: RuleAccount = {
+    id: "acct-shared",
+    iban: "DE00SHARED",
+    defaultCostCenter: "shared",
+    isInvestment: false,
+  };
+  const accountsById = new Map<string, RuleAccount>([[SHARED.id, SHARED]]);
+
+  // An unmatched positive inflow (not salary/sublet/transfer/credit-onto-investing).
+  const classification = applyRules(
+    {
+      accountId: SHARED.id,
+      amount: 150,
+      counterpartyName: "Guest",
+      counterpartyIban: "DE00GUEST",
+      normalizedDescription: "payment received",
+    },
+    accountsById,
+  );
+
+  const martRow: MartTx = {
+    flowType: classification.flowType,
+    amount: 150,
+    costCenter: classification.costCenter,
+    categoryId: null,
+  };
+
+  it("a revenue_unclassified inflow counts as REVENUE", () => {
+    expect(sumRevenue([martRow])).toBe(150);
+  });
+
+  it("a revenue_unclassified inflow NEVER subtracts from costs", () => {
+    expect(sumCosts([martRow])).toBe(0);
   });
 });

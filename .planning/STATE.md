@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: core-bi-house-as-business
 status: executing
-stopped_at: Plan 02-02 autonomous tasks complete; BLOCKING checkpoint pending (live migration)
-last_updated: "2026-06-23T12:45:36.409Z"
+stopped_at: Plan 02-04 complete (app shell + Home 4 KPIs); ready for 02-05
+last_updated: "2026-06-23T13:07:54.615Z"
 last_activity: 2026-06-23
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 25
 ---
 
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 ## Current Position
 
 Phase: 02 (core-bi-house-as-business) — EXECUTING
-Plan: 2 of 6
-Status: Ready to execute
-Last activity: 2026-06-23 — Phase 02 execution started
+Plan: 4 of 6 complete (02-04 app shell + Home KPIs)
+Status: Ready to execute 02-05
+Last activity: 2026-06-23 — 02-04 executed (app shell + Home 4-KPI dashboard)
 
 Progress (Phase 1): [██████████] 100%
 
@@ -68,6 +68,7 @@ Progress (Phase 1): [██████████] 100%
 | Phase 02 P01 | 5 | 3 tasks | 8 files |
 | Phase 02 P02 | 7 | 2 tasks | 12 files |
 | Phase 02 P03 | 7min | 2 tasks | 8 files |
+| Phase 02 P04 | 22min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Mart test harness = pure-TS formula mirror (no pg-mem) — DB-free, deterministic, zero new deps
 - [Phase 02]: DB-backed rules engine: applyRules consults DB rules first (priority/version, first-match), falls back to frozen builtins; engine stays pure (cron loads rows)
 - [Phase 02]: Cost-center shared/compartilhado drift fixed via a 'shared' alias row in 0005 (frozen test untouched); builtins seeded as fixed 6666 uuids so rule_id is never NULL (D2-04)
+- [Phase 02]: 02-04: shared ?period=YYYYMM is the app-wide month state every mart-backed page reads; StatusBanners mounted once in the protected shell
+- [Phase 02]: 02-04: €100k hero emphasis is structural (ring + md:col-span-2), not a larger font; KPI status is always icon+text+color
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-23T12:45:36.401Z
+Last session: 2026-06-23T13:06:36.924Z
 Stopped at: Plan 02-02 autonomous tasks complete; BLOCKING checkpoint pending (live migration)
 Resume file: .planning/phases/02-core-bi-house-as-business/02-02-PLAN.md

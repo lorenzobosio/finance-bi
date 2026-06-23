@@ -185,6 +185,23 @@ export function applyRules(
     }
   }
 
+  // 3b. revenue_unclassified (DSN-06b / D3-12) — an UNMATCHED positive non-salary inflow is
+  //     still real money IN. Placed AFTER the salary/sublet revenue checks and BEFORE the cost
+  //     default so the frozen cases (defaults-to-cost outflow, never-revenue credit-onto-
+  //     investing) are untouched: this is gated on `tx.amount > 0 && !isCreditOntoInvesting`.
+  //     Classifying it as `revenue` (base cost center) prevents the negative-cost-margin bug
+  //     where a positive inflow would otherwise hit the cost default and inflate margin.
+  if (tx.amount > 0 && !isCreditOntoInvesting) {
+    return {
+      flowType: "revenue",
+      costCenter: baseCostCenter,
+      categoryId: null,
+      isRecurring: false,
+      ruleId: "revenue_unclassified",
+      ruleVersion: RULESET_VERSION,
+    };
+  }
+
   // 4. cost (default) — sublet paid overrides costCenter to "sublocacao".
   if (isSublet) {
     return {

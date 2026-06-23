@@ -17,12 +17,13 @@ export type RuleId =
   | "investimento"
   | "transferencia"
   | "revenue"
+  | "revenue_unclassified"
   | "sublocacao_revenue"
   | "sublocacao_cost"
   | "cost_default";
 
 /** The seeded rule-set version. Bump when the ordered rule semantics change (D-17). */
-export const RULESET_VERSION = 1;
+export const RULESET_VERSION = 2;
 
 /**
  * Deterministic builtin-rule uuids (D2-04 — the audit fix). Each of the 6 builtin `RuleId`
@@ -42,6 +43,11 @@ export const BUILTIN_RULE_IDS: Record<RuleId, string> = {
   sublocacao_revenue: "66666666-6666-6666-6666-666666660004",
   sublocacao_cost: "66666666-6666-6666-6666-666666660005",
   cost_default: "66666666-6666-6666-6666-666666660006",
+  // 0007 = the revenue_unclassified catch (DSN-06b / D3-12). Ordinal is the next free slot
+  // (not its priority); priority 35 sits between revenue (30) and sublocacao (40) — see the
+  // 0009 seed migration. An unmatched positive non-salary inflow is real money IN, classified
+  // as revenue so it never falls through to the cost default and inflates margin negatively.
+  revenue_unclassified: "66666666-6666-6666-6666-666666660007",
 };
 
 /**

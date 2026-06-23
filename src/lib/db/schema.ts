@@ -239,7 +239,14 @@ export const balances = pgTable(
     asOfDate: date('as_of_date').notNull(),
     balanceEur: numeric('balance_eur', { precision: 14, scale: 2 }).notNull(),
   },
-  (t) => [index('balances_account_id_idx').on(t.accountId)],
+  (t) => [
+    index('balances_account_id_idx').on(t.accountId),
+    // One snapshot per account per day. upsertBalance (scripts/ingest.ts) keys its
+    // check-then-write on exactly this pair; the UNIQUE constraint closes the Pattern-10
+    // landmine so a concurrent cron run can't duplicate a day's snapshot (the marts assume
+    // one row per account/day). Added live in drizzle/0008_marts_rls.sql.
+    uniqueIndex('balances_account_date_uq').on(t.accountId, t.asOfDate),
+  ],
 );
 
 // AI-written daily/weekly insights (Phase 5 writer target).

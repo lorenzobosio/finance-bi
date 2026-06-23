@@ -50,6 +50,20 @@
       "when": 1782216684000,
       "tag": "0006_budgets_category_id",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782216685000,
+      "tag": "0007_marts",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782216686000,
+      "tag": "0008_marts_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -241,8 +241,12 @@ export async function createServiceWriter(): Promise<IngestWriter> {
       return inserted;
     },
     async upsertBalance(row) {
-      // The schema has no UNIQUE(account_id, as_of_date), so upsert by hand (check-then
-      // update/insert) keyed on that pair — idempotent per account/day.
+      // Upsert by hand (check-then-update/insert) keyed on (account_id, as_of_date) —
+      // idempotent per account/day. This pair is now backed by the
+      // UNIQUE(account_id, as_of_date) constraint (balances_account_date_uq, 0008) which
+      // closes the Pattern-10 duplicate-row landmine; the check-then-write stays as-is
+      // (it already targets exactly that pair, so the constraint can never trip in normal
+      // single-cron operation and a concurrent run is rejected rather than duplicated).
       const existing = await sql`
         select id from balances where account_id = ${row.accountId} and as_of_date = ${row.asOfDate} limit 1`;
       if (existing.length > 0) {

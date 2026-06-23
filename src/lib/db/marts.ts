@@ -248,6 +248,32 @@ export function monthsOfReserve(cash: number, trailingMonthlyCosts: number[]): n
   return cash / avg;
 }
 
+// Plan-frontmatter export aliases (the canonical names the rest of Phase 2 imports). The
+// pure helpers above are the implementation; these expose the formula under the names the
+// plan + downstream plans reference, so `computePnl(buckets)` returns the full P&L row and
+// `computeMonthsOfReserve` is the months-of-reserve helper.
+
+/** The full computed P&L row for a period (the locked formula, BI-01). */
+export interface ComputedPnl extends PnlBuckets {
+  result: number;
+  margin: number | null;
+}
+
+/**
+ * computePnl — the canonical P&L row from the four buckets (BI-01, D2-11). Mirrors
+ * v_pnl_monthly: result = revenue − investimento − costs + sublet_net; margin via nullif.
+ */
+export function computePnl(b: PnlBuckets): ComputedPnl {
+  return {
+    ...b,
+    result: householdResult(b),
+    margin: householdMargin(b),
+  };
+}
+
+/** computeMonthsOfReserve — alias of monthsOfReserve under the plan-frontmatter name (BI-07). */
+export const computeMonthsOfReserve = monthsOfReserve;
+
 /**
  * Net worth at a point in time (BI-07): the sum of the latest balance per account. The SQL
  * view (v_balance_trend) does the "latest balance per account per day" pick in SQL; this

@@ -205,3 +205,73 @@ select
 from cat_costs cc
 join public.v_pnl_monthly p on p.period_key = cc.period_key;
 --> statement-breakpoint
+
+-- ---------------------------------------------------------------------------
+-- v_balance_trend (BI-07) — net worth per DAY across the dim_calendar spine.
+-- For each calendar day, take the LATEST balance per account AS OF that day (the most recent
+-- snapshot on or before the day — balances are forward-only daily snapshots) and SUM across
+-- accounts → net worth. Driven off the dim_calendar spine so the trend is MoM-comparable and
+-- dense (a day with no new snapshot carries the last-known balance forward). The
+-- months-of-reserve division (cash ÷ trailing-3-month avg costs) is done in TS
+-- (marts.ts computeMonthsOfReserve) because it spans this mart and v_pnl_monthly.costs.
+--
+-- Restricted to the spine up to today's date so the view is finite and meaningful (future
+-- calendar days have no balance history). Net worth coalesces to 0 before the first snapshot.
+-- ---------------------------------------------------------------------------
+create view public.v_balance_trend
+  with (security_invoker = on) as
+with spine as (
+  select c.date, c.period_key
+  from public.dim_calendar c
+  where c.date <= current_date
+),
+-- latest snapshot per account as of each spine day (the most recent on/before the day)
+latest as (
+  select
+    s.date,
+    s.period_key,
+    b.account_id,
+    b.balance_eur,
+    row_number() over (
+      partition by s.date, b.account_id
+      order by b.as_of_date desc
+    ) as rn
+  from spine s
+  join public.balances b on b.as_of_date <= s.date
+)
+select
+  s.date::text                                              as date,
+  s.period_key,
+  coalesce(sum(l.balance_eur) filter (where l.rn = 1), 0)::numeric(14,2) as net_worth
+from spine s
+left join latest l on l.date = s.date and l.rn = 1
+group by s.date, s.period_key;
+--> statement-breakpoint
+
+-- ---------------------------------------------------------------------------
+-- v_home_kpis (BI-05) — the 4 headline KPIs the Home page answers in <1 min, per period:
+-- the household P&L (revenue/investimento/costs/sublet_net/result/margin) joined to the
+-- latest net worth IN that period. One row per period_key on the spine (BI-04 zero-fill
+-- inherited from v_pnl_monthly). net_worth is the last day's net worth within the period.
+-- ---------------------------------------------------------------------------
+create view public.v_home_kpis
+  with (security_invoker = on) as
+with nw_per_period as (
+  select distinct on (period_key)
+    period_key,
+    net_worth
+  from public.v_balance_trend
+  order by period_key, date desc
+)
+select
+  p.period_key,
+  p.revenue,
+  p.investimento,
+  p.costs,
+  p.sublet_net,
+  p.result,
+  p.margin,
+  coalesce(n.net_worth, 0)::numeric(14,2) as net_worth
+from public.v_pnl_monthly p
+left join nw_per_period n on n.period_key = p.period_key;
+--> statement-breakpoint

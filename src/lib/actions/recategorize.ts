@@ -68,8 +68,3 @@ export async function __recategorize(
 export async function recategorize(raw: unknown): Promise<{ ok: true }> {
   return __recategorize(raw);
 }
-
-// Re-export the create-rule seam so the recategorize slice's test imports both from one module
-// (the popover's two write paths). NOTE: this is `__createRuleFromTx` (the forward-rule
-// writer), NOT `reapplyRuleToPast` — recategorize never reaches into the bulk re-apply.
-export { __createRuleFromTx } from "@/lib/actions/create-rule";

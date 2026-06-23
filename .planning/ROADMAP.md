@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 0: Foundation** - Secure scaffold: Next.js 15 + Tailwind v4 + Tremor Raw on Vercel; Google auth (2-email allowlist) + RLS on every table; base schema + seeded calendar dimension (completed 2026-06-21)
 - [x] **Phase 1: Ingestion (Enable Banking)** - Daily, idempotent pull of the Revolut accounts with freshness/reconnect visibility; the €4k investimento contract (completed 2026-06-22)
-- [ ] **Phase 2: Core BI + house-as-business** - Versioned rules engine + P&L, cost-center budgets, spending views, MoM comparability, Home KPIs, config, balance snapshots
+- [x] **Phase 2: Core BI + house-as-business** - Versioned rules engine + P&L, cost-center budgets, spending views, MoM comparability, Home KPIs, config, balance snapshots (completed 2026-06-23)
 - [ ] **Phase 3: €100k Goal** - Gamified goal page: total invested, % to goal, milestones, ETA, €4k streak, Home hero; swappable goal-total abstraction
 - [ ] **Phase 4: PWA** - Installable Serwist PWA, NetworkFirst on financial routes, service-worker update prompt
 - [ ] **Phase 5: AI Insights** - Manual-first Haiku daily digest + weekly report into `insights`; Home "phrase of the day"; pre-aggregated inputs only
@@ -112,7 +112,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. The P&L view shows revenue vs investment vs costs with result and margin (% of revenue); cost centers (Lorenzo / Fernanda / Shared) show budgeted vs actual; spending breaks down by category, account, and person
   5. All views are month-over-month comparable via the calendar dimension (empty months render €0; current partial month flagged provisional; YoY shows "insufficient history" until ~12 months); the Home dashboard surfaces the 4 headline KPIs; Config manages categories, rules, and budgets; daily balance snapshots are stored in `balances` for cash-position / net-worth trend
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 
 **Wave 1**
 
@@ -136,7 +136,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 6** *(blocked on Wave 5)*
 
-- [ ] 02-06-PLAN.md — Transações: keyset table + inline recategorize/create-rule/explicit-re-apply Server Actions (CAT-04, CAT-05, CAT-06)
+- [x] 02-06-PLAN.md — Transações: keyset table + inline recategorize/create-rule/explicit-re-apply Server Actions (CAT-04, CAT-05, CAT-06)
 
 **UI hint**: yes
 
@@ -233,7 +233,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
 | 1. Ingestion (Enable Banking) | 5/5 | Complete   | 2026-06-22 |
-| 2. Core BI + house-as-business | 5/6 | In Progress|  |
+| 2. Core BI + house-as-business | 6/6 | Complete   | 2026-06-23 |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |
 | 5. AI Insights | 0/TBD | Not started | - |

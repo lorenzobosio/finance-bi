@@ -41,6 +41,7 @@ import { dedupeHash } from "@/lib/ingestion/dedupe";
 import { applyRules, type RuleAccount } from "@/lib/ingestion/rules/engine";
 import { BUILTIN_RULE_IDS, INVESTING_SIGNATURE, type RuleId } from "@/lib/ingestion/rules/builtins";
 import type { DbRule } from "@/lib/ingestion/rules/db-rules";
+import { pickBalance } from "@/lib/ingestion/pick-balance";
 
 const REPO_ROOT = resolve(__dirname, "..");
 
@@ -337,18 +338,6 @@ function computeDateFrom(lastPullAt: string | null): string {
   base.setUTCDate(base.getUTCDate() - OVERLAP_DAYS);
   const computed = base.toISOString().slice(0, 10);
   return computed < INGEST_START_DATE ? INGEST_START_DATE : computed; // lexical compare on YYYY-MM-DD
-}
-
-/** Pick the first numeric balance amount from an EB balances payload (EUR-only MVP). */
-function pickBalance(bals: Balance[]): number | null {
-  for (const b of bals) {
-    const amt = b.balance_amount?.amount;
-    if (amt != null && amt !== "") {
-      const n = Number(amt);
-      if (!Number.isNaN(n)) return n;
-    }
-  }
-  return null;
 }
 
 export async function runIngest(opts: RunIngestOptions = {}): Promise<RunIngestResult> {

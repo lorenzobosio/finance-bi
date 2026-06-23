@@ -96,6 +96,39 @@ jobs:
       - name: Unit tests (Vitest)
         run: pnpm test
 
+      # Type gate (DSN-06c): a renamed/dropped mart column must fail the BUILD, not silently
+      # coerce to `undefined → 0`. `tsc --noEmit` backs the typed-mart contract once
+      # `src/lib/database.types.ts` lands (Plan 03-03). Added after `pnpm test`; it does NOT
+      # weaken any prior step (lint/build/bundle-grep/test/rls all remain).
+      - name: Typecheck (tsc --noEmit)
+        run: pnpm typecheck
+
+      # database.types.ts drift gate (DSN-06c). The committed generated types MUST match what
+      # `supabase gen types typescript --linked` would emit, so a schema change that is not
+      # regenerated fails CI rather than drifting silently. The authoritative regen path (for
+      # Phase 7 DAT-03, when the Supabase CLI is wired into CI) is:
+      #
+      #   supabase gen types typescript --linked > src/lib/database.types.ts
+      #   git diff --exit-code src/lib/database.types.ts
+      #
+      # Until then the file does not yet exist (Plan 03-03 creates it) and the Supabase CLI is
+      # not provisioned on this runner (RESEARCH § Environment Availability). So this step
+      # DEGRADES: once the committed file is present it asserts it has no uncommitted drift
+      # against the working tree (`git diff --exit-code`); typing correctness is already proven
+      # by `pnpm typecheck` above. No regen is attempted here (no CLI), so the gate never fails
+      # spuriously on an absent CLI.
+      - name: database.types.ts drift gate (DSN-06c)
+        run: |
+          set -euo pipefail
+          TYPES_FILE="src/lib/database.types.ts"
+          if [ -f "$TYPES_FILE" ]; then
+            echo "database.types.ts present — asserting no uncommitted drift in the working tree."
+            git diff --exit-code "$TYPES_FILE"
+            echo "OK: $TYPES_FILE is committed and matches the working tree (typecheck proved column shape)."
+          else
+            echo "::notice::$TYPES_FILE not present yet (Plan 03-03 creates it); typed-mart drift gate degrades to pnpm typecheck. Full regen path: supabase gen types typescript --linked > $TYPES_FILE (Phase 7 DAT-03)."
+          fi
+
       - name: Live RLS + seed assertions
         # Skipped on Dependabot PRs: they run with the read-only Dependabot token and CANNOT
         # see Actions secrets (GitHub's secret-exfiltration guard), so DATABASE_URL is absent

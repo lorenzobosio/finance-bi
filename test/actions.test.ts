@@ -49,13 +49,70 @@ describe("RecategorizeInputSchema (CAT-04) — rejects bad payloads, accepts a v
 });
 
 describe("BudgetInputSchema (BI-06) — validates a budget edit payload", () => {
+  const PERIOD_KEY = 202606;
+
   it("rejects a negative budget amount", () => {
-    const r = BudgetInputSchema.safeParse({ costCenter: "shared", categoryId: null, amount: -100 });
+    const r = BudgetInputSchema.safeParse({
+      costCenter: "shared",
+      categoryId: null,
+      periodKey: PERIOD_KEY,
+      amount: -100,
+    });
     expect(r.success).toBe(false);
   });
 
-  it("accepts a well-formed budget payload", () => {
+  it("rejects a NaN budget amount", () => {
+    const r = BudgetInputSchema.safeParse({
+      costCenter: "shared",
+      categoryId: null,
+      periodKey: PERIOD_KEY,
+      amount: Number.NaN,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a missing periodKey", () => {
     const r = BudgetInputSchema.safeParse({ costCenter: "shared", categoryId: null, amount: 1000 });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects an empty costCenter", () => {
+    const r = BudgetInputSchema.safeParse({
+      costCenter: "",
+      categoryId: null,
+      periodKey: PERIOD_KEY,
+      amount: 1000,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a non-uuid categoryId", () => {
+    const r = BudgetInputSchema.safeParse({
+      costCenter: "shared",
+      categoryId: "not-a-uuid",
+      periodKey: PERIOD_KEY,
+      amount: 1000,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("accepts a well-formed cost-center-grain payload (categoryId null)", () => {
+    const r = BudgetInputSchema.safeParse({
+      costCenter: "shared",
+      categoryId: null,
+      periodKey: PERIOD_KEY,
+      amount: 1000,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts a well-formed category-grain payload (categoryId set)", () => {
+    const r = BudgetInputSchema.safeParse({
+      costCenter: "lorenzo",
+      categoryId: VALID_UUID,
+      periodKey: PERIOD_KEY,
+      amount: 250,
+    });
     expect(r.success).toBe(true);
   });
 });

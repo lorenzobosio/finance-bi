@@ -536,7 +536,9 @@ limit 50;
 | A5 | Builtin rules get **deterministic uuids** seeded in a new migration to resolve `rule_id` | Pattern 5 / D2-04 | If the team prefers a `builtin_key` text column on `rules` instead of fixed uuids, the FK story changes — design choice for the data-layer plan. |
 | A6 | The proposed category taxonomy in CONTEXT (Accommodation/Food/…) must be reconciled with the EXISTING seed (Housing/Groceries/Utilities/Transport/Dining/Entertainment/Shopping/Travel/ETF/Savings) | (taxonomy) | The seed already differs from CONTEXT's wish-list; Config makes categories editable, so reconcile in the data-layer plan rather than hardcoding either list. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All four were operationalized in the Phase-2 plans (verified by gsd-plan-checker, 2026-06-23): **Q1**→02-02/T1 (assert engine codes ⊆ `cost_centers.code`) · **Q2**→02-02/T1+T2 (fixed-uuid builtin seed + fix the `ingest.ts` writer) · **Q3**→02-03/T1 (keep the existing seed; Config editing closes the gap) · **Q4**→02-03/T1 (hand-written `.sql` + `pgView().existing()`).
 
 1. **`shared` vs `compartilhado` cost-center code** — *What we know:* engine/tests emit `shared`; DB seeds `compartilhado`. *What's unclear:* alias vs rename vs engine-map. *Recommendation:* resolve in Wave 0 with a test that the engine's emitted codes are a subset of `cost_centers.code`.
 2. **`rule_id` resolution mechanism** — *Known:* must become a real uuid FK. *Unclear:* fixed-uuid seed vs a `builtin_key` column. *Recommendation:* fixed-uuid seed (mirrors the existing `1111…`/`2222…` category-seed convention) + fix the `ingest.ts` writer + backfill.

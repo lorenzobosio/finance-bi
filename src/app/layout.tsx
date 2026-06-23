@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { MotionConfig } from "motion/react";
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/theme-provider";
 
-const geistSans = Geist({
+// UI sans: Plus Jakarta Sans — rounder, warmer, more comfortable to read than Geist
+// (owner pref 2026-06-23). Kept on the `--font-geist-sans` CSS var so globals.css
+// (`--font-sans: var(--font-geist-sans)`) and the globals-tokens test stay unchanged.
+const appSans = Plus_Jakarta_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   display: "swap",
@@ -33,7 +36,7 @@ export default function RootLayout({
     // this, React logs a hydration mismatch on every load (RESEARCH Pitfall 2).
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${appSans.variable} ${geistMono.variable} antialiased`}
       >
         {/* Dark/light token provider (DSN-01): `class` strategy on <html>, default `system`
             (the owner app follows the OS), `disableTransitionOnChange` to avoid a jarring flash

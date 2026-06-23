@@ -112,7 +112,32 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. The P&L view shows revenue vs investment vs costs with result and margin (% of revenue); cost centers (Lorenzo / Fernanda / Shared) show budgeted vs actual; spending breaks down by category, account, and person
   5. All views are month-over-month comparable via the calendar dimension (empty months render €0; current partial month flagged provisional; YoY shows "insufficient history" until ~12 months); the Home dashboard surfaces the 4 headline KPIs; Config manages categories, rules, and budgets; daily balance snapshots are stored in `balances` for cash-position / net-worth trend
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Foundation: de-DE format helpers (formatEUR/formatPct) + period/comparability pure helpers + the 6 Wave-0 test scaffolds (BI-04, BI-05)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 02-02-PLAN.md — DB-backed rules engine (optional dbRules) + real rule_id stamp + builtin-uuid seed + shared/compartilhado reconcile + budgets.category_id + [BLOCKING] live migration (CAT-04, CAT-06, BI-02)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 02-03-PLAN.md — Calendar-joined SQL marts (P&L/sublet-net/budget-vs-actual/breakdown/%-of-revenue/balance-trend) + per-object RLS + balances UNIQUE + [BLOCKING] live migration (BI-01, BI-02, BI-03, BI-04, BI-07, CAT-06)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 02-04-PLAN.md — App shell (nav + shared ?period selector + freshness banner) + Home 4 headline KPIs (BI-05, BI-04, BI-01)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 02-05-PLAN.md — Gastos breakdown + %-of-revenue, Cost Centers budget-vs-actual + Sublocação P&L + waterfall, Config budgets write path (BI-03, BI-02, BI-01, BI-06, BI-04, CAT-06)
+
+**Wave 6** *(blocked on Wave 5)*
+
+- [ ] 02-06-PLAN.md — Transações: keyset table + inline recategorize/create-rule/explicit-re-apply Server Actions (CAT-04, CAT-05, CAT-06)
+
 **UI hint**: yes
 
 ### Phase 3: €100k Goal
@@ -208,7 +233,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
 | 1. Ingestion (Enable Banking) | 5/5 | Complete   | 2026-06-22 |
-| 2. Core BI + house-as-business | 0/TBD | Not started | - |
+| 2. Core BI + house-as-business | 0/6 | Not started | - |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |
 | 5. AI Insights | 0/TBD | Not started | - |

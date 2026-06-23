@@ -1,21 +1,24 @@
-import { Coins, Landmark, PiggyBank, ShieldCheck, Target, Users } from "lucide-react";
+import { PiggyBank, ShieldCheck, Users } from "lucide-react";
 
+import { BusinessReadCard } from "@/components/business-read-card";
 import { ProgressBar } from "@/components/charts/progress-bar";
+import { NetWorthTrend, type NetWorthPoint } from "@/components/charts/net-worth-trend";
+import { GoalHeroCard } from "@/components/goal-hero-card";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
-import { formatEUR, formatMonths, formatPct } from "@/lib/format";
-import { currentPeriodKey, isProvisional, previousPeriodKey } from "@/lib/period";
+import { formatEUR, formatMonths } from "@/lib/format";
+import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
-// Home — the 4 North-Star KPI cards (BI-05, BI-04, BI-01).
+// Home — the BALANCED fintech composition (D3-06). Four bands top-to-bottom:
+//   A — Goal Hero (live €100k cost-basis) + the house-as-business margin read, side by side.
+//   B — the KPI row (€4k this month [celebration host] · per-person budgets · months-of-reserve).
+//   C — the net-worth / balance trend area chart.
+//   D — an empty AI "phrase of the day" slot (Phase 6).
 //
-// A logged-in user reads "how far to €100k, did we hit €4k, did anyone blow budget, what's
-// the margin?" for the SELECTED month (the shared ?period=YYYYMM selector in the shell). All
-// reads go through the @supabase/ssr server client under the user JWT + RLS — NEVER the
-// Drizzle/postgres client and NEVER service_role (T-02-11 / RESEARCH Pitfall 3).
-//
-// First-class states (UI-SPEC §7): the current open month shows a Provisional pill and the
-// €4k card is NEVER red; "no budgets set" renders a distinct neutral state (never a false
-// green); a brand-new account with no ingested data yet shows the calm "Synchronizing" band.
+// It RE-SKINS the existing Phase-2 Home: same RLS mart reads (anon+JWT via @supabase/ssr — NEVER
+// the Drizzle client, NEVER service_role), the same shared ?period selector, the same first-class
+// comparability states (Provisional pill, never-fake-€0, "Missed only on a closed month"). The
+// rich Goal-Hero journey/streak/bucket content is Phase 5; here we build the LAYOUT on real data.
 
 // The €100k goal and the €4k monthly contribution target (CLAUDE.md north-star).
 const GOAL_EUR = 100_000;
@@ -59,32 +62,31 @@ export default async function Home({
   const provisional = isProvisional(period, now);
 
   // --- Reads (all under RLS via @supabase/ssr) -----------------------------------------
-  // 1. The selected month's headline KPIs.
+  // 1. The selected month's headline KPIs (the full P&L row drives the business read).
   const { data: kpiRow, error: kpiError } = await supabase
     .from("v_home_kpis")
     .select("period_key, revenue, investimento, costs, sublet_net, result, margin, net_worth")
     .eq("period_key", period)
     .maybeSingle();
 
-  // 2. Last month's P&L for the margin MoM delta (year-boundary-safe prev key).
-  const { data: prevPnl } = await supabase
-    .from("v_pnl_monthly")
-    .select("margin")
-    .eq("period_key", previousPeriodKey(period))
-    .maybeSingle();
-
-  // 3. Cumulative investimento cost-basis (sum across every populated period) — the €100k
-  //    progress value. Also doubles as the "any data ingested yet?" probe.
+  // 2. Cumulative investimento cost-basis (sum across every populated period) — the €100k
+  //    progress value + the 12-mo invested sparkline. Also the "any data ingested yet?" probe.
   const { data: allPnl, error: pnlError } = await supabase
     .from("v_pnl_monthly")
     .select("period_key, investimento, costs");
 
-  // 4. Per-person budget-vs-actual at cost-center grain (category_id null) for this period.
+  // 3. Per-person budget-vs-actual at cost-center grain (category_id null) for this period.
   const { data: bvaRows } = await supabase
     .from("v_costcenter_bva")
     .select("cost_center, category_id, period_key, budget, actual")
     .eq("period_key", period)
     .is("category_id", null);
+
+  // 4. The net-worth balance trend (Band C). Typed read; the chart is a client island.
+  const { data: balanceTrend } = await supabase
+    .from("v_balance_trend")
+    .select("date, net_worth")
+    .order("date", { ascending: true });
 
   if (kpiError || pnlError) {
     return (
@@ -98,20 +100,30 @@ export default async function Home({
   // First-use (forward-only): no ingested P&L anywhere yet → the calm sync band + €0 states.
   const hasAnyData = (allPnl ?? []).length > 0;
 
-  // --- Derive the 4 KPIs ---------------------------------------------------------------
+  // --- Derive the Goal Hero + business read --------------------------------------------
   const revenue = num(kpiRow?.revenue);
   const investimentoThisMonth = num(kpiRow?.investimento);
+  const costsThisMonth = num(kpiRow?.costs);
+  const subletNet = num(kpiRow?.sublet_net);
+  const result = num(kpiRow?.result);
   const margin = kpiRow?.margin === null || kpiRow?.margin === undefined ? null : num(kpiRow.margin);
-  const prevMargin =
-    prevPnl?.margin === null || prevPnl?.margin === undefined ? null : num(prevPnl.margin);
 
   const investedToDate = (allPnl ?? []).reduce((acc, r) => acc + num(r.investimento), 0);
-  const goalPct = Math.min(100, (investedToDate / GOAL_EUR) * 100);
 
-  // Secondary KPIs (BI-07): net worth + months-of-reserve. Net worth comes straight from
-  // v_home_kpis; months-of-reserve = liquid cash ÷ trailing-3-month average costs, computed
-  // inline here (mirrors src/lib/db/marts.ts monthsOfReserve — the page must NOT import the
-  // Drizzle-backed marts module into the src/app bundle, T-02-11 / RESEARCH Pitfall 3).
+  // The 12-mo invested sparkline: the running cumulative cost-basis over the last 12 periods.
+  const periodsAsc = (allPnl ?? [])
+    .slice()
+    .sort((a, b) => Number(a.period_key) - Number(b.period_key));
+  let runningInvested = 0;
+  const cumulativeInvested = periodsAsc.map((r) => {
+    runningInvested += num(r.investimento);
+    return runningInvested;
+  });
+  const sparkline = cumulativeInvested.slice(-12);
+
+  // Net worth + months-of-reserve (BI-07). Net worth from v_home_kpis; reserve = liquid cash ÷
+  // trailing-3-month average costs, computed inline (the page must NOT import the Drizzle-backed
+  // marts module into the src/app bundle, T-02-11 / RESEARCH Pitfall 3).
   const netWorth = num(kpiRow?.net_worth);
   const trailingCosts = (allPnl ?? [])
     .filter((r) => Number(r.period_key) <= period)
@@ -123,14 +135,21 @@ export default async function Home({
     : 0;
   const monthsReserve = avgCosts > 0 ? netWorth / avgCosts : null;
 
-  // €4k card status — the open month is NEVER red (UI-SPEC §1).
+  // The net-worth trend points for the chart island.
+  const trendPoints: NetWorthPoint[] = (balanceTrend ?? []).map((r) => ({
+    date: r.date,
+    netWorth: num(r.net_worth),
+  }));
+
+  // €4k card status — the open month is NEVER red (UI-SPEC §1). The celebration moment fires
+  // only when the month has reached €4.000.
   const remaining = MONTHLY_TARGET_EUR - investimentoThisMonth;
-  const fourKStatus: KpiStatus =
-    investimentoThisMonth >= MONTHLY_TARGET_EUR
-      ? { label: "On track", tone: "gain" }
-      : provisional
-        ? { label: `${formatEUR(remaining, 0)} to go`, tone: "warning" }
-        : { label: `Missed — ${formatEUR(remaining, 0)} short`, tone: "loss" };
+  const fourKHit = investimentoThisMonth >= MONTHLY_TARGET_EUR;
+  const fourKStatus: KpiStatus = fourKHit
+    ? { label: "On track", tone: "gain" }
+    : provisional
+      ? { label: `${formatEUR(remaining, 0)} to go`, tone: "warning" }
+      : { label: `Missed — ${formatEUR(remaining, 0)} short`, tone: "loss" };
 
   // Per-person budget status — names who; distinct neutral "not set" (never a false green).
   const personBva = PERSON_COST_CENTERS.map((p) => {
@@ -152,12 +171,8 @@ export default async function Home({
     budgetStatus = { label: "On track", tone: "gain" };
   }
 
-  // Margin MoM delta.
-  const marginDelta =
-    margin !== null && prevMargin !== null ? (margin - prevMargin) * 100 : null;
-
   return (
-    <div className="space-y-6">
+    <div className="@container/main space-y-6">
       {/* Page header (h1 left); the shared month selector lives in the shell top bar. */}
       <header className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">Home</h1>
@@ -182,42 +197,56 @@ export default async function Home({
         </div>
       )}
 
-      {/* The 4 headline KPIs in question order: single col → 2×2 md → 4-across xl. */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {/* 1. €100k progress — STRUCTURAL emphasis (col-span / ring), NOT a bigger font. */}
-        <KpiCard
-          label="Invested (cost basis)"
-          icon={Target}
-          value={formatEUR(investedToDate, 0)}
-          href="/cost-centers"
-          emphasis
-          status={{ label: `${formatPct(goalPct)} to goal`, tone: "gain" }}
-        >
-          <ProgressBar
-            value={goalPct}
-            variant="default"
-            label="Progress toward €100.000"
-            valueText={`${formatEUR(investedToDate, 0)} of ${formatEUR(GOAL_EUR, 0)}`}
-          />
-        </KpiCard>
+      {/* BAND A — the balanced split: Goal Hero + business read, side by side on ≥xl. */}
+      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2">
+        {/* Desktop hero (≥xl) and the mobile reorder share data; render both variants gated. */}
+        <GoalHeroCard
+          investedToDate={investedToDate}
+          goalEur={GOAL_EUR}
+          contributionThisMonth={investimentoThisMonth}
+          sparkline={sparkline}
+          className="hidden @xl/main:flex"
+        />
+        <GoalHeroCard
+          investedToDate={investedToDate}
+          goalEur={GOAL_EUR}
+          contributionThisMonth={investimentoThisMonth}
+          sparkline={sparkline}
+          mobile
+          className="@xl/main:hidden"
+        />
+        <BusinessReadCard
+          margin={margin}
+          revenue={revenue}
+          investimento={investimentoThisMonth}
+          costs={costsThisMonth}
+          subletNet={subletNet}
+          result={result}
+          href="/spending"
+        />
+      </div>
 
-        {/* 2. €4k this month — open month is never red. */}
+      {/* BAND B — the KPI row: €4k this month (celebration host) · budgets · months-of-reserve. */}
+      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-3">
+        {/* €4k this month — the celebration moment + never red on the open month. */}
         <KpiCard
           label="This month invested"
           icon={PiggyBank}
           value={formatEUR(investimentoThisMonth, 0)}
+          valueNumber={investimentoThisMonth}
           href="/cost-centers"
           status={fourKStatus}
+          celebrate={fourKHit}
         >
           <ProgressBar
             value={(investimentoThisMonth / MONTHLY_TARGET_EUR) * 100}
-            variant={investimentoThisMonth >= MONTHLY_TARGET_EUR ? "gain" : "warning"}
+            variant={fourKHit ? "gain" : "warning"}
             label="Progress toward €4.000 this month"
             valueText={`${formatEUR(investimentoThisMonth, 0)} of ${formatEUR(MONTHLY_TARGET_EUR, 0)}`}
           />
         </KpiCard>
 
-        {/* 3. Per-person budget. */}
+        {/* Per-person budget. */}
         <KpiCard
           label="Budgets"
           icon={Users}
@@ -233,54 +262,26 @@ export default async function Home({
           status={budgetStatus}
         />
 
-        {/* 4. Margin %. */}
+        {/* Months of reserve (secondary KPI). */}
         <KpiCard
-          label="Margin (% of net revenue)"
-          icon={Coins}
-          value={margin === null ? "—" : formatPct(margin * 100)}
-          href="/spending"
-          delta={
-            marginDelta === null
-              ? undefined
-              : {
-                  text: formatPct(Math.abs(marginDelta)),
-                  direction: marginDelta >= 0 ? "up" : "down",
-                  tone: marginDelta >= 0 ? "gain" : "loss",
-                }
-          }
+          label="Months of reserve"
+          icon={ShieldCheck}
+          value={monthsReserve === null ? "—" : formatMonths(monthsReserve)}
           status={
-            marginDelta === null
-              ? {
-                  label: revenue === 0 ? "No revenue this month" : "No prior month",
-                  tone: "neutral",
-                }
+            monthsReserve === null
+              ? { label: "Not enough history yet", tone: "neutral" }
               : undefined
           }
         />
       </div>
 
-      {/* Secondary KPIs (BI-07) — cash position + reserve runway, visually lighter. */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">Cash &amp; reserves</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <KpiCard
-            label="Net worth"
-            icon={Landmark}
-            value={formatEUR(netWorth, 0)}
-            href="/cost-centers"
-          />
-          <KpiCard
-            label="Months of reserve"
-            icon={ShieldCheck}
-            value={monthsReserve === null ? "—" : formatMonths(monthsReserve)}
-            status={
-              monthsReserve === null
-                ? { label: "Not enough history yet", tone: "neutral" }
-                : undefined
-            }
-          />
-        </div>
+      {/* BAND C — the net-worth / balance trend. */}
+      <section className="relative overflow-hidden rounded-xl bg-card p-6 text-card-foreground shadow-sm ring-1 ring-foreground/10 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-foreground/10">
+        <NetWorthTrend data={trendPoints} />
       </section>
+
+      {/* BAND D — AI "phrase of the day" slot (Phase 6, intentionally empty this phase). */}
+      {/* TODO(Phase 6): mount the AI insights strip here, reading the `insights` table. */}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 // (`€5.038,00`). Negatives lead with a minus on the WHOLE token (`-€42,18`),
 // never parentheses. Percent uses the German non-breaking space before `%`
 // (`12,4 %`) — asserted literally below with a U+00A0 in the expected string.
-import { formatEUR, formatPct } from "@/lib/format";
+import { formatEUR, formatMonths, formatPct } from "@/lib/format";
 
 // A literal non-breaking space (U+00A0) — the German thin-space-before-% convention.
 // Spelled out as a unicode escape so the intent survives editors that collapse it.
@@ -40,5 +40,12 @@ describe("formatPct — de-DE one-decimal with the German space before % (BI-05)
     // Guard against a regression that swaps the U+00A0 for a plain " ".
     expect(formatPct(12.4)).not.toBe("12,4 %");
     expect(formatPct(12.4).charCodeAt(formatPct(12.4).length - 2)).toBe(0x00a0);
+  });
+});
+
+describe("formatMonths — de-DE months-of-reserve (BI-07)", () => {
+  it("renders one decimal max with the non-breaking space before 'months'", () => {
+    expect(formatMonths(3.2)).toBe(`3,2${NBSP}months`);
+    expect(formatMonths(3)).toBe(`3${NBSP}months`);
   });
 });

@@ -1,8 +1,8 @@
-import { Coins, PiggyBank, Target, Users } from "lucide-react";
+import { Coins, Landmark, PiggyBank, ShieldCheck, Target, Users } from "lucide-react";
 
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
-import { formatEUR, formatPct } from "@/lib/format";
+import { formatEUR, formatMonths, formatPct } from "@/lib/format";
 import { currentPeriodKey, isProvisional, previousPeriodKey } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
@@ -77,7 +77,7 @@ export default async function Home({
   //    progress value. Also doubles as the "any data ingested yet?" probe.
   const { data: allPnl, error: pnlError } = await supabase
     .from("v_pnl_monthly")
-    .select("period_key, investimento");
+    .select("period_key, investimento, costs");
 
   // 4. Per-person budget-vs-actual at cost-center grain (category_id null) for this period.
   const { data: bvaRows } = await supabase
@@ -107,6 +107,21 @@ export default async function Home({
 
   const investedToDate = (allPnl ?? []).reduce((acc, r) => acc + num(r.investimento), 0);
   const goalPct = Math.min(100, (investedToDate / GOAL_EUR) * 100);
+
+  // Secondary KPIs (BI-07): net worth + months-of-reserve. Net worth comes straight from
+  // v_home_kpis; months-of-reserve = liquid cash ÷ trailing-3-month average costs, computed
+  // inline here (mirrors src/lib/db/marts.ts monthsOfReserve — the page must NOT import the
+  // Drizzle-backed marts module into the src/app bundle, T-02-11 / RESEARCH Pitfall 3).
+  const netWorth = num(kpiRow?.net_worth);
+  const trailingCosts = (allPnl ?? [])
+    .filter((r) => Number(r.period_key) <= period)
+    .sort((a, b) => Number(b.period_key) - Number(a.period_key))
+    .slice(0, 3)
+    .map((r) => num(r.costs));
+  const avgCosts = trailingCosts.length
+    ? trailingCosts.reduce((acc, c) => acc + c, 0) / trailingCosts.length
+    : 0;
+  const monthsReserve = avgCosts > 0 ? netWorth / avgCosts : null;
 
   // €4k card status — the open month is NEVER red (UI-SPEC §1).
   const remaining = MONTHLY_TARGET_EUR - investimentoThisMonth;
@@ -243,6 +258,29 @@ export default async function Home({
           }
         />
       </div>
+
+      {/* Secondary KPIs (BI-07) — cash position + reserve runway, visually lighter. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">Cash &amp; reserves</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <KpiCard
+            label="Net worth"
+            icon={Landmark}
+            value={formatEUR(netWorth, 0)}
+            href="/cost-centers"
+          />
+          <KpiCard
+            label="Months of reserve"
+            icon={ShieldCheck}
+            value={monthsReserve === null ? "—" : formatMonths(monthsReserve)}
+            status={
+              monthsReserve === null
+                ? { label: "Not enough history yet", tone: "neutral" }
+                : undefined
+            }
+          />
+        </div>
+      </section>
     </div>
   );
 }

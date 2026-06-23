@@ -89,7 +89,7 @@ CV-quality bar: restrained Mercury/Ramp/Linear-calibre fintech aesthetic. A real
 - Negative money renders with a leading minus and the loss color (below), never parentheses.
 - Percentages mono, one decimal max (`12.4%`, `0%`).
 - Dates: `date-fns` `format(d,'d MMM yyyy')` (`23 Jun 2026`) in mono — matches the existing FreshnessBanner. Period labels: `MMM yyyy` (`Jun 2026`).
-- No more than these 4 sizes. No `text-2xl`/`text-4xl` except the single Home hero KPI may use `text-4xl` (36px) at 600 if visual hierarchy needs it — declared exception, Home only.
+- Exactly these 4 sizes — no more, no carve-outs. No `text-2xl`/`text-4xl` anywhere. The 32px Display (`text-3xl`) is the authoritative hero size; the €100k Home hero KPI gets extra emphasis over the other KPI cards through the already-declared **600 weight** plus generous surrounding spacing/whitespace — never a larger font size.
 
 ---
 
@@ -191,7 +191,7 @@ These are **first-class, designed states — not afterthoughts.** Every mart-bac
 | Element | Copy |
 |---------|------|
 | Primary CTA (Config budgets) | **Save budget** / **Set from history** |
-| Primary CTA (Transações edit) | **Save** · toggle: **Also create a rule for future {merchant}** |
+| Primary CTA (Transações edit) | **Save change** · toggle: **Also create a rule for future {merchant}** |
 | Explicit re-apply action | **Re-apply to {n} matching past transactions** |
 | Empty state heading (no data yet) | **No transactions yet** |
 | Empty state body | The daily sync runs each morning — your first month of data will appear here automatically. No manual import needed. |

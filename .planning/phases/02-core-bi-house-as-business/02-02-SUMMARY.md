@@ -134,7 +134,9 @@ Three Wave-0 RED stubs from plan 02-01 fail at import-resolution because their d
 
 These were RED before this plan started (`bb4e0f4 test(02-01): add four Wave-0 RED stubs`) and are correctly left untouched per the SCOPE BOUNDARY. Note `test/actions.test.ts` already imports `BudgetInputSchema` — Plan 06 will consume the new `budgets.category_id` column added here.
 
-## BLOCKING Checkpoint — Task 3 (live migration) NOT executed
+## BLOCKING Checkpoint — Task 3 (live migration) ✓ RESOLVED 2026-06-23
+**Applied.** The user ran `pnpm db:migrate` against the live Supabase Postgres with `DATABASE_URL` from `.env.local`; drizzle-kit reported `[✓] migrations applied successfully!` (the `schema "drizzle" already exists` / `__drizzle_migrations already exists` NOTICEs are benign — pre-existing drizzle bookkeeping). `0005` (6 builtin-rule uuids) + `0006` (`budgets.category_id`) are now live. The new column inherits the existing `allowlist_all` RLS policy on `budgets`; no new policy required. **Task 3 complete → plan 02-02 is fully done (3/3).** (Original blocking note retained below for history.)
+
 This plan is `autonomous: false`. Task 3 applies `0005` + `0006` to the LIVE Supabase Postgres, which needs the uncommitted `DATABASE_URL`. The executor has no DATABASE_URL and must not touch the live DB. The migration SQL FILES are written, committed, and journal-registered; the LIVE push is the human-action checkpoint below.
 
 **Until the live push lands, the schema-applied must-have is UNMET:** TS types come from the Drizzle config (not the live DB), so build/verify would falsely pass while the live `rules` table lacks the 6 seeded uuids and `budgets` lacks `category_id`.

@@ -112,7 +112,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. The P&L view shows revenue vs investment vs costs with result and margin (% of revenue); cost centers (Lorenzo / Fernanda / Shared) show budgeted vs actual; spending breaks down by category, account, and person
   5. All views are month-over-month comparable via the calendar dimension (empty months render €0; current partial month flagged provisional; YoY shows "insufficient history" until ~12 months); the Home dashboard surfaces the 4 headline KPIs; Config manages categories, rules, and budgets; daily balance snapshots are stored in `balances` for cash-position / net-worth trend
 
-**Plans**: 2/6 plans executed
+**Plans**: 3/6 plans executed
 
 **Wave 1**
 
@@ -124,7 +124,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 02-03-PLAN.md — Calendar-joined SQL marts (P&L/sublet-net/budget-vs-actual/breakdown/%-of-revenue/balance-trend) + per-object RLS + balances UNIQUE + [BLOCKING] live migration (BI-01, BI-02, BI-03, BI-04, BI-07, CAT-06)
+- [x] 02-03-PLAN.md — Calendar-joined SQL marts (P&L/sublet-net/budget-vs-actual/breakdown/%-of-revenue/balance-trend) + per-object RLS + balances UNIQUE + [BLOCKING] live migration (BI-01, BI-02, BI-03, BI-04, BI-07, CAT-06)
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -233,7 +233,7 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/4 | Complete   | 2026-06-21 |
 | 1. Ingestion (Enable Banking) | 5/5 | Complete   | 2026-06-22 |
-| 2. Core BI + house-as-business | 2/6 | In Progress|  |
+| 2. Core BI + house-as-business | 3/6 | In Progress|  |
 | 3. €100k Goal | 0/TBD | Not started | - |
 | 4. PWA | 0/TBD | Not started | - |
 | 5. AI Insights | 0/TBD | Not started | - |

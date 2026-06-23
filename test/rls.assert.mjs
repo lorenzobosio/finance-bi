@@ -152,12 +152,16 @@ try {
   if (deniedRows[0].c !== 0)
     fail(`FND-02b: non-allowlisted email saw ${deniedRows[0].c} dim_calendar rows (expected 0)`);
 
-  // (k) Phase-1 (D-24 / CAT-07): cost_centers seeded with EXACTLY the 4 extensible codes.
+  // (k) cost_centers seeded codes. Phase-1 (D-24 / CAT-07) seeded the 4 extensible codes
+  // [compartilhado, fernanda, lorenzo, sublocacao]. Phase-2 (drizzle/0005, cost-center drift
+  // fix) ADDED a `shared` alias so the engine's hardcoded `shared` fallback — asserted by the
+  // frozen test/rules.test.ts — FK-resolves; real shared-account rows still use `compartilhado`
+  // (0003 translated legacy `shared` -> `compartilhado`). So the live set is now these 5.
   const ccRows = await sql`select code from public.cost_centers`;
   const ccCodes = ccRows.map((r) => r.code).sort();
-  const expectedCC = ['compartilhado', 'fernanda', 'lorenzo', 'sublocacao'];
+  const expectedCC = ['compartilhado', 'fernanda', 'lorenzo', 'shared', 'sublocacao'];
   if (ccCodes.length !== expectedCC.length || ccCodes.some((c, i) => c !== expectedCC[i]))
-    fail(`Phase-1: cost_centers has [${ccCodes.join(',')}] (expected the 4 D-24 codes: ${expectedCC.join(',')})`);
+    fail(`cost_centers has [${ccCodes.join(',')}] (expected the 4 D-24 codes + the Phase-2 \`shared\` alias: ${expectedCC.join(',')})`);
 
   console.log('RLS + seed + hardening assertions passed (FND-02a/b, FND-04a/b/c, table-driven allowlist, cost_centers seeded).');
   console.log(

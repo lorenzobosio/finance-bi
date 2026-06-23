@@ -33,6 +33,7 @@ import {
   SUBLET_COST_CENTER,
   type RuleId,
 } from "./builtins";
+import { evaluateDbRules, type DbRule } from "./db-rules";
 
 /** The account shape the engine matches against (the analytical subset). */
 export interface RuleAccount {
@@ -59,7 +60,10 @@ export interface Classification {
   costCenter: string;
   categoryId: string | null;
   isRecurring: boolean;
-  ruleId: RuleId;
+  // A builtin RuleId string (resolved to its seeded uuid by the writer via BUILTIN_RULE_IDS)
+  // OR, when a DB rule matched, the DB rule's real uuid (already a `rules.id`). The writer
+  // stamps this onto transactions.rule_id — never NULL (D2-04).
+  ruleId: RuleId | string;
   ruleVersion: number;
 }
 
@@ -92,9 +96,28 @@ function resolvesToInvestingAccount(tx: RuleTx, inv: RuleAccount): boolean {
 export function applyRules(
   tx: RuleTx,
   accountsById: Map<string, RuleAccount>,
+  dbRules: DbRule[] = [],
 ): Classification {
   const accounts = [...accountsById.values()];
   const baseCostCenter = accountsById.get(tx.accountId)?.defaultCostCenter ?? "shared";
+
+  // 0. DB rules consulted FIRST (CAT-04) — user-authored overrides win over the builtins, in
+  // (priority, version) order, first-match-wins. A match short-circuits the builtin cascade and
+  // stamps the DB rule's real uuid as ruleId (auditable). When none match (or dbRules is the
+  // default []), fall through UNCHANGED to the frozen builtin cascade below (Pitfall 6 — the
+  // default keeps test/rules.test.ts green). The engine stays pure: the cron loads + passes the
+  // rows; the engine never queries the DB.
+  const dbMatch = evaluateDbRules(tx, dbRules);
+  if (dbMatch) {
+    return {
+      flowType: dbMatch.setsFlowType ?? "cost",
+      costCenter: dbMatch.setsCostCenter ?? baseCostCenter,
+      categoryId: null,
+      isRecurring: false,
+      ruleId: dbMatch.id,
+      ruleVersion: dbMatch.version,
+    };
+  }
   const investingAccounts = accounts.filter((a) => a.isInvestment);
   const cashIbans = new Set(
     accounts.filter((a) => !a.isInvestment && a.iban).map((a) => a.iban as string),

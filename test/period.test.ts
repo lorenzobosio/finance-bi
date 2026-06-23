@@ -11,6 +11,7 @@ import {
   currentPeriodKey,
   isProvisional,
   periodKeyForYoY,
+  previousPeriodKey,
   hasYoYHistory,
 } from "@/lib/period";
 
@@ -48,6 +49,16 @@ describe("periodKeyForYoY — period_key minus 100 (BI-04 YoY join key)", () => 
 
   it("crosses the year boundary correctly (January)", () => {
     expect(periodKeyForYoY(202601)).toBe(202501);
+  });
+});
+
+describe("previousPeriodKey — the immediately-preceding month (BI-04 MoM)", () => {
+  it("steps back one month within the same year", () => {
+    expect(previousPeriodKey(202606)).toBe(202605);
+  });
+
+  it("crosses the year boundary (January → previous December)", () => {
+    expect(previousPeriodKey(202601)).toBe(202512);
   });
 });
 

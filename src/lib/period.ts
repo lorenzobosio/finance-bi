@@ -38,6 +38,18 @@ export function periodKeyForYoY(periodKey: number): number {
 }
 
 /**
+ * The immediately-preceding month's period_key for a MoM comparison (BI-04). Crosses the
+ * year boundary correctly: `202601` → `202512` (NOT naive `periodKey - 1`, which would yield
+ * the impossible `202600`). The month digits are decoded, stepped back one, and re-encoded.
+ */
+export function previousPeriodKey(periodKey: number): number {
+  const year = Math.floor(periodKey / 100);
+  const month = periodKey % 100; // 1-based
+  if (month === 1) return (year - 1) * 100 + 12;
+  return year * 100 + (month - 1);
+}
+
+/**
  * True once at least 12 DISTINCT populated periods exist — the "~12 months" gate
  * (UI-SPEC §7). Under that threshold callers show "Not enough history yet" and fall
  * back to MoM. Duplicates are de-duped so a repeated period never inflates the count.

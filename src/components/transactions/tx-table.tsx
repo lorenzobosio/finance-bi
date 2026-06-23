@@ -114,91 +114,140 @@ export function TxTable({
     );
   }
 
+  const decorated = rows.map((r) => {
+    const isUncategorized = r.categoryId === null;
+    const isExcluded = r.flowType !== null && EXCLUDED_FLOWS.has(r.flowType);
+    let date: string;
+    try {
+      date = format(new Date(r.bookingDate), "d MMM yyyy");
+    } catch {
+      date = r.bookingDate;
+    }
+    return { r, isUncategorized, isExcluded, date };
+  });
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date</TableHead>
-          <TableHead>Merchant</TableHead>
-          <TableHead>Account</TableHead>
-          <TableHead>Category</TableHead>
-          <TableHead>Cost center</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((r) => {
-          const isUncategorized = r.categoryId === null;
-          const isExcluded = r.flowType !== null && EXCLUDED_FLOWS.has(r.flowType);
-          const date = (() => {
-            try {
-              return format(new Date(r.bookingDate), "d MMM yyyy");
-            } catch {
-              return r.bookingDate;
-            }
-          })();
+    <>
+      {/* Desktop / tablet (≥sm): the dense table SHELL — sticky header, a stronger header rule,
+          zebra striping (even:bg-muted/40), and the inherited row-hover. Re-skin only; no
+          TanStack sort/filter/CSV/logos (Phase 8). */}
+      <div className="hidden overflow-x-auto sm:block">
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-card [&_tr]:border-b-2 [&_tr]:border-border">
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Date</TableHead>
+              <TableHead>Merchant</TableHead>
+              <TableHead>Account</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Cost center</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {decorated.map(({ r, isUncategorized, isExcluded, date }) => (
+              <TableRow key={r.id} className="h-14 even:bg-muted/40">
+                <TableCell className="font-mono text-sm tabular-nums whitespace-nowrap">
+                  {date}
+                </TableCell>
 
-          return (
-            <TableRow key={r.id} className="h-14">
-              <TableCell className="font-mono text-sm tabular-nums whitespace-nowrap">
-                {date}
-              </TableCell>
+                <TableCell className="max-w-[16rem]">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate">{r.merchant}</span>
+                    {isExcluded && <ExcludedChip />}
+                  </div>
+                </TableCell>
 
-              <TableCell className="max-w-[16rem]">
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  {r.accountName ?? "—"}
+                </TableCell>
+
+                {/* Category cell — opens the inline edit popover. */}
+                <TableCell>
+                  <EditPopover
+                    txId={r.id}
+                    merchant={r.merchant}
+                    currentCategoryId={r.categoryId}
+                    currentCostCenter={r.costCenter}
+                    categories={categories}
+                    costCenters={costCenters}
+                    matchingPastCount={r.matchingPastCount}
+                    field="category"
+                    triggerLabel={
+                      isUncategorized ? <UncategorizedPill /> : <span>{r.categoryName}</span>
+                    }
+                  />
+                </TableCell>
+
+                {/* Cost-center cell — same popover, focused on the cost-center select. */}
+                <TableCell>
+                  <EditPopover
+                    txId={r.id}
+                    merchant={r.merchant}
+                    currentCategoryId={r.categoryId}
+                    currentCostCenter={r.costCenter}
+                    categories={categories}
+                    costCenters={costCenters}
+                    matchingPastCount={r.matchingPastCount}
+                    field="costCenter"
+                    triggerLabel={
+                      <span className={cn(!r.costCenter && "text-[var(--neutral-data)]")}>
+                        {r.costCenterLabel ?? r.costCenter ?? "—"}
+                      </span>
+                    }
+                  />
+                </TableCell>
+
+                {/* Amount — mono, tabular; outflows neutral with the leading minus (formatEUR). */}
+                <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
+                  {formatEUR(r.amountEur)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile (<sm): the SAME rows stacked as cards (UI-SPEC §5 — Fernanda). The desktop edit
+          popover is kept (no vaul this phase); the Category cell hosts it inline. */}
+      <ul className="divide-y divide-border sm:hidden">
+        {decorated.map(({ r, isUncategorized, isExcluded, date }) => (
+          <li key={r.id} className="space-y-2 px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="truncate">{r.merchant}</span>
+                  <span className="truncate font-medium">{r.merchant}</span>
                   {isExcluded && <ExcludedChip />}
                 </div>
-              </TableCell>
-
-              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                {r.accountName ?? "—"}
-              </TableCell>
-
-              {/* Category cell — opens the inline edit popover. */}
-              <TableCell>
-                <EditPopover
-                  txId={r.id}
-                  merchant={r.merchant}
-                  currentCategoryId={r.categoryId}
-                  currentCostCenter={r.costCenter}
-                  categories={categories}
-                  costCenters={costCenters}
-                  matchingPastCount={r.matchingPastCount}
-                  field="category"
-                  triggerLabel={
-                    isUncategorized ? <UncategorizedPill /> : <span>{r.categoryName}</span>
-                  }
-                />
-              </TableCell>
-
-              {/* Cost-center cell — same popover, focused on the cost-center select. */}
-              <TableCell>
-                <EditPopover
-                  txId={r.id}
-                  merchant={r.merchant}
-                  currentCategoryId={r.categoryId}
-                  currentCostCenter={r.costCenter}
-                  categories={categories}
-                  costCenters={costCenters}
-                  matchingPastCount={r.matchingPastCount}
-                  field="costCenter"
-                  triggerLabel={
-                    <span className={cn(!r.costCenter && "text-[var(--neutral-data)]")}>
-                      {r.costCenterLabel ?? r.costCenter ?? "—"}
-                    </span>
-                  }
-                />
-              </TableCell>
-
-              {/* Amount — mono, tabular; outflows neutral with the leading minus (formatEUR). */}
-              <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
+                <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+                  {date}
+                  {r.accountName ? ` · ${r.accountName}` : ""}
+                </p>
+              </div>
+              <span className="shrink-0 font-mono text-sm tabular-nums whitespace-nowrap">
                 {formatEUR(r.amountEur)}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <EditPopover
+                txId={r.id}
+                merchant={r.merchant}
+                currentCategoryId={r.categoryId}
+                currentCostCenter={r.costCenter}
+                categories={categories}
+                costCenters={costCenters}
+                matchingPastCount={r.matchingPastCount}
+                field="category"
+                triggerLabel={
+                  isUncategorized ? <UncategorizedPill /> : <span>{r.categoryName}</span>
+                }
+              />
+              <span className={cn("text-xs", !r.costCenter && "text-[var(--neutral-data)]")}>
+                {r.costCenterLabel ?? r.costCenter ?? "—"}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

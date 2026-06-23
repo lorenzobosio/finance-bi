@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { TxTable, type TxRow } from "@/components/transactions/tx-table";
 import type { CategoryOption, CostCenterOption } from "@/components/transactions/edit-popover";
+import { Card } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 
 // Transactions (CAT-04/05, D2-01/02/03) — the dense, server-side keyset-paginated table + the
@@ -156,14 +157,16 @@ export default async function TransacoesPage({
   const nextHref = hasNext && last ? `/transactions?after=${last.booking_date}_${last.id}` : null;
 
   return (
-    <div className="space-y-6">
+    <div className="@container/main space-y-6">
       <header className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">Transactions</h1>
       </header>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      {/* The dense table SHELL inside a Card surface (the table owns its own scroll + the
+          mobile stacked-card variant). No padding so the rows reach the card edge. */}
+      <Card className="py-0 [--card-spacing:0px]">
         <TxTable rows={rows} categories={categories} costCenters={costCenters} />
-      </div>
+      </Card>
 
       {/* Keyset "next" link — there is no page number (cursor pagination, not offset). */}
       <div className="flex items-center justify-end gap-3">

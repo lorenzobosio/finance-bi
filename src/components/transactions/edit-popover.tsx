@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { recategorize } from "@/lib/actions/recategorize";
 import { reapplyRuleToPast } from "@/lib/actions/reapply-rule.action";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -163,11 +164,15 @@ export function EditPopover({
             </Select>
           </div>
 
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
+          <label
+            htmlFor={`create-rule-${txId}`}
+            className="flex items-start gap-2 text-sm"
+          >
+            {/* shadcn Checkbox — real focus ring + larger hit area (UI-SPEC a11y fix). */}
+            <Checkbox
+              id={`create-rule-${txId}`}
               checked={createRule}
-              onChange={(e) => setCreateRule(e.target.checked)}
+              onCheckedChange={(checked) => setCreateRule(checked === true)}
               className="mt-0.5"
             />
             <span>

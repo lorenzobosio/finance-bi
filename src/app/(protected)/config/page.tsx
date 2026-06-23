@@ -1,4 +1,14 @@
 import { BudgetEditor, type BudgetRow } from "@/components/budget-editor";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { currentPeriodKey, previousPeriodKey } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
@@ -79,36 +89,86 @@ export default async function ConfigPage({
   });
 
   return (
-    <div className="space-y-12">
+    <div className="@container/main space-y-6">
       <header>
         <h1 className="text-xl font-semibold">Config</h1>
       </header>
 
-      {/* --- Budgets editor (BI-06, D2-12/13) --- */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold text-muted-foreground">Budgets</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Set a monthly budget per cost center. Budgets start empty — use{" "}
-            <span className="font-medium">Set from history</span> to prefill last month&apos;s
-            actual.
-          </p>
-        </div>
-        <BudgetEditor
-          rows={rows}
-          periodKey={period}
-          priorPeriodKey={previousPeriodKey(period)}
-        />
-      </section>
+      {/* Three tabs (Budgets · Rules · Connection), each a Card surface (UI-SPEC §Re-Skin Map). */}
+      <Tabs defaultValue="budgets" className="gap-4">
+        <TabsList>
+          <TabsTrigger value="budgets">Budgets</TabsTrigger>
+          <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTrigger value="connection">Connection</TabsTrigger>
+        </TabsList>
 
-      {/* --- Reconnect / consent pointer (the banner itself is in the shell) --- */}
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">Connection</h2>
-        <p className="text-sm text-muted-foreground">
-          Bank consent is re-authorized here. If the sync banner above shows a reconnect prompt,
-          follow it to renew access — open banking consent lapses periodically.
-        </p>
-      </section>
+        {/* --- Budgets editor (BI-06, D2-12/13) --- */}
+        <TabsContent value="budgets">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Budgets
+              </CardTitle>
+              <CardDescription>
+                Set a monthly budget per cost center. Budgets start empty — use{" "}
+                <span className="font-medium">Set from history</span> to prefill last
+                month&apos;s actual.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BudgetEditor
+                rows={rows}
+                periodKey={period}
+                priorPeriodKey={previousPeriodKey(period)}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- Rules (created inline on Transactions in Phase 2; a dedicated CRUD is Phase 8) --- */}
+        <TabsContent value="rules">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Rules
+              </CardTitle>
+              <CardDescription>
+                Auto-categorization rules are created inline on the Transactions page — edit a
+                row, then toggle{" "}
+                <span className="font-medium">Also create a rule for future {`{merchant}`}</span>.
+                Past transactions keep their categories unless you explicitly re-apply.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </TabsContent>
+
+        {/* --- Reconnect / consent pointer (the banner itself is in the shell) --- */}
+        <TabsContent value="connection">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Connection
+              </CardTitle>
+              <CardDescription>
+                Bank consent is re-authorized here. If the sync banner above shows a reconnect
+                prompt, follow it to renew access — open banking consent lapses periodically.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Demo-mode slot — wiring lands in Phase 4 (disabled placeholder this phase). */}
+              <div className="flex items-center gap-3 opacity-60">
+                <Switch id="demo-mode" disabled aria-describedby="demo-mode-hint" />
+                <Label htmlFor="demo-mode" className="text-sm">
+                  Demo mode
+                </Label>
+                <span id="demo-mode-hint" className="text-xs text-muted-foreground">
+                  Coming soon — Phase 4
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

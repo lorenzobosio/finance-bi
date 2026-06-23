@@ -1,10 +1,11 @@
 ---
 phase: 2
 slug: core-bi-house-as-business
-status: draft
+status: approved
 shadcn_initialized: true
 preset: radix-nova
 created: 2026-06-23
+reviewed_at: 2026-06-23
 ---
 
 # Phase 2 — UI Design Contract

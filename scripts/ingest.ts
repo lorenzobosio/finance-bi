@@ -39,7 +39,8 @@ import type { Balance, RawTx } from "@/lib/ingestion/enable-banking/schemas";
 import { normalize, type Normalized } from "@/lib/ingestion/normalize";
 import { dedupeHash } from "@/lib/ingestion/dedupe";
 import { applyRules, type RuleAccount } from "@/lib/ingestion/rules/engine";
-import { INVESTING_SIGNATURE } from "@/lib/ingestion/rules/builtins";
+import { BUILTIN_RULE_IDS, INVESTING_SIGNATURE, type RuleId } from "@/lib/ingestion/rules/builtins";
+import type { DbRule } from "@/lib/ingestion/rules/db-rules";
 
 const REPO_ROOT = resolve(__dirname, "..");
 
@@ -112,6 +113,8 @@ export interface IngestWriter {
   } | null>;
   /** The accounts to refresh (synced) + the investing rows used for classification. */
   getAccounts(): Promise<IngestAccount[]>;
+  /** Load user-authored DB rules (consulted before the builtins; CAT-04). */
+  getDbRules(): Promise<DbRule[]>;
   /** Upsert transactions ON CONFLICT (dedupe_hash) DO NOTHING. Returns the count inserted. */
   upsertTransactions(rows: TxUpsert[]): Promise<number>;
   /** Upsert a balances snapshot idempotently per (account_id, as_of_date). */
@@ -178,6 +181,37 @@ export async function createServiceWriter(): Promise<IngestWriter> {
         };
       });
     },
+    async getDbRules() {
+      // User-authored rules consulted BEFORE the builtins (CAT-04). The builtin-seed rows
+      // (0005) carry NULL match_criteria, so they never match here — they exist only so a
+      // builtin classification's rule_id FK-resolves. match_criteria is stored as JSON text
+      // (e.g. {"contains":"<token>"}); parse defensively and skip a row whose criteria is
+      // absent/unparseable rather than crash the whole cron.
+      const rows = await sql`
+        select id, priority, version, match_criteria, set_cost_center, set_flow_type
+        from rules`;
+      const parsed: DbRule[] = [];
+      for (const r of rows) {
+        const raw = r.match_criteria as string | null;
+        if (raw == null || raw === "") continue; // builtin seed rows (no criteria) skipped
+        let matchCriteria: { contains?: string };
+        try {
+          matchCriteria = JSON.parse(raw) as { contains?: string };
+        } catch {
+          continue; // malformed criteria — ignore this row, never throw
+        }
+        parsed.push({
+          id: r.id as string,
+          priority: Number(r.priority ?? 0),
+          version: Number(r.version ?? 1),
+          matchCriteria,
+          setsCostCenter: (r.set_cost_center as string | null) ?? null,
+          setsFlowType:
+            (r.set_flow_type as DbRule["setsFlowType"] | null) ?? null,
+        });
+      }
+      return parsed;
+    },
     async upsertTransactions(rows) {
       if (rows.length === 0) return 0;
       let inserted = 0;
@@ -185,6 +219,11 @@ export async function createServiceWriter(): Promise<IngestWriter> {
       // idempotency safety net; a re-pull adds zero rows. RETURNING id counts only the
       // rows actually inserted (conflicts return nothing).
       for (const t of rows) {
+        // Stamp the REAL rule_id (D2-04 — never NULL). A builtin classification carries a
+        // RuleId string -> map it to its seeded uuid via BUILTIN_RULE_IDS; a DB-rule
+        // classification already carries the DB rule's uuid (so the map is a no-op and we
+        // fall back to t.ruleId). Every classified row now FK-resolves to a rules.id.
+        const ruleId = BUILTIN_RULE_IDS[t.ruleId as RuleId] ?? t.ruleId;
         const res = await sql`
           insert into transactions (
             account_id, booking_date, value_date, amount_eur, description_raw,
@@ -193,7 +232,7 @@ export async function createServiceWriter(): Promise<IngestWriter> {
           ) values (
             ${t.accountId}, ${t.bookingDate}, ${t.valueDate}, ${t.amountEur}, ${t.descriptionRaw},
             ${t.counterparty}, ${t.counterpartyIban}, ${t.flowType}, ${t.costCenter}, ${t.categoryId},
-            ${null}, ${t.importBatchId}, ${t.dedupeHash}, ${t.isRecurring}, ${t.status}
+            ${ruleId}, ${t.importBatchId}, ${t.dedupeHash}, ${t.isRecurring}, ${t.status}
           )
           on conflict (dedupe_hash) do nothing
           returning id`;
@@ -330,6 +369,9 @@ export async function runIngest(opts: RunIngestOptions = {}): Promise<RunIngestR
       connectionId = connection.id;
       const accounts = await writer.getAccounts();
       const accountsById = new Map<string, IngestAccount>(accounts.map((a) => [a.id, a]));
+      // Load user-authored DB rules once per run; the engine consults them before the builtins
+      // (CAT-04). The cron is the WRITE plane that LOADS them — the engine stays pure.
+      const dbRules = await writer.getDbRules();
       // Only refresh real, synced accounts (the virtual investing row has no live uid).
       const syncedAccounts = accounts.filter((a) => a.isSynced && a.enableBankingId);
 
@@ -370,7 +412,7 @@ export async function runIngest(opts: RunIngestOptions = {}): Promise<RunIngestR
           const n = normalize(raw, account.id);
           if (!n) continue; // PDNG / non-BOOK excluded
           const { hash } = dedupeHash(n);
-          const cls = applyRules(toRuleTx(n), accountsById);
+          const cls = applyRules(toRuleTx(n), accountsById, dbRules);
           upserts.push({
             accountId: n.accountId,
             bookingDate: n.bookingDate,

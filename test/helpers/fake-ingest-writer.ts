@@ -12,6 +12,7 @@ import type {
   IngestWriter,
   TxUpsert,
 } from "../../scripts/ingest";
+import type { DbRule } from "../../src/lib/ingestion/rules/db-rules";
 
 export interface FakeIngestState {
   writer: IngestWriter;
@@ -23,7 +24,11 @@ export interface FakeIngestState {
 }
 
 export function makeFakeIngestWriter(
-  overrides: { accounts?: IngestAccount[]; lastPullAt?: string | null } = {},
+  overrides: {
+    accounts?: IngestAccount[];
+    lastPullAt?: string | null;
+    dbRules?: DbRule[];
+  } = {},
 ): FakeIngestState {
   const batches: BatchRow[] = [];
   const txUpserts: TxUpsert[][] = [];
@@ -62,6 +67,9 @@ export function makeFakeIngestWriter(
     },
     async getAccounts() {
       return accounts;
+    },
+    async getDbRules() {
+      return overrides.dbRules ?? [];
     },
     async upsertTransactions(rows) {
       txUpserts.push(rows);

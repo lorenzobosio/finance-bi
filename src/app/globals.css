@@ -2,12 +2,24 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Light mode only (D-06) — no dark-mode toggle or `.dark` theme wiring in Phase 0. */
+/* Tailwind v4 is CSS-first: the class-based dark strategy must be declared explicitly so
+   `dark:` utilities (and the dark token cascade) follow the class on <html> that next-themes
+   toggles. Without this line the dark token block below would only half-apply (named tokens
+   re-theme, but `dark:`-prefixed utilities would not) — RESEARCH Pitfall 1. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark + light theming (DSN-01/02). SUPERSEDES the Phase-0 "Light mode only (D-06)" note:
+   the light :root tier + a true-dark `.dark` tier share the SAME token NAMES, so no component
+   branches on theme — adding `.dark` re-themes the whole app for free (every component reads
+   `bg-card`, `text-[var(--gain)]`, `--chart-1`). The violet `--brand` is the single accent. */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  /* FIX (DSN-02): was `var(--font-sans)` — a self-reference that resolved to nothing, so the
+     body fell back to the browser default and Geist never applied. Point it at the real
+     next/font variable wired in layout.tsx. (`--font-mono` was already correct.) */
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -23,14 +35,19 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  /* The violet/indigo accent (D3-01) — identical hue both themes; reserved for the goal arc,
+     active nav, focus ring, ⌘K, one hero number, the landing CTA. NOT a category/button color. */
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
   /* Semantic finance palette (UI-SPEC §Color). Two tiers per semantic: a text/icon value
-     (WCAG AA ≥4.5:1 on white) and a brighter fill value for bars/areas. These are the ONLY
+     (WCAG AA ≥4.5:1 on its surface) and a brighter fill value for bars/areas. These are the ONLY
      chromatic colors in the app — everything structural stays greyscale. */
   --color-gain: var(--gain);
   --color-gain-fill: var(--gain-fill);
   --color-loss: var(--loss);
   --color-loss-fill: var(--loss-fill);
   --color-warning: var(--warning);
+  --color-warning-fill: var(--warning-fill);
   --color-neutral-data: var(--neutral-data);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -69,25 +86,32 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.5 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  /* Semantic finance palette (UI-SPEC §Color). Text tier = AA on white (≥4.5:1);
+  /* The violet accent (D3-01). Same hue both themes; the muted/glow alphas drive the active-nav
+     pill fill, the ⌘K cursor tint, and the one deliberate gradient behind the hero number + arc. */
+  --brand: oklch(0.62 0.19 280);
+  --brand-fg: oklch(0.985 0 0);
+  --brand-muted: oklch(0.62 0.19 280 / 0.14);
+  --brand-glow: oklch(0.62 0.19 280 / 0.25);
+  /* Semantic finance palette (UI-SPEC §Color). Text tier = AA on its surface (≥4.5:1);
      fill tier = brighter, for bars/areas where contrast-as-text doesn't apply. */
   --gain: oklch(0.52 0.15 150);
   --gain-fill: oklch(0.62 0.17 150);
   --loss: oklch(0.52 0.2 27);
   --loss-fill: oklch(0.58 0.2 27);
   --warning: oklch(0.47 0.12 75);
+  --warning-fill: oklch(0.8 0.15 80);
   --neutral-data: oklch(0.5 0 0);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
@@ -97,7 +121,54 @@
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: var(--brand);
+}
+
+/* True-dark, elevated-card tier (DSN-01). NOT pure black: page 0.145 → card 0.205 → popover
+   0.269 (each lift +~0.06 L is the universal dark-UI elevation cue). The semantic text tier is
+   LIGHTER here (higher L) so it clears AA on the dark card; the chart greyscale ramp REVERSES so
+   neutral bars read on the dark page. Same token NAMES as :root — components never branch. */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: var(--brand);
+  /* REVERSED ramp: in dark the L values flip so neutral bars read on the 0.145 page. */
+  --chart-1: oklch(0.3 0 0);
+  --chart-2: oklch(0.45 0 0);
+  --chart-3: oklch(0.6 0 0);
+  --chart-4: oklch(0.72 0 0);
+  --chart-5: oklch(0.87 0 0);
+  /* Dark semantic text tier — lighter L, AA on --card (0.205). Fill tier for bars/areas. */
+  --gain: oklch(0.79 0.17 150);
+  --gain-fill: oklch(0.7 0.18 150);
+  --loss: oklch(0.72 0.19 27);
+  --loss-fill: oklch(0.62 0.21 27);
+  --warning: oklch(0.82 0.13 80);
+  --warning-fill: oklch(0.45 0.1 80);
+  --neutral-data: oklch(0.708 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: var(--brand);
 }
 
 @layer base {
@@ -106,8 +177,31 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* A calm incidental cross-fade when the theme flips (DSN-03). `disableTransitionOnChange`
+       on the provider suppresses this exactly during the toggle to avoid a jarring whole-page
+       flash, while ambient color changes still ease. */
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease,
+      color 200ms ease;
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Reduced-motion Layer 1 (CSS, global — DSN-03 / RESEARCH Pitfall 5). Zeroes the View
+   Transitions API timings to 0.01ms (NOT 0s, so `transitionend` still fires) and kills the
+   incidental theme color-transition. Layer 2 is `<MotionConfig reducedMotion="user">` at the
+   root (added in layout.tsx); both layers are required for the gate to actually hold. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0.01ms !important;
+  }
+  body {
+    transition: none;
   }
 }

@@ -10,7 +10,12 @@ import { describe, expect, it } from "vitest";
 // a second pass over the now-updated set returns exactly 0 (no destructive rewrite).
 //
 // Synthetic round numbers + fake merchants only (T-02-01).
-import { reapplyRuleToTransactions, type ReapplyTx, type ReapplyRule } from "@/lib/actions/reapply-rule";
+import {
+  reapplyRuleToTransactions,
+  computeReapply,
+  type ReapplyTx,
+  type ReapplyRule,
+} from "@/lib/actions/reapply-rule";
 
 const rule: ReapplyRule = {
   id: "rule-coffee",
@@ -36,5 +41,25 @@ describe("reapplyRuleToTransactions — idempotent re-apply core (CAT-05)", () =
     const first = reapplyRuleToTransactions(rule, seed);
     const second = reapplyRuleToTransactions(rule, first.transactions);
     expect(second.affected).toBe(0);
+  });
+});
+
+describe("computeReapply — the pure affected-id core (CAT-05)", () => {
+  const seed: ReapplyTx[] = [
+    { id: "t1", normalizedDescription: "morning coffee", costCenter: "shared" },
+    { id: "t2", normalizedDescription: "weekend coffee", costCenter: "lorenzo" }, // already target
+    { id: "t3", normalizedDescription: "grocery run", costCenter: "shared" },
+  ];
+
+  it("targets only matching rows NOT already at the rule's target", () => {
+    const ids = computeReapply(rule, seed);
+    // t1 matches + is not target → included; t2 matches but is already 'lorenzo' → excluded;
+    // t3 does not match → excluded.
+    expect(ids).toEqual(["t1"]);
+  });
+
+  it("a second pass over the already-applied set returns no ids (idempotent)", () => {
+    const first = reapplyRuleToTransactions(rule, seed);
+    expect(computeReapply(rule, first.transactions)).toEqual([]);
   });
 });

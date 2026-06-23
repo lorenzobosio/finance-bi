@@ -1,6 +1,6 @@
 "use server";
 
-// Recategorize Server Action — the Transações inline-edit write plane (CAT-04, D2-02/03).
+// Recategorize Server Action — the Transactions inline-edit write plane (CAT-04, D2-02/03).
 //
 // Saving an edit updates EXACTLY ONE transactions row (by id) and, optionally, writes a
 // FORWARD-only rule for the merchant. It NEVER touches past transactions — applying a rule to
@@ -59,7 +59,7 @@ export async function __recategorize(
     );
   }
 
-  revalidatePath("/transacoes");
+  revalidatePath("/transactions");
   return { ok: true };
 }
 

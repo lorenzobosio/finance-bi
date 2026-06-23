@@ -2,7 +2,7 @@
 //
 // Split out of `recategorize.ts` because a Next 15 FILE-level `'use server'` module may export
 // ONLY async functions — this plain module holds the zod schema + type the action and the
-// unit test import. The locked validation boundary for the Transações inline-edit write plane.
+// unit test import. The locked validation boundary for the Transactions inline-edit write plane.
 
 import { z } from "zod";
 

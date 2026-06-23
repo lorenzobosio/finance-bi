@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Transações inline-edit popover (UI-SPEC §5 interaction + a11y).
+// Transactions inline-edit popover (UI-SPEC §5 interaction + a11y).
 //
 // Clicking a row's Category / Cost-center cell opens a Radix popover (keyboard: Enter/Space
 // opens, focus trapped inside, Esc closes and RESTORES focus to the trigger — Radix handles

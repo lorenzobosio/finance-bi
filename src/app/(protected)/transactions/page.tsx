@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-import { TxTable, type TxRow } from "@/components/transacoes/tx-table";
-import type { CategoryOption, CostCenterOption } from "@/components/transacoes/edit-popover";
+import { TxTable, type TxRow } from "@/components/transactions/tx-table";
+import type { CategoryOption, CostCenterOption } from "@/components/transactions/edit-popover";
 import { createClient } from "@/lib/supabase/server";
 
-// Transações (CAT-04/05, D2-01/02/03) — the dense, server-side keyset-paginated table + the
+// Transactions (CAT-04/05, D2-01/02/03) — the dense, server-side keyset-paginated table + the
 // inline edit/recategorize popover. ALL reads run through the @supabase/ssr server client
 // under the user JWT → the 2-email allowlist RLS authorizes (shared visibility; both users
 // may edit any row — cost center is an analytical label, not an access wall). NEVER the
@@ -153,12 +153,12 @@ export default async function TransacoesPage({
 
   // Next-page cursor = the last row of THIS page (keyset, not offset).
   const last = pageRows[pageRows.length - 1];
-  const nextHref = hasNext && last ? `/transacoes?after=${last.booking_date}_${last.id}` : null;
+  const nextHref = hasNext && last ? `/transactions?after=${last.booking_date}_${last.id}` : null;
 
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Transações</h1>
+        <h1 className="text-xl font-semibold">Transactions</h1>
       </header>
 
       <div className="overflow-x-auto rounded-xl border border-border">
@@ -169,7 +169,7 @@ export default async function TransacoesPage({
       <div className="flex items-center justify-end gap-3">
         {after && (
           <Link
-            href="/transacoes"
+            href="/transactions"
             className="text-sm text-muted-foreground underline-offset-2 hover:underline"
           >
             First page

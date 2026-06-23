@@ -46,7 +46,7 @@ export async function __createRuleFromTx(
     version: 1,
   });
 
-  revalidatePath("/transacoes");
+  revalidatePath("/transactions");
   revalidatePath("/config");
   return { ok: true };
 }

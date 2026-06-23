@@ -4,7 +4,7 @@
 // transactions (CAT-05, D2-03). FILE-level `'use server'` (exports only the async action); the
 // PURE matching core + types live in the sibling `reapply-rule.ts`.
 //
-// This action is invoked ONLY from the Transações "Re-apply to {n} matching past transactions"
+// This action is invoked ONLY from the Transactions "Re-apply to {n} matching past transactions"
 // confirm dialog — NEVER automatically on save. recategorize.ts / create-rule.ts do not import
 // it, so saving an edit can never become an automatic bulk rewrite of history.
 //
@@ -84,6 +84,6 @@ export async function reapplyRuleToPast(ruleKey: string): Promise<{ affected: nu
     await sb.from("transactions").update({ cost_center: rule.setsCostCenter }).in("id", targetIds);
   }
 
-  revalidatePath("/transacoes");
+  revalidatePath("/transactions");
   return { affected: targetIds.length };
 }

@@ -6,7 +6,7 @@ import { UNCATEGORIZED_LABEL } from "@/lib/db/marts";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
-// Gastos / Spending (BI-03, D2-01, D2-15).
+// Spending (BI-03, D2-01, D2-15).
 //
 // "Where did the money go?" for the SELECTED month (the shared ?period=YYYYMM selector in
 // the shell): a segmented 3-way breakdown (category / account / person) over a BarList, with
@@ -47,7 +47,7 @@ function num(v: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export default async function GastosPage({
+export default async function SpendingPage({
   searchParams,
 }: {
   searchParams: Promise<{ period?: string; breakdown?: string }>;
@@ -111,10 +111,10 @@ export default async function GastosPage({
       value: uncategorized.value,
       valueLabel: formatEUR(uncategorized.value),
       neutral: true,
-      // Link to Transações to categorize (the grain only carries categories there).
+      // Link to Transactions to categorize (the grain only carries categories there).
       action:
         grain === "category"
-          ? { href: "/transacoes?filter=uncategorized", text: "to categorize →" }
+          ? { href: "/transactions?filter=uncategorized", text: "to categorize →" }
           : undefined,
     },
   ];
@@ -137,9 +137,7 @@ export default async function GastosPage({
     <div className="space-y-12">
       {/* Page header (h1 left; the shared month selector lives in the shell top bar). */}
       <header className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold" lang="pt-BR">
-          Gastos
-        </h1>
+        <h1 className="text-xl font-semibold">Spending</h1>
         {provisional && (
           <span
             className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-[var(--warning)]"
@@ -167,7 +165,7 @@ export default async function GastosPage({
                   key={g.value}
                   role="tab"
                   aria-selected={active}
-                  href={`/gastos?breakdown=${g.value}${rawPeriod ? `&period=${period}` : ""}`}
+                  href={`/spending?breakdown=${g.value}${rawPeriod ? `&period=${period}` : ""}`}
                   className={
                     active
                       ? "rounded-md bg-card px-3 py-1 text-sm font-medium text-foreground shadow-sm"

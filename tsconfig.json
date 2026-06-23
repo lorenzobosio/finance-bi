@@ -23,10 +23,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "//exclude": "TDD quarantine (Phase 3 Wave-0): these RED suites import modules the later waves build (@/lib/nav-items, command-palette). They MUST stay RED in `pnpm test` (vitest), but `tsc --noEmit` would error TS2307 on the not-yet-existent imports and break the typecheck gate. Excluding them from tsc keeps `pnpm typecheck` green; REMOVE each line the moment its target module lands (Plan 03-04) so the file is type-checked again.",
-  "exclude": [
-    "node_modules",
-    "test/nav-items.test.ts",
-    "test/command-palette.test.ts"
-  ]
+  "exclude": ["node_modules"]
 }

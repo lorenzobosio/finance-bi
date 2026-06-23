@@ -238,7 +238,7 @@ export default async function Home({
           label="Margin (% of net revenue)"
           icon={Coins}
           value={margin === null ? "—" : formatPct(margin * 100)}
-          href="/gastos"
+          href="/spending"
           delta={
             marginDelta === null
               ? undefined

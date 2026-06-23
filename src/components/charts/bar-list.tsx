@@ -1,7 +1,7 @@
 // BarList — Tremor Raw block (copy-paste source the team owns), adapted to the app's
-// semantic palette + a11y contract (UI-SPEC §Charting / §4 Gastos / §Accessibility).
+// semantic palette + a11y contract (UI-SPEC §Charting / §4 Spending / §Accessibility).
 //
-// Horizontal bars, biggest-first, value labels — the breakdown idiom for Gastos
+// Horizontal bars, biggest-first, value labels — the breakdown idiom for Spending
 // (category / account / person). Bars, NOT a donut (UI-SPEC §Charting P3: bars beat
 // donuts for comparison + a11y). A single NEUTRAL hue ramp (`--chart-1..5`) — never
 // rainbow categories; chromatic color is reserved for gain/loss elsewhere. The one

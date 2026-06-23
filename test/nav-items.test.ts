@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 //
 // RED until Plan 03-04: today the nav SoT is a module-LOCAL const inside the JSX component
 // src/components/app-nav.tsx (not importable into a test without dragging JSX), and it still
-// holds the pt-BR entries (`Gastos`/`/gastos`, `Transações`/`/transacoes`, `lang: "pt-BR"`)
+// held the old pt-BR entries (the spending/transactions routes, with `lang: "pt-BR"`)
 // with a duplicate `Receipt` icon. Plan 04 EXTRACTS the SoT into the pure `@/lib/nav-items`
 // module (the reuse target for app-sidebar + the ⌘K palette + this test — the same
 // extract-for-testability pattern Plan 03-01 used for pickBalance) and anglicizes it. This

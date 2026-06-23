@@ -5,7 +5,7 @@ import {
   EditPopover,
   type CategoryOption,
   type CostCenterOption,
-} from "@/components/transacoes/edit-popover";
+} from "@/components/transactions/edit-popover";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-// Transações dense table (UI-SPEC §5). Desktop-primary; on mobile the same rows stack as
+// Transactions dense table (UI-SPEC §5). Desktop-primary; on mobile the same rows stack as
 // cards. Columns: Date · Merchant/memo · Account · Category · Cost center · Amount (mono;
 // outflows neutral with a `−` — red is reserved for over-budget, NOT every expense).
 //

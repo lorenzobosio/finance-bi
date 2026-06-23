@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
 // skeleton or a recoverable error UI instead of a hung or blank page.
 //
 // RED until Plans 03/04/05/06: no route boundary exists in the repo today (confirmed: no
-// loading.tsx/error.tsx anywhere under src/app), AND the routes are still the pt-BR
-// `gastos`/`transacoes`. The anglicized `spending`/`transactions` dirs + the boundary files
+// loading.tsx/error.tsx anywhere under src/app), AND the routes were still the old pt-BR
+// paths. The anglicized `spending`/`transactions` dirs + the boundary files
 // land in the later waves — this fs assertion fails until then.
 
 const appDir = fileURLToPath(new URL("../src/app", import.meta.url));

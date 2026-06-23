@@ -1,4 +1,4 @@
-// Shared (non-`'use server'`) types for the Transações write plane.
+// Shared (non-`'use server'`) types for the Transactions write plane.
 //
 // A Next 15 FILE-level `'use server'` module may export ONLY async functions, so the
 // minimal supabase-client surface the actions use + the client-factory seam (the injected

@@ -1,11 +1,11 @@
 // CategoryBar — Tremor Raw block (copy-paste source the team owns), adapted to the app's
-// semantic palette + a11y contract (UI-SPEC §Charting / §3 Cost Centers / §4 Gastos).
+// semantic palette + a11y contract (UI-SPEC §Charting / §3 Cost Centers / §4 Spending).
 //
 // Two uses in Phase 2:
 //   1. Budget vs actual (Cost Centers, BI-02): track = budget, fill = actual. The fill
 //      tone carries the state — neutral/--gain under cap, --warning at ≥85%, --loss when
 //      over (the fill OVERFLOWS the track at >100% to read as a breach, never a fake cap).
-//   2. Category-as-%-of-revenue (Gastos, D2-15): each row a share of net revenue.
+//   2. Category-as-%-of-revenue (Spending, D2-15): each row a share of net revenue.
 //
 // a11y (UI-SPEC §Accessibility): a real `role="progressbar"` with aria-valuenow/min/max +
 // a VISIBLE mono value string, so a screen-reader user never depends on the bar fill.

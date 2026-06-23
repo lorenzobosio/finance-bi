@@ -1,48 +1,20 @@
 "use client";
 
-import {
-  Building2,
-  LayoutDashboard,
-  Lock,
-  Receipt,
-  Settings,
-  Target,
-  type LucideIcon,
-} from "lucide-react";
+import { Lock, Target } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { isActive, NAV_ITEMS } from "@/lib/nav-items";
 import { cn } from "@/lib/utils";
 
-// App navigation (UI-SPEC §0). One source of truth for the 5 nav items + the disabled
-// Goal (Phase 3) placeholder, rendered two ways:
-//   • <SidebarNav>    — desktop (≥lg), vertical, ~240px --sidebar surface
-//   • <BottomNav>     — mobile (<lg), fixed bottom tab bar, 56px + safe-area
+// App navigation rendered from the single NAV_ITEMS source of truth (@/lib/nav-items).
+// Two presentations share that pure array:
+//   • <SidebarNav>    — legacy flat desktop nav (the grouped dashboard-01 sidebar lives in
+//                       app-sidebar.tsx; this stays as a lightweight fallback consumer)
+//   • <BottomNav>     — mobile (<lg), fixed bottom tab bar, 56px + safe-area (uses shortLabel)
 // Active item = --primary text + --sidebar-accent fill + a left indicator (sidebar) /
 // --primary text (bottom). Icons are decorative (aria-hidden) — meaning is in the label.
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-  /** pt-BR domain labels get an inline lang tag so screen readers pronounce them right. */
-  lang?: string;
-}
-
-// Locked order (UI-SPEC §0): Home · Gastos · Cost Centers · Transações · Config.
-const NAV_ITEMS: NavItem[] = [
-  { label: "Home", href: "/", icon: LayoutDashboard },
-  { label: "Gastos", href: "/gastos", icon: Receipt, lang: "pt-BR" },
-  { label: "Cost Centers", href: "/cost-centers", icon: Building2 },
-  { label: "Transações", href: "/transacoes", icon: Receipt, lang: "pt-BR" },
-  { label: "Config", href: "/config", icon: Settings },
-];
-
-/** Active when the pathname is exactly the href (Home) or starts with it (sub-routes). */
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
+// English-only: no `lang` attribute anywhere (the SoT carries none).
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -74,12 +46,12 @@ export function SidebarNav() {
               />
             )}
             <Icon aria-hidden="true" className="size-4 shrink-0" />
-            <span lang={item.lang}>{item.label}</span>
+            <span>{item.label}</span>
           </Link>
         );
       })}
 
-      {/* Disabled Goal placeholder (Phase 3) — greyed, non-interactive. */}
+      {/* Disabled Goal placeholder (Phase 5) — greyed, non-interactive. */}
       <div
         aria-disabled="true"
         className="mt-1 flex min-h-11 cursor-not-allowed items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground/50"
@@ -87,7 +59,7 @@ export function SidebarNav() {
         <Target aria-hidden="true" className="size-4 shrink-0" />
         <span>Goal</span>
         <Lock aria-hidden="true" className="ml-auto size-3" />
-        <span className="sr-only">(Phase 3 — coming soon)</span>
+        <span className="sr-only">Coming soon — Phase 5</span>
       </div>
     </nav>
   );
@@ -116,9 +88,7 @@ export function BottomNav() {
             )}
           >
             <Icon aria-hidden="true" className="size-5 shrink-0" />
-            <span lang={item.lang} className="leading-none">
-              {item.label}
-            </span>
+            <span className="leading-none">{item.shortLabel}</span>
           </Link>
         );
       })}

@@ -49,7 +49,7 @@ The product must answer four questions in **under a minute**: how far to €100k
 
 | Technology | Version | Purpose | Why / Sharp edge |
 |------------|---------|---------|------------------|
-| **Recharts** | `2.x` | Custom/bespoke charts (locked) | The composable primitive everything else sits on. Tremor's charts are themselves built on Recharts, so the two are naturally compatible. (HIGH) |
+| **Recharts** | `3.x` (pin `3.8.1`) | Custom/bespoke charts (locked) | The composable primitive everything else sits on. Tremor Raw **and** shadcn's official charts are both built on Recharts. **Phase 0 installed `^3.8.1`; standardized on Recharts 3.x (shadcn charts are Recharts-3-native, PR #8486) — corrected from the planning-time "2.x" on 2026-06-23 (Phase-2 UI-SPEC). Recharts-3 paste rules: use `var(--chart-1)` not `hsl(var(--chart-1))`; give `ChartContainer` a height.** (HIGH) |
 | **Tremor** | see note | KPI cards + standard dashboard charts (locked) | **The npm package `@tremor/react` is effectively frozen — last published `3.18.7` ~a year ago and not updated for React 19 / Tailwind v4.** Tremor's *active* product is **"Tremor Raw"** (`tremor.so`): copy-paste components using **plain Tailwind v4 + Recharts**, no npm dependency, no custom color tokens. **Recommendation: satisfy the "Tremor" constraint via Tremor Raw copy-paste blocks**, which keeps you on Tailwind v4 + React 19 and avoids a peer-dependency dead end. If the team insists on `@tremor/react`, it forces Tailwind **v3** and React 18 — a hard pin that conflicts with the rest of this stack. (HIGH — this is the single most important stack nuance.) |
 
 ### Supporting Libraries
@@ -172,7 +172,7 @@ The product must answer four questions in **under a minute**: how far to €100k
 | Next.js 15.x | React 19, Tailwind v4 | The pinned MVP baseline; all libs below proven here. |
 | `@serwist/next` 9.5.x | `serwist` 9.5.x, Next 14/15 | Keep both serwist packages on the same 9.5.x minor. |
 | `@tremor/react` 3.18.7 | Tailwind **v3**, React 18 only | Why we prefer Tremor Raw instead. |
-| Tremor Raw blocks | Tailwind v4, React 19, Recharts 2.x | No npm dep; plain Tailwind utility classes. |
+| Tremor Raw blocks | Tailwind v4, React 19, Recharts 3.x | No npm dep; plain Tailwind utility classes. shadcn official charts are also Recharts 3 (PR #8486). |
 | `@supabase/ssr` 0.6.x | `@supabase/supabase-js` 2.x, Next App Router | Cookie-based; pair in middleware + server/browser clients. |
 | `@anthropic-ai/sdk` 0.x | `claude-haiku-4-5` | Pin the model id string exactly; no date suffix. |
 

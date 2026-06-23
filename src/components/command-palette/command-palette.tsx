@@ -43,11 +43,6 @@ export interface JumpTarget {
   label: string;
 }
 
-interface CommandPaletteProps {
-  /** Seeded categories (taxonomy names) to surface under "Jump to". */
-  categories?: JumpTarget[];
-}
-
 /** Build a `?period=YYYYMM` href for the current pathname, preserving other params. */
 function periodHref(
   pathname: string,

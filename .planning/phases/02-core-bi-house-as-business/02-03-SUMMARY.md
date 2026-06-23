@@ -113,7 +113,9 @@ None — plan executed as written. The autonomous portion (Tasks 1 + 2) is compl
 ## Known Stubs
 None introduced. `marts.ts` contains formulas only (no hardcoded empty data flowing to UI). The `.existing()` view handles intentionally describe views that will exist after the LIVE push (the BLOCKING checkpoint below) — this is the planned data layer, not a stub.
 
-## BLOCKING Checkpoint — Task 3 (apply 0007 + 0008 LIVE) ⛔ AWAITING USER
+## BLOCKING Checkpoint — Task 3 (apply 0007 + 0008 LIVE) ✓ RESOLVED 2026-06-23
+**Applied.** The user ran `pnpm db:migrate` against the live Supabase Postgres; drizzle-kit reported `[✓] migrations applied successfully!` (the `drizzle` schema / `__drizzle_migrations` NOTICEs are benign pre-existing bookkeeping). `0007` (7 calendar-joined `v_*` mart views, each `security_invoker = on`) + `0008` (per-view RLS control + `balances_account_date_uq` UNIQUE) are now LIVE. **Task 3 complete → plan 02-03 fully done (3/3); BI-01/02/03/04/07 + CAT-06 unblocked.** (Original blocking note retained below for history.)
+
 This plan is `autonomous: false`. **Task 3 applies `0007` + `0008` to the LIVE Supabase Postgres, which needs the uncommitted `DATABASE_URL`.** The executor has no DATABASE_URL and must not touch the live DB. The migration SQL FILES are written, committed, and journal-registered; the LIVE push is the human-action checkpoint.
 
 **Until the live push lands, the schema-applied must-have is UNMET:** TS types come from the Drizzle config (not the live DB), so build/verify would falsely pass while the live DB lacks the 7 views and the balances UNIQUE constraint — and an unprotected view would leak data across the allowlist.

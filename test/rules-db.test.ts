@@ -66,7 +66,7 @@ describe("rule_id resolution (CAT-04/D2-04) — a builtin RuleId resolves to a r
     }
   });
 
-  it("BUILTIN_RULE_IDS maps each RuleId to its exact 0005-seeded literal uuid", () => {
+  it("BUILTIN_RULE_IDS maps each RuleId to its exact seeded literal uuid (0005 + the 0009 revenue_unclassified)", () => {
     expect(BUILTIN_RULE_IDS).toEqual({
       investimento: "66666666-6666-6666-6666-666666660001",
       transferencia: "66666666-6666-6666-6666-666666660002",
@@ -74,6 +74,8 @@ describe("rule_id resolution (CAT-04/D2-04) — a builtin RuleId resolves to a r
       sublocacao_revenue: "66666666-6666-6666-6666-666666660004",
       sublocacao_cost: "66666666-6666-6666-6666-666666660005",
       cost_default: "66666666-6666-6666-6666-666666660006",
+      // DSN-06b / D3-12 — the revenue_unclassified builtin, seeded in 0009 (ordinal 0007).
+      revenue_unclassified: "66666666-6666-6666-6666-666666660007",
     });
   });
 });

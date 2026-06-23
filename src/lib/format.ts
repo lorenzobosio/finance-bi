@@ -50,3 +50,20 @@ export function formatPct(n: number): string {
   }).format(n);
   return `${body}${NBSP}%`;
 }
+
+/**
+ * Format a months-of-reserve value (BI-07) in the de-DE convention, ONE decimal MAX,
+ * with the English unit appended via the same non-breaking space:
+ * `formatMonths(3.2)` → `"3,2 months"`, `formatMonths(3)` → `"3 months"`.
+ *
+ * Months-of-reserve is a count (cash ÷ trailing-avg monthly costs), not money or a
+ * percentage, so it gets its own helper rather than hand-rolled `Intl` — keeping every
+ * `new Intl.NumberFormat` confined to this file (the format.test.ts grep guard).
+ */
+export function formatMonths(n: number): string {
+  const body = new Intl.NumberFormat("de-DE", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  }).format(n);
+  return `${body}${NBSP}months`;
+}

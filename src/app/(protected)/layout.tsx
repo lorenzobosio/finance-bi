@@ -1,60 +1,82 @@
-import { Suspense } from "react";
-
-import { BottomNav, SidebarNav } from "@/components/app-nav";
-import { MonthSelector } from "@/components/month-selector";
+import { BottomNav } from "@/components/app-nav";
+import { AppSidebar } from "@/components/app-sidebar";
+import {
+  CommandPaletteProvider,
+  type JumpTarget,
+} from "@/components/command-palette/command-palette";
+import { SiteHeader } from "@/components/site-header";
 import { StatusBanners } from "@/components/status/status-banners";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { createClient } from "@/lib/supabase/server";
 
-// Authenticated app shell (UI-SPEC §0). Every protected page renders inside this shell:
-//   • <StatusBanners /> mounted ONCE, full-bleed at the very top (ReconnectBanner stacks
-//     above FreshnessBanner) — the mandatory "Data as of {date}" trust strip on every
-//     dashboard. Mounted here (not the root layout) so it never shows on the public
-//     login page and never double-mounts.
-//   • Desktop (≥lg): fixed ~240px left sidebar (--sidebar surface) + content area.
-//   • Mobile (<lg): fixed 56px bottom tab bar (5 tabs + safe-area).
-//   • A shared top bar carrying the MANDATORY month selector (?period=YYYYMM) so every
-//     mart-backed page keys off one selected period.
+// Authenticated app shell (UI-SPEC §App Shell, DSN-05). The dashboard-01-class layout:
+//   • SidebarProvider → AppSidebar (collapsible="icon" variant="inset") → SidebarInset
+//   • SiteHeader (⌘K trigger + MonthSelector + theme toggle) at the top of the inset
+//   • StatusBanners mounted ONCE, full-bleed above the inset (ReconnectBanner stacks above
+//     FreshnessBanner) — the mandatory "Data as of {date}" trust strip on every dashboard.
+//   • BottomNav (lg:hidden) — the mobile tab bar (5 tabs + safe-area).
+//   • CommandPaletteProvider — a client island wrapping the inset; the ⌘K palette derives its
+//     Go-to commands from the NAV_ITEMS SoT and its Jump-to list from the non-sensitive
+//     category taxonomy read here under RLS.
 //
-// This is a Server Component (StatusBanners reads RLS state server-side); the nav +
-// selector are client islands.
+// This stays a Server Component: StatusBanners + the user email + the category seed are read
+// server-side under the user JWT + RLS (never service_role, never a client secret — T-03-10).
 
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const supabase = await createClient();
+
+  // Read the signed-in email (for the sidebar account chip) + the non-sensitive category
+  // taxonomy (for the ⌘K "Jump to" group) ONCE, under RLS, in the RSC layout.
+  const [{ data: userData }, { data: catData }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from("categories").select("id, name").order("name", { ascending: true }),
+  ]);
+
+  const userEmail = userData?.user?.email ?? undefined;
+  const categories: JumpTarget[] = (catData ?? []).map((c) => ({
+    href: `/spending?category=${c.id}`,
+    label: c.name,
+  }));
+
   return (
-    <div className="flex min-h-dvh flex-col">
-      {/* Full-bleed status banners at the very top of the shell. */}
-      <StatusBanners />
-
-      <div className="flex flex-1">
-        {/* Desktop sidebar (≥lg). */}
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-          <div className="flex min-h-14 items-center px-5">
-            <span className="text-base font-semibold">Finance BI</span>
-          </div>
-          <SidebarNav />
-        </aside>
-
-        {/* Main column. */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Shared top bar — the mandatory month selector lives here (UI-SPEC §0). */}
-          <div className="flex min-h-14 items-center justify-end border-b border-border px-4 lg:px-8">
-            <Suspense fallback={null}>
-              <MonthSelector />
-            </Suspense>
-          </div>
-
-          {/* Page content. max-w-7xl, 16px mobile / 32px desktop padding. Extra bottom
-              padding on mobile so the fixed bottom-nav never overlaps content. */}
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-4 pb-24 lg:px-8 lg:pt-8 lg:pb-8">
-            {children}
-          </main>
-        </div>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "16rem",
+          "--header-height": "3.5rem",
+        } as React.CSSProperties
+      }
+    >
+      {/* Full-bleed status banners at the very top of the shell (above the inset). */}
+      <div className="w-full">
+        <StatusBanners />
       </div>
+
+      <CommandPaletteProvider categories={categories}>
+        <AppSidebar
+          collapsible="icon"
+          variant="inset"
+          userEmail={userEmail}
+        />
+        <SidebarInset>
+          <SiteHeader />
+
+          {/* Page content. Extra bottom padding on mobile so the fixed bottom-nav never
+              overlaps content. */}
+          <div className="@container/main flex flex-1 flex-col">
+            <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-4 pb-24 lg:px-8 lg:pt-8 lg:pb-8">
+              {children}
+            </main>
+          </div>
+        </SidebarInset>
+      </CommandPaletteProvider>
 
       {/* Mobile bottom tab bar (<lg). */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background lg:hidden">
         <BottomNav />
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

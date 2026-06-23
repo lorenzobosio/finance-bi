@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { MotionConfig } from "motion/react";
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/theme-provider";
@@ -45,7 +46,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          {/* Layer-2 reduced-motion gate (DSN-03): reducedMotion="user" makes every
+              motion/@number-flow animation honor prefers-reduced-motion at the JS layer
+              (the Layer-1 CSS zeroes ::view-transition-* in globals.css). Together they
+              fully suppress motion — including the €4k celebration moment — to instant. */}
+          <MotionConfig reducedMotion="user">{children}</MotionConfig>
         </ThemeProvider>
       </body>
     </html>

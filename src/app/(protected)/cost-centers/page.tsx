@@ -3,6 +3,12 @@ import { TriangleAlert } from "lucide-react";
 
 import { CategoryBar, type CategoryBarTone } from "@/components/charts/category-bar";
 import { PnlWaterfall, type WaterfallStep } from "@/components/charts/pnl-waterfall";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { formatEUR } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
@@ -127,7 +133,7 @@ export default async function CostCentersPage({
   ];
 
   return (
-    <div className="space-y-12">
+    <div className="@container/main space-y-6">
       {/* Page header (h1 left; the shared month selector lives in the shell top bar). */}
       <header className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">Cost Centers</h1>
@@ -141,60 +147,66 @@ export default async function CostCentersPage({
         )}
       </header>
 
-      {/* --- Budgeted vs actual: the 3 household cost centers (BI-02, D2-12) --- */}
-      <section className="space-y-4">
+      {/* --- Budgeted vs actual: the 3 household cost centers as SectionCards (BI-02, D2-12) --- */}
+      <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Budget vs actual</h2>
-        <ul className="flex flex-col gap-5">
+        <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-3">
           {budgetRows.map((r) => (
-            <li key={r.code} className="space-y-1.5">
-              <div className="flex items-baseline justify-between gap-4 text-sm">
-                <span className="font-medium">{r.name}</span>
+            <Card key={r.code} size="sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-1.5">
+                  {r.over && (
+                    <TriangleAlert
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-[var(--loss)]"
+                    />
+                  )}
+                  {r.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
                 {r.hasBudget ? (
-                  <span className="flex items-center gap-1.5 font-mono tabular-nums">
+                  <>
+                    <p className="font-mono text-sm tabular-nums">
+                      <span className={r.over ? "text-[var(--loss)]" : undefined}>
+                        {formatEUR(r.actual)} of {formatEUR(r.budget)}
+                      </span>
+                    </p>
+                    <CategoryBar
+                      value={r.ratio * 100}
+                      tone={r.tone}
+                      label={`${r.name} budget vs actual`}
+                      valueText={`${formatEUR(r.actual)} of ${formatEUR(r.budget)}`}
+                    />
                     {r.over && (
-                      <TriangleAlert
-                        aria-hidden="true"
-                        className="size-4 shrink-0 text-[var(--loss)]"
-                      />
+                      <p className="text-xs text-[var(--loss)]">
+                        Over by {formatEUR(r.actual - r.budget)}
+                      </p>
                     )}
-                    <span className={r.over ? "text-[var(--loss)]" : undefined}>
-                      {formatEUR(r.actual)} of {formatEUR(r.budget)}
-                    </span>
-                  </span>
+                  </>
                 ) : (
                   // D2-12: distinct "Budget not set" state — grey, never a fake cap.
-                  <span className="flex items-center gap-2 text-[var(--neutral-data)]">
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--neutral-data)]">
                     Budget not set
                     <Link href="/config" className="underline underline-offset-2">
                       Set budget
                     </Link>
-                  </span>
+                  </p>
                 )}
-              </div>
-              {r.hasBudget && (
-                <CategoryBar
-                  value={r.ratio * 100}
-                  tone={r.tone}
-                  label={`${r.name} budget vs actual`}
-                  valueText={`${formatEUR(r.actual)} of ${formatEUR(r.budget)}`}
-                />
-              )}
-              {r.over && (
-                <p className="text-xs text-[var(--loss)]">
-                  Over by {formatEUR(r.actual - r.budget)}
-                </p>
-              )}
-            </li>
+              </CardContent>
+            </Card>
           ))}
-        </ul>
+        </div>
       </section>
 
-      {/* --- Sublocação profit center — the ONLY place gross legs appear (D2-06/07/08) --- */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          <span lang="pt-BR">Sublocação</span> — profit center
-        </h2>
-        <div className="space-y-2 rounded-xl border border-border bg-card p-6">
+      {/* --- Sublet profit center — the ONLY place gross legs appear (D2-06/07/08) --- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-muted-foreground">
+            Sublet — profit center
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
           <div className="flex items-baseline justify-between gap-4 text-sm">
             <span>Rent received</span>
             <span className="font-mono tabular-nums text-[var(--gain)]">
@@ -219,30 +231,37 @@ export default async function CostCentersPage({
               {formatEUR(subNet)}
             </span>
           </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          The household P&amp;L sees this as a single net line — its gross rent legs never enter
-          the household Costs bucket.
-        </p>
-      </section>
+          <p className="pt-1 text-xs text-muted-foreground">
+            The household P&amp;L sees this as a single net line — its gross rent legs never enter
+            the household Costs bucket.
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* --- The household P&L waterfall (BI-01, UI-SPEC §2) --- */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-muted-foreground">Household P&amp;L</h2>
+      {/* --- The household P&L waterfall, Card-wrapped (BI-01, UI-SPEC §2) --- */}
+      <Card>
+        <CardHeader className="flex flex-wrap items-center gap-3 [&]:grid-cols-none [&]:flex">
+          <CardTitle className="text-sm font-semibold text-muted-foreground">
+            Household P&amp;L
+          </CardTitle>
           {/* CAT-06: investimento / transferência are excluded from the Costs bucket. */}
           <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--neutral-data)]">
             Investimento &amp; transferência excluded from costs
           </span>
-        </div>
-        {hasPnl ? (
-          <PnlWaterfall steps={steps} ariaLabel="Household P&L waterfall for the selected month" />
-        ) : (
-          <p className="font-mono text-sm tabular-nums text-[var(--neutral-data)]">
-            {formatEUR(0)} this month — the P&amp;L appears once data lands.
-          </p>
-        )}
-      </section>
+        </CardHeader>
+        <CardContent>
+          {hasPnl ? (
+            <PnlWaterfall
+              steps={steps}
+              ariaLabel="Household P&L waterfall for the selected month"
+            />
+          ) : (
+            <p className="font-mono text-sm tabular-nums text-[var(--neutral-data)]">
+              {formatEUR(0)} this month — the P&amp;L appears once data lands.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

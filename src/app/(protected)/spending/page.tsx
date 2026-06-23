@@ -1,8 +1,14 @@
 import Link from "next/link";
 
 import { BarList, type BarListItem } from "@/components/charts/bar-list";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEUR, formatPct } from "@/lib/format";
-import { UNCATEGORIZED_LABEL } from "@/lib/db/marts";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,6 +23,11 @@ import { createClient } from "@/lib/supabase/server";
 // Drizzle/postgres client and NEVER service_role (T-02-16 / RESEARCH Pitfall 3). The selected
 // breakdown grain is its own URL param (?breakdown=) so it is shareable/bookmarkable and the
 // toggle is a set of plain links (no client JS needed — works for Fernanda's mobile too).
+
+// The Uncategorized bucket label — inlined as a plain string (FND-03 / T-03-16: this page must
+// NOT import the Drizzle-backed `@/lib/db/marts` module, which would pull drizzle-orm into the
+// RSC page bundle). Kept identical to `marts.UNCATEGORIZED_LABEL` (the mart coalesces to it).
+const UNCATEGORIZED_LABEL = "Uncategorized";
 
 type Grain = "category" | "account" | "person";
 
@@ -134,7 +145,7 @@ export default async function SpendingPage({
   const hasRevenue = (pctRows ?? []).some((r) => num(r.revenue) > 0);
 
   return (
-    <div className="space-y-12">
+    <div className="@container/main space-y-6">
       {/* Page header (h1 left; the shared month selector lives in the shell top bar). */}
       <header className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">Spending</h1>
@@ -148,80 +159,88 @@ export default async function SpendingPage({
         )}
       </header>
 
-      {/* --- Breakdown: a segmented 3-way toggle over a BarList (BI-03) --- */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-muted-foreground">Spending breakdown</h2>
-          {/* Segmented toggle — plain links (?breakdown=), no client JS. */}
-          <div
-            role="tablist"
+      {/* --- Breakdown: a segmented 3-way ToggleGroup over a Card-wrapped BarList (BI-03) --- */}
+      <Card>
+        <CardHeader className="flex flex-wrap items-center justify-between gap-3 [&]:grid-cols-none [&]:flex">
+          <CardTitle className="text-sm font-semibold text-muted-foreground">
+            Spending breakdown
+          </CardTitle>
+          {/* Segmented toggle — each item is a real `?breakdown=` link (Fernanda no-JS path). */}
+          <ToggleGroup
+            type="single"
+            value={grain}
             aria-label="Breakdown grain"
-            className="inline-flex rounded-lg border border-border bg-muted p-0.5"
+            variant="outline"
+            size="sm"
+            spacing={0}
           >
             {GRAINS.map((g) => {
               const active = g.value === grain;
               return (
-                <Link
-                  key={g.value}
-                  role="tab"
-                  aria-selected={active}
-                  href={`/spending?breakdown=${g.value}${rawPeriod ? `&period=${period}` : ""}`}
-                  className={
-                    active
-                      ? "rounded-md bg-card px-3 py-1 text-sm font-medium text-foreground shadow-sm"
-                      : "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-                  }
-                >
-                  {g.label}
-                </Link>
+                <ToggleGroupItem key={g.value} value={g.value} asChild>
+                  <Link
+                    data-state={active ? "on" : "off"}
+                    aria-pressed={active}
+                    href={`/spending?breakdown=${g.value}${rawPeriod ? `&period=${period}` : ""}`}
+                  >
+                    {g.label}
+                  </Link>
+                </ToggleGroupItem>
               );
             })}
-          </div>
-        </div>
-
-        {hasSpending ? (
-          <BarList items={barItems} ariaLabel={`Spending by ${grain}`} />
-        ) : (
-          // Empty / €0 month — calm grey, never blank (UI-SPEC §7). Uncategorized still shown.
-          <div className="space-y-2">
-            <p className="font-mono text-sm tabular-nums text-[var(--neutral-data)]">
-              {formatEUR(0)} this month
-            </p>
+          </ToggleGroup>
+        </CardHeader>
+        <CardContent>
+          {hasSpending ? (
             <BarList items={barItems} ariaLabel={`Spending by ${grain}`} />
-          </div>
-        )}
-      </section>
+          ) : (
+            // Empty / €0 month — calm grey, never blank (UI-SPEC §7). Uncategorized still shown.
+            <div className="space-y-2">
+              <p className="font-mono text-sm tabular-nums text-[var(--neutral-data)]">
+                {formatEUR(0)} this month
+              </p>
+              <BarList items={barItems} ariaLabel={`Spending by ${grain}`} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* --- Category-as-%-of-revenue (D2-15) — first-class --- */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Share of net revenue</h2>
-        {!hasRevenue ? (
-          <p className="text-sm text-[var(--neutral-data)]">
-            No revenue this month — share of revenue unlocks once salary lands.
-          </p>
-        ) : pctItems.length === 0 ? (
-          <p className="text-sm text-[var(--neutral-data)]">
-            {formatEUR(0)} in costs this month.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {pctItems.map((r, idx) => (
-              <li
-                key={`${r.label}-${idx}`}
-                className="flex items-baseline justify-between gap-4 border-b border-border pb-2 text-sm last:border-0"
-              >
-                <span className="truncate">{r.label}</span>
-                <span className="shrink-0 font-mono tabular-nums">
-                  {formatEUR(r.cost)}
-                  <span className="ml-2 text-muted-foreground">
-                    {r.pct === null ? "—" : `${formatPct(r.pct)} of net revenue`}
+      {/* --- Category-as-%-of-revenue (D2-15) — first-class, in its own Card --- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-muted-foreground">
+            Share of net revenue
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!hasRevenue ? (
+            <p className="text-sm text-[var(--neutral-data)]">
+              No revenue this month — share of revenue unlocks once salary lands.
+            </p>
+          ) : pctItems.length === 0 ? (
+            <p className="text-sm text-[var(--neutral-data)]">
+              {formatEUR(0)} in costs this month.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {pctItems.map((r, idx) => (
+                <li
+                  key={`${r.label}-${idx}`}
+                  className="flex items-baseline justify-between gap-4 border-b border-border pb-2 text-sm last:border-0"
+                >
+                  <span className="truncate">{r.label}</span>
+                  <span className="shrink-0 font-mono tabular-nums">
+                    {formatEUR(r.cost)}
+                    <span className="ml-2 text-muted-foreground">
+                      {r.pct === null ? "—" : `${formatPct(r.pct)} of net revenue`}
+                    </span>
                   </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

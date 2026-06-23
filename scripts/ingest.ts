@@ -217,8 +217,13 @@ export async function createServiceWriter(): Promise<IngestWriter> {
     async markConsentExpired(connectionId) {
       await sql`update connections set consent_status = 'expired' where id = ${connectionId}`;
     },
-    async advanceLastPull(connectionId, at) {
-      await sql`update connections set last_pull_at = ${at} where id = ${connectionId}`;
+    async advanceLastPull(_connectionId, at) {
+      // The daily pull is GLOBAL — the app JWT fetches every linked account regardless of
+      // which consent's session_id we read — so a successful run advances EVERY active
+      // connection's last_pull_at, not just one. This keeps the freshness banner correct no
+      // matter which connection it reads (it reads the latest), and keeps each connection's
+      // incremental date_from in step. Expired consents are left untouched (they did not pull).
+      await sql`update connections set last_pull_at = ${at} where consent_status is distinct from 'expired'`;
     },
     async writeBatch(row) {
       await sql`

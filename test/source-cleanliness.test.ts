@@ -100,3 +100,67 @@ describe("source cleanliness — no real allowlist PII in tracked files (Phase-0
     expect(offendingFileCount).toBe(0);
   });
 });
+
+// Phase-4 extension (R-D, Threat 2/3) — the public-demo is the first unauthenticated surface,
+// so three structural guards permanently block the highest-leverage PII / privilege leaks:
+//   (1) NO email literal in a migration or seed script (a reviewer/agent "helpfully" writing
+//       `UPDATE members SET auth_email='real@email'` would be a permanent git-history leak — D4-23
+//       mandates DDL-only migrations + env-seeded population).
+//   (2) NO real-IBAN-shaped token in the synthetic seed generator/script (D4-06: every demo row
+//       carries `counterparty_iban: null`; the generator emits synthetic labels only).
+//   (3) NEXT_PUBLIC_DEMO (the public-demo flag) must NEVER co-locate with the `service_role`
+//       chokepoint (FND-03 / Threat-3: the public bundle must never carry the write-plane key).
+//
+// All three assert on COUNTS only (the offending content is never printed). This test file must
+// itself spell out the patterns it scans for, so it carries the marker token `gsd-cleanliness-allow`
+// and is excluded from the scans below — the guards never self-trip.
+const SELF_ALLOW_MARKER = "gsd-cleanliness-allow";
+
+function selfAllowed(file: string): boolean {
+  // This guard test legitimately contains the pattern strings; skip any file carrying the marker.
+  return readTracked(file).includes(SELF_ALLOW_MARKER);
+}
+
+describe("source cleanliness — Phase-4 demo/identity PII + privilege guards", () => {
+  const files = scannableFiles();
+
+  it("contains NO email literal in any tracked drizzle/** or scripts/** file (R-D, no PII in git)", () => {
+    // local-part @ domain . tld — a generic email shape. Migrations are DDL-only and seed scripts
+    // are env-seeded, so a literal email in either is a forbidden hardcoded credential/PII.
+    const emailShape = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+    const offendingFileCount = files.filter((f) => {
+      if (!/^(drizzle|scripts)\//.test(f)) return false;
+      if (selfAllowed(f)) return false;
+      return emailShape.test(readTracked(f));
+    }).length;
+    expect(offendingFileCount).toBe(0);
+  });
+
+  it("contains NO real-IBAN-shaped token in src/lib/demo/** or scripts/seed-demo.ts (D4-06 synthetic-only)", () => {
+    // IBAN shape: two uppercase letters, two digits, then 4-or-more alphanumerics (word-boundaried
+    // so ordinary identifiers do not false-positive). The seed must be synthetic; counterparty_iban
+    // is null on every row, so no IBAN-shaped literal may appear in the generator/seed surface.
+    const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}\b/;
+    const offendingFileCount = files.filter((f) => {
+      const inScope = /^src\/lib\/demo\//.test(f) || f === "scripts/seed-demo.ts";
+      if (!inScope) return false;
+      if (selfAllowed(f)) return false;
+      return ibanShape.test(readTracked(f));
+    }).length;
+    expect(offendingFileCount).toBe(0);
+  });
+
+  it("never co-locates NEXT_PUBLIC_DEMO with the service_role chokepoint in one file (FND-03, Threat-3)", () => {
+    // The public-demo bundle gets ONLY the anon key (D4-15). A file that mentions the public-demo
+    // flag AND imports the server-only service-role client would risk dragging the write plane into
+    // the public bundle — forbidden. Assert no tracked file contains both.
+    const demoFlag = /NEXT_PUBLIC_DEMO\b/;
+    const serviceRole = /service_role|createServiceClient|supabase\/service/;
+    const offendingFileCount = files.filter((f) => {
+      if (selfAllowed(f)) return false;
+      const content = readTracked(f);
+      return demoFlag.test(content) && serviceRole.test(content);
+    }).length;
+    expect(offendingFileCount).toBe(0);
+  });
+});

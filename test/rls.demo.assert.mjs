@@ -165,8 +165,22 @@ try {
   //
   //   View Direction 1 (demo-visible): anon sees >= 1 demo (is_demo=true) row in v_pnl_monthly
   //                                    → the headline KPIs are non-empty for the demo.
-  //   View Direction 2 (no-leak):      anon sees 0 real (is_demo=false) rows in v_pnl_monthly
-  //                                    → the marts never publish real financials to the anon role.
+  //   View Direction 2 (no-leak):      EVERY is_demo=false row anon can read through v_pnl_monthly
+  //                                    has ALL financial columns = €0 → the marts never publish a
+  //                                    real non-zero figure to the anon role.
+  //
+  // WHY NOT "anon sees 0 is_demo=false rows": migration 0013 (correctly) grants anon SELECT on the
+  // SHARED reference tables (dim_calendar/categories/cost_centers) so the period-spine LEFT JOIN
+  // resolves. For every period with NO demo transactions, the spine's `t.is_demo` is NULL →
+  // `coalesce(t.is_demo, false)` = false → a zero-fill is_demo=false row whose financial columns
+  // are all €0. The anon role CANNOT read real (is_demo=false) transactions (its RLS policy is
+  // `using (is_demo = true)`), so these false-partition rows carry NO real money — they are pure
+  // €0 zero-fill from the now-readable spine. "0 is_demo=false rows" is therefore impossible AND
+  // the wrong invariant. The correct, STRONGER invariant: anon never sees a real non-zero number
+  // through the mart — i.e. SUM(|revenue|+|costs|+|investimento|+|sublet_net|+|result|) over all
+  // anon-visible is_demo=false rows MUST be 0. A single non-zero value = a real leak → FAIL loud.
+  // (margin is a derived ratio via nullif and can be NULL → excluded; the partition's money lives
+  // in the five amount columns, which are exactly the v_pnl_monthly financial columns in 0010.)
   // ---------------------------------------------------------------------------
   const DEMO_VIEW = 'v_pnl_monthly';
 
@@ -180,13 +194,26 @@ try {
         `SELECT policy on those reference tables (migration 0013) or every mart collapses to €0.`,
     );
 
+  // No-leak: every is_demo=false row anon can read must be a €0 zero-fill (no real money). Find the
+  // single worst offender (largest absolute financial footprint) so the failure names the period.
   const viewReal = await asAnon((tx) =>
-    tx.unsafe(`select count(*)::int as c from public.${DEMO_VIEW} where is_demo = false`),
+    tx.unsafe(
+      `select period_key,
+              (abs(revenue) + abs(costs) + abs(investimento) + abs(sublet_net) + abs(result))::numeric(14,2) as money
+         from public.${DEMO_VIEW}
+        where is_demo = false
+        order by money desc
+        limit 1`,
+    ),
   );
-  if (viewReal[0].c !== 0)
+  const worst = viewReal[0];
+  // worst is undefined if anon sees zero is_demo=false rows at all — also a pass (no row = no leak).
+  if (worst && Number(worst.money) !== 0)
     fail(
-      `R-A VIEW NO-LEAK: anon saw ${viewReal[0].c} real (is_demo=false) row(s) in public.${DEMO_VIEW} ` +
-        `(expected 0). A reference table must NOT expose real financial rows through the mart.`,
+      `R-A VIEW NO-LEAK: anon read a NON-ZERO real (is_demo=false) row in public.${DEMO_VIEW} — ` +
+        `period_key=${worst.period_key} has |financials| sum = €${worst.money} (expected €0). ` +
+        `Every is_demo=false row anon sees through the mart must be a pure €0 zero-fill; a non-zero ` +
+        `value means a reference table is exposing REAL financial data to the anon role.`,
     );
 
   console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation + view.');
@@ -194,7 +221,8 @@ try {
     `  demo_tables=${DEMO_TABLES.length} anon: real-leak=0 demo-visible>=1/table forged-filter=0 write-deny=enforced`,
   );
   console.log(
-    `  view=${DEMO_VIEW} anon: demo-visible=${viewDemo[0].c} real-leak=${viewReal[0].c} (app reads marts, not tables)`,
+    `  view=${DEMO_VIEW} anon: demo-visible=${viewDemo[0].c} real-money-leak=€${worst ? worst.money : 0} ` +
+      `(every is_demo=false row is €0 zero-fill; app reads marts, not tables)`,
   );
 } catch (err) {
   if (process.exitCode !== 1) {

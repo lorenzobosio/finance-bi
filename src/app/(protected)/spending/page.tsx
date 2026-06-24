@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatPct } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
@@ -101,8 +102,14 @@ export default async function SpendingPage({
   }
 
   // --- Build the BarList (biggest-first; Uncategorized pinned as its own grey bar) --------
+  // For the PERSON grain in demo mode, bucket_key is the cost-center code and bucket_label is the
+  // DB label ("Lorenzo"/"Fernanda") — remap the LABEL to the anonymized persona (Alice/Bob). The
+  // FK code/partition is unchanged (display-only — D4-08/26). Other grains pass through verbatim.
   const rows = (breakdownRows ?? []).map((r) => ({
-    label: r.bucket_label,
+    label:
+      grain === "person" && r.bucket_key !== null
+        ? costCenterDisplayName(r.bucket_key, r.bucket_label, demoFilter)
+        : r.bucket_label,
     value: Math.abs(num(r.costs)),
     isUncategorized: r.bucket_label === UNCATEGORIZED_LABEL || r.bucket_key === null,
   }));

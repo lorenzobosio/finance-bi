@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TxTable, type TxRow } from "@/components/transactions/tx-table";
 import type { CategoryOption, CostCenterOption } from "@/components/transactions/edit-popover";
 import { Card } from "@/components/ui/card";
+import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoForReads } from "@/lib/demo/mode";
 
@@ -117,9 +118,11 @@ export default async function TransacoesPage({
   }
 
   const categories: CategoryOption[] = (catData ?? []).map((c) => ({ id: c.id, name: c.name }));
+  // Demo-mode display remap: person cost-center LABELS become the anonymized persona (Alice/Bob);
+  // the FK codes/partition are unchanged (display-only — D4-08/26). Shared/Sublet stay generic.
   const costCenters: CostCenterOption[] = (ccData ?? []).map((cc) => ({
     code: cc.code,
-    label: cc.label ?? cc.code,
+    label: costCenterDisplayName(cc.code, cc.label ?? cc.code, demoFilter),
   }));
   const ccLabelByCode = new Map(costCenters.map((cc) => [cc.code, cc.label]));
 

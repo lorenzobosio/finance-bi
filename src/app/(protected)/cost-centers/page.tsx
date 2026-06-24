@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
@@ -102,7 +103,10 @@ export default async function CostCentersPage({
   }
 
   // --- Build the budget-vs-actual rows (not-set / under / ≥85% / over) --------------------
-  const budgetRows = HOUSEHOLD_CENTERS.map((cc) => {
+  const budgetRows = HOUSEHOLD_CENTERS.map((center) => {
+    // Demo-mode display remap: the person LABEL becomes the anonymized persona (Alice/Bob);
+    // the FK code/partition is unchanged (display-only — D4-08/26). Shared stays "Shared".
+    const cc = { ...center, name: costCenterDisplayName(center.code, center.name, demoFilter) };
     const row = (bvaRows ?? []).find((r) => r.cost_center === cc.code);
     // D2-12: a missing budget ROW means "not set" — NEVER a synthesized €0 cap.
     const hasBudget = !!row && num(row.budget) > 0;

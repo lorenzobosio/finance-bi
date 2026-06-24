@@ -6,6 +6,7 @@ import { NetWorthTrend, type NetWorthPoint } from "@/components/charts/net-worth
 import { GoalHeroCard } from "@/components/goal-hero-card";
 import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
+import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatMonths } from "@/lib/format";
 import { resolveMe } from "@/lib/identity/me";
 import { isDemoForReads } from "@/lib/demo/mode";
@@ -169,9 +170,12 @@ export default async function Home({
       : { label: `Missed — ${formatEUR(remaining, 0)} short`, tone: "loss" };
 
   // Per-person budget status — names who; distinct neutral "not set" (never a false green).
+  // In demo mode the person LABEL is the anonymized persona (Alice/Bob); the FK code/partition
+  // is unchanged (display-only remap — D4-08/26).
   const personBva = PERSON_COST_CENTERS.map((p) => {
     const row = (bvaRows ?? []).find((r) => r.cost_center === p.code);
-    return row ? { ...p, budget: num(row.budget), actual: num(row.actual) } : null;
+    const name = costCenterDisplayName(p.code, p.name, demoFilter);
+    return row ? { ...p, name, budget: num(row.budget), actual: num(row.actual) } : null;
   }).filter((x): x is NonNullable<typeof x> => x !== null);
 
   const overBudget = personBva.filter((p) => p.actual > p.budget);

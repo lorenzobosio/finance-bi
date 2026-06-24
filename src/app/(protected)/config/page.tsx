@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { DEMO_MODE_COOKIE } from "@/lib/demo/mode";
 import { currentPeriodKey, previousPeriodKey } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
@@ -99,7 +100,9 @@ export default async function ConfigPage({
     const existing = (budgetRows ?? []).find((b) => b.cost_center === cc.code);
     return {
       costCenter: cc.code,
-      name: cc.name,
+      // Demo-mode display remap: person LABEL becomes the anonymized persona (Alice/Bob); the
+      // FK code/partition is unchanged (display-only — D4-08/26). Shared stays "Shared".
+      name: costCenterDisplayName(cc.code, cc.name, demoEnabled),
       categoryId: null,
       amount: num(existing?.amount_eur),
       isSet: !!existing,

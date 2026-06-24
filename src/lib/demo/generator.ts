@@ -15,8 +15,8 @@
 // across Phase 4 and Phase 7. Two calls with the same seed deep-equal.
 //
 // NO PII (D4-06, R-D): every row carries `counterpartyIban: null` and `isDemo: true`; all
-// labels are synthetic (generic merchant/category names + the fictional DEMO_PERSONA "Alex" /
-// "Sam" / "Shared"). The real owner names NEVER appear. The source-cleanliness gate
+// labels are synthetic (generic merchant/category names + the fictional DEMO_PERSONA "Alice" /
+// "Bob" / "Shared"). The real owner names NEVER appear. The source-cleanliness gate
 // (test/source-cleanliness.test.ts) negative-greps src/lib/demo/** for any email / IBAN-shaped
 // token — no real PII literal may ever live here.
 //
@@ -43,8 +43,8 @@ export const DEMO_INVESTIMENTO_TOTAL = 56000;
 const MONTHLY_CONTRIBUTION = 4000;
 
 /** Fixed salaries (no jitter — they are deterministic revenue, D4 eval-01). */
-const SALARY_ALEX = 5500; // Lorenzo's persona-labelled salary (cost_center 'lorenzo')
-const SALARY_SAM = 2700; // Fernanda's persona-labelled salary (cost_center 'fernanda')
+const SALARY_ALEX = 5500; // Alice's persona-labelled salary (person cost-center A)
+const SALARY_SAM = 2700; // Bob's persona-labelled salary (person cost-center B)
 
 /** Sublet (Sublocação profit-center) legs when a month is active. */
 const SUBLET_RENT = 900; // received
@@ -63,10 +63,10 @@ export interface DemoPersona {
   members: string[];
 }
 
-/** The fictional demo persona — "Alex & Sam" — labels only, never a greeting (D4-08/26). */
+/** The fictional demo persona — "Alice & Bob" — labels only, never a greeting (D4-08/26). */
 export const DEMO_PERSONA: DemoPersona = {
-  household: "Alex & Sam",
-  members: ["Alex", "Sam", "Shared"],
+  household: "Alice & Bob",
+  members: ["Alice", "Bob", "Shared"],
 };
 
 // The generator emits PERSONA-NEUTRAL cost-center codes — 'alex' | 'sam' | 'shared' |

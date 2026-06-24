@@ -92,6 +92,13 @@
       "when": 1782216690000,
       "tag": "0012_member_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782216691000,
+      "tag": "0013_demo_anon_reference_reads",
+      "breakpoints": true
     }
   ]
 }

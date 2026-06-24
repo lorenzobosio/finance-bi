@@ -102,6 +102,10 @@ export default async function SpendingPage({
   }
 
   // --- Build the BarList (biggest-first; Uncategorized pinned as its own grey bar) --------
+  // NOTE (demo): the ACCOUNT grain shows blank/Unknown labels for anon. `accounts` carries real
+  // account names and no is_demo, so it is intentionally NOT granted anon read (migration 0013) —
+  // granting it would leak real account names. Blank account-grain labels in the demo are the
+  // accepted casualty; category/person grains are fully labelled via the granted reference tables.
   // For the PERSON grain in demo mode, bucket_key is the cost-center code and bucket_label is the
   // DB label ("Lorenzo"/"Fernanda") — remap the LABEL to the anonymized persona (Alice/Bob). The
   // FK code/partition is unchanged (display-only — D4-08/26). Other grains pass through verbatim.

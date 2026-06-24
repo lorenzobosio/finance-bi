@@ -149,9 +149,52 @@ try {
       fail(`R-A DEMO-VISIBLE: anon saw ${seen[0].c} demo (is_demo=true) row(s) in public.${t} (expected >= 1; seed not run?)`);
   }
 
-  console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation.');
+  // ---------------------------------------------------------------------------
+  // VIEW CHECK (Phase-4 UAT fix — the gap that let this gate pass while the demo was €0).
+  //
+  // The app does NOT read the demo-bearing TABLES directly — it reads the `v_*` marts, which are
+  // `security_invoker = on` and JOIN three SHARED reference tables (dim_calendar, categories,
+  // cost_centers). If those reference tables lack an anon SELECT policy, the anon role sees zero
+  // reference rows, the dim_calendar period-spine LEFT JOIN collapses, and EVERY mart returns zero
+  // rows → the public demo renders €0 everywhere even though the demo-bearing tables (asserted
+  // above) are correctly anon-visible. The table checks alone CANNOT catch that, so we assert the
+  // VIEW surface the app actually reads.
+  //
+  // RED pre-migration (0013 not applied → anon has no read on the reference tables → the mart
+  // returns 0 rows). GREEN post-migration (operator's `pnpm db:migrate` + the seed already run).
+  //
+  //   View Direction 1 (demo-visible): anon sees >= 1 demo (is_demo=true) row in v_pnl_monthly
+  //                                    → the headline KPIs are non-empty for the demo.
+  //   View Direction 2 (no-leak):      anon sees 0 real (is_demo=false) rows in v_pnl_monthly
+  //                                    → the marts never publish real financials to the anon role.
+  // ---------------------------------------------------------------------------
+  const DEMO_VIEW = 'v_pnl_monthly';
+
+  const viewDemo = await asAnon((tx) =>
+    tx.unsafe(`select count(*)::int as c from public.${DEMO_VIEW} where is_demo = true`),
+  );
+  if (viewDemo[0].c < 1)
+    fail(
+      `R-A VIEW DEMO-VISIBLE: anon saw ${viewDemo[0].c} demo row(s) in public.${DEMO_VIEW} ` +
+        `(expected >= 1). The marts JOIN dim_calendar/categories/cost_centers — anon needs a ` +
+        `SELECT policy on those reference tables (migration 0013) or every mart collapses to €0.`,
+    );
+
+  const viewReal = await asAnon((tx) =>
+    tx.unsafe(`select count(*)::int as c from public.${DEMO_VIEW} where is_demo = false`),
+  );
+  if (viewReal[0].c !== 0)
+    fail(
+      `R-A VIEW NO-LEAK: anon saw ${viewReal[0].c} real (is_demo=false) row(s) in public.${DEMO_VIEW} ` +
+        `(expected 0). A reference table must NOT expose real financial rows through the mart.`,
+    );
+
+  console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation + view.');
   console.log(
     `  demo_tables=${DEMO_TABLES.length} anon: real-leak=0 demo-visible>=1/table forged-filter=0 write-deny=enforced`,
+  );
+  console.log(
+    `  view=${DEMO_VIEW} anon: demo-visible=${viewDemo[0].c} real-leak=${viewReal[0].c} (app reads marts, not tables)`,
   );
 } catch (err) {
   if (process.exitCode !== 1) {

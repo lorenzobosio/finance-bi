@@ -24,6 +24,17 @@ const PUBLIC_PATHS = ["/login", "/auth/callback", "/eb/callback"];
  * Edge runtime). Fails CLOSED: any RPC error or a non-true result denies access.
  */
 export async function middleware(request: NextRequest) {
+  // PUBLIC DEMO DEPLOY (D4-14 / DEMO-02): on the second Vercel project the `NEXT_PUBLIC_DEMO=1`
+  // flag is set, so let ALL traffic through BEFORE any session work — there is no user to validate,
+  // the allowlist RPC is never called, and no auth redirect fires (the demo is no-login). The anon
+  // RLS cap (`is_demo=true`) is the SOLE control on this path; this branch only skips the auth
+  // gate, it never elevates anything (the same anon-key createServerClient is used everywhere —
+  // service_role/service.ts are never on this path, FND-03). The REAL deploy is byte-identical
+  // because the env is absent there, so this early return is unreachable.
+  if (process.env.NEXT_PUBLIC_DEMO === "1") {
+    return NextResponse.next({ request });
+  }
+
   // `response` carries refreshed auth cookies back to the browser. Recreated on the
   // happy path; the redirect branches return their own response.
   let response = NextResponse.next({ request });

@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { PiggyBank, ShieldCheck, Users } from "lucide-react";
 
 import { BusinessReadCard } from "@/components/business-read-card";
@@ -6,10 +7,14 @@ import { NetWorthTrend, type NetWorthPoint } from "@/components/charts/net-worth
 import { GoalHeroCard } from "@/components/goal-hero-card";
 import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatMonths } from "@/lib/format";
 import { resolveMe } from "@/lib/identity/me";
+import { resolveMember, type Member } from "@/lib/identity/resolve-member";
 import { isDemoForReads } from "@/lib/demo/mode";
+import { ONBOARDING_DISMISS_COOKIE } from "@/lib/onboarding/cookie";
+import { getOnboardingState } from "@/lib/onboarding/state";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,7 +73,7 @@ export default async function Home({
   // Resolve the signed-in person → display name for the greeting h1 (PERS-02, D4-25). One
   // resolver (shared with the sidebar); identity follows the SESSION, so demo mode never changes
   // it and the persona names never reach the greeting (D4-26). Unmapped/null → generic greeting.
-  const { displayName } = await resolveMe();
+  const { displayName, email } = await resolveMe();
 
   // Demo-mode partition selector (D4-12): EVERY mart read filters to ONE partition so demo and
   // real rows are NEVER summed (the post-0010 marts emit both partitions). Real mode →
@@ -106,6 +111,29 @@ export default async function Home({
     .eq("is_demo", demoFilter)
     .order("date", { ascending: true });
 
+  // 5. Onboarding existence probes (ONB-01, D4-19/12). hasConnection = any non-error connections
+  //    row; hasBudgets = any budgets row (period-agnostic). BOTH are is_demo-gated via the SAME
+  //    chokepoint value (demoFilter) — otherwise demo mode would read the REAL connection count
+  //    and the real signal could be polluted by demo rows (T-04-PROBE / Eval 12 R2). In demo mode
+  //    the seed satisfies all three signals, so getOnboardingState resolves complete:true and the
+  //    checklist auto-hides (D4-07). hasTransactions REUSES the existing allPnl probe below — NO
+  //    second transactions read (Pitfall 5). Count-only (head:true) — no rows fetched.
+  const [{ count: connectionCount }, { count: budgetCount }, { data: dismissalData }] =
+    await Promise.all([
+      supabase
+        .from("connections")
+        .select("id", { count: "exact", head: true })
+        .eq("is_demo", demoFilter)
+        .or("consent_status.is.null,consent_status.neq.error"),
+      supabase
+        .from("budgets")
+        .select("cost_center", { count: "exact", head: true })
+        .eq("is_demo", demoFilter),
+      // Read the dismissal flag + auth_email alongside the predicate (D4-21 — no extra round-trip,
+      // no SSR flash). RLS scopes this to the allowlisted household.
+      supabase.from("members").select("id, display_name, auth_email, onboarding_dismissed_at"),
+    ]);
+
   if (kpiError || pnlError) {
     return (
       <p role="alert" className="text-sm text-[var(--loss)]">
@@ -117,6 +145,39 @@ export default async function Home({
 
   // First-use (forward-only): no ingested P&L anywhere yet → the calm sync band + €0 states.
   const hasAnyData = (allPnl ?? []).length > 0;
+
+  // --- Onboarding predicate (ONB-01/02, D4-19/20) --------------------------------------
+  // Derive the non-blocking checklist state from the three all-periods signals. hasTransactions
+  // REUSES hasAnyData (the same allPnl probe — never a second read). Re-derived every render, so
+  // the predicate self-heals when a bank is disconnected. complete:true → the checklist never
+  // renders (a set-up / demo household sees nothing — ONB-02).
+  const onboarding = getOnboardingState({
+    hasConnection: (connectionCount ?? 0) > 0,
+    hasBudgets: (budgetCount ?? 0) > 0,
+    hasTransactions: hasAnyData,
+  });
+
+  // Dismissal (D4-21): household-scoped members.onboarding_dismissed_at for the signed-in member,
+  // read above with the predicate (no extra round-trip). An unmapped-but-allowlisted session
+  // degrades to a session cookie (Eval 08 R2). A complete:true household never renders the card
+  // regardless of the flag, so this only gates the partial state.
+  const members: Member[] = (dismissalData ?? []).map((m) => ({
+    id: m.id,
+    displayName: m.display_name,
+    authEmail: m.auth_email,
+  }));
+  const me = resolveMember(email, members);
+  const dismissedRow = me
+    ? (dismissalData ?? []).find((m) => m.id === me.id)?.onboarding_dismissed_at
+    : null;
+  const cookieStore = await cookies();
+  const onboardingDismissed = me
+    ? dismissedRow !== null && dismissedRow !== undefined
+    : cookieStore.get(ONBOARDING_DISMISS_COOKIE)?.value === "1";
+
+  // The Band-0 checklist renders ONLY when setup is incomplete AND not dismissed (never a route
+  // gate / middleware redirect — middleware.ts is FROZEN; this is a calm Home pointer layer).
+  const showOnboarding = !onboarding.complete && !onboardingDismissed;
 
   // --- Derive the Goal Hero + business read --------------------------------------------
   const revenue = num(kpiRow?.revenue);
@@ -206,6 +267,13 @@ export default async function Home({
           </span>
         )}
       </header>
+
+      {/* BAND 0 — the non-blocking, dismissible onboarding checklist (ONB-01/02, D4-20). Renders
+          only when setup is incomplete AND not dismissed; NEVER a route gate / middleware redirect.
+          The green steps below explain WHY the sync band shows (complementary, not redundant). */}
+      {showOnboarding && (
+        <OnboardingChecklist steps={onboarding.steps} nextStep={onboarding.nextStep} />
+      )}
 
       {/* First-use sync band — calm, never "broken". €0 states render beneath it. */}
       {!hasAnyData && (

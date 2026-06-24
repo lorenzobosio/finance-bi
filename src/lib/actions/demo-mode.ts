@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { DEMO_MODE_COOKIE } from "@/lib/demo/mode";
+import { ONBOARDING_DISMISS_COOKIE } from "@/lib/onboarding/cookie";
 import { createClient } from "@/lib/supabase/server";
 import { resolveMember, type Member } from "@/lib/identity/resolve-member";
 
@@ -56,6 +57,47 @@ export async function showSetupChecklist(): Promise<void> {
   // owned by the onboarding plan). Mapped → clear the dismissal so the guide re-surfaces.
   if (me) {
     await supabase.from("members").update({ onboarding_dismissed_at: null }).eq("id", me.id);
+  }
+  revalidatePath("/", "layout");
+}
+
+/**
+ * dismissOnboarding — set the household-scoped `members.onboarding_dismissed_at` for the signed-in
+ * member (D4-21) so the Home checklist hides until it is re-surfaced from Config. Household-scoped
+ * (matched by the RLS-resolved member from the network-validated getUser() session — T-04-DISMISS:
+ * it can never be forged into a cross-household write). An unmapped member degrades to a session
+ * cookie (the onboarding card reads it as a fallback). A complete:true household never renders the
+ * card regardless of the flag, so this is purely the "I'll set this up later" affordance.
+ */
+export async function dismissOnboarding(): Promise<void> {
+  const supabase = await createClient();
+  const [{ data: userData }, { data: memberData }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from("members").select("id, display_name, auth_email"),
+  ]);
+  const email = userData?.user?.email ?? undefined;
+  const members: Member[] = (memberData ?? []).map((m) => ({
+    id: m.id,
+    displayName: m.display_name,
+    authEmail: m.auth_email,
+  }));
+  const me = resolveMember(email, members);
+  if (me) {
+    // Household-scoped persistence — survives across Lorenzo's desktop and Fernanda's phone.
+    await supabase
+      .from("members")
+      .update({ onboarding_dismissed_at: new Date().toISOString() })
+      .eq("id", me.id);
+  } else {
+    // Unmapped-but-allowlisted session → no members row to write; degrade to a session cookie
+    // (Eval 08 R2) so the dismissal still holds for this device/session.
+    const store = await cookies();
+    store.set(ONBOARDING_DISMISS_COOKIE, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: COOKIE_MAX_AGE,
+    });
   }
   revalidatePath("/", "layout");
 }

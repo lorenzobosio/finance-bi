@@ -28,9 +28,10 @@ export async function middleware(request: NextRequest) {
   // flag is set, so let ALL traffic through BEFORE any session work — there is no user to validate,
   // the allowlist RPC is never called, and no auth redirect fires (the demo is no-login). The anon
   // RLS cap (`is_demo=true`) is the SOLE control on this path; this branch only skips the auth
-  // gate, it never elevates anything (the same anon-key createServerClient is used everywhere —
-  // service_role/service.ts are never on this path, FND-03). The REAL deploy is byte-identical
-  // because the env is absent there, so this early return is unreachable.
+  // gate, it never elevates anything — the anon-key createServerClient is used everywhere and the
+  // elevated server-only write client is never on this path (FND-03; the source-cleanliness
+  // co-location guard keeps it out). The REAL deploy is byte-identical because the env is absent
+  // there, so this early return is unreachable.
   if (process.env.NEXT_PUBLIC_DEMO === "1") {
     return NextResponse.next({ request });
   }

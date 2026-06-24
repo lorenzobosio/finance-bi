@@ -5,15 +5,17 @@ import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { demoCtaProps } from "@/lib/demo/landing-cta";
 
 /**
  * Landing / intro page (DSN-05, D3-07). A calm, centered, single-screen intro — the CV-quality
  * first impression — that replaces the bare login. It adds the brand, the one-line value prop,
- * and a DISABLED "View demo →" shell (the live demo wires up in Phase 4), keeping the existing
- * Google sign-in as the primary CTA.
+ * and a live "View demo →" CTA (DEMO-04, D4-17 — wired to `NEXT_PUBLIC_DEMO_URL`), keeping the
+ * existing Google sign-in as the primary CTA.
  *
  * Security (T-03-12 / T-03-13): the page is fully logged-out and exposes ZERO data — only static
- * brand/value-prop/CTA copy, no mart read, no session-gated content, the demo CTA inert. The
+ * brand/value-prop/CTA copy, no mart read, no session-gated content. The demo CTA links to a
+ * public (non-sensitive) URL and degrades to `href="#"` (disabled) until the owner sets it. The
  * `signInWithOAuth` `redirectTo` stays fixed to this origin's `/auth/callback` (no user-controlled
  * redirect target — mitigates open-redirect T-00-10). Shows an access-denied notice when the
  * middleware bounced a non-allowlisted account here with `?denied=1`.
@@ -23,6 +25,13 @@ function LoginForm() {
   const denied = searchParams.get("denied") === "1";
   const authError = searchParams.get("error") === "auth";
   const [pending, setPending] = useState(false);
+
+  // The "View demo →" wiring (DEMO-04, D4-17) — pure resolution from NEXT_PUBLIC_DEMO_URL, inlined
+  // at build time on the client. Live link when the owner has set the URL; a disabled "#" shell
+  // otherwise. process.env is referenced directly so Next can statically inline the public var.
+  const demoCta = demoCtaProps({
+    NEXT_PUBLIC_DEMO_URL: process.env.NEXT_PUBLIC_DEMO_URL,
+  });
 
   async function signIn() {
     setPending(true);
@@ -98,20 +107,29 @@ function LoginForm() {
               {pending ? "Redirecting…" : "Continue with Google"}
             </Button>
 
-            {/* Disabled "View demo →" shell — the live demo wires up in Phase 4 (inert here). */}
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              className="w-full"
-              disabled
-              aria-disabled="true"
-              title="Coming soon — a live demo arrives in a later release."
-            >
-              View demo →
-            </Button>
+            {/* Live "View demo →" secondary CTA (DEMO-04, D4-17). The href resolves from
+                NEXT_PUBLIC_DEMO_URL via the pure helper; degrades to a disabled "#" shell until the
+                owner sets the var on the real app's Vercel project. Stays a calm secondary outline
+                button — "Continue with Google" remains the single violet --brand primary. */}
+            {demoCta.disabled ? (
+              <Button
+                type="button"
+                size="lg"
+                variant="outline"
+                className="w-full"
+                disabled
+                aria-disabled="true"
+                title="A live demo arrives once it is published."
+              >
+                View demo →
+              </Button>
+            ) : (
+              <Button asChild size="lg" variant="outline" className="w-full">
+                <a href={demoCta.href}>View demo →</a>
+              </Button>
+            )}
             <p className="text-center text-xs text-muted-foreground">
-              Demo coming soon. Access is limited to the household allowlist.
+              Explore a pre-seeded household — no login needed.
             </p>
           </div>
         </div>

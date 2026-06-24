@@ -33,6 +33,39 @@ type Money = string;
 export type Database = {
   public: {
     Tables: {
+      // --- Identity (PERS-01/02) --------------------------------------------------------
+      // members maps the authenticated Google email → a household member (resolveMember reads
+      // auth_email; the greeting renders display_name only, never the email — D4-23/24/25).
+      // onboarding_dismissed_at is the household-scoped dismissal flag (D4-21). email is the
+      // Phase-0 column, unused this phase. All non-id columns arrive as string|null over the
+      // wire (timestamptz → string). NOT a demo-bearing table — no is_demo.
+      members: {
+        Row: {
+          id: string;
+          display_name: string;
+          email: string | null;
+          auth_email: string | null;
+          onboarding_dismissed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          display_name: string;
+          email?: string | null;
+          auth_email?: string | null;
+          onboarding_dismissed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          display_name?: string;
+          email?: string | null;
+          auth_email?: string | null;
+          onboarding_dismissed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       // --- Writable base tables (Server Actions) ---------------------------------------
       transactions: {
         Row: {
@@ -46,6 +79,7 @@ export type Database = {
           flow_type: string | null;
           category_id: string | null;
           cost_center: string | null;
+          is_demo: boolean;
         };
         Insert: {
           id?: string;
@@ -58,6 +92,7 @@ export type Database = {
           flow_type?: string | null;
           category_id?: string | null;
           cost_center?: string | null;
+          is_demo?: boolean;
         };
         Update: {
           id?: string;
@@ -70,6 +105,7 @@ export type Database = {
           flow_type?: string | null;
           category_id?: string | null;
           cost_center?: string | null;
+          is_demo?: boolean;
         };
         // Embedded-relation reads (`accounts(name), categories(name)`) need the FK relationships
         // declared so supabase-js resolves the join shape instead of a SelectQueryError.
@@ -97,6 +133,7 @@ export type Database = {
           category_id: string | null;
           period_key: number;
           amount_eur: Money;
+          is_demo: boolean;
         };
         Insert: {
           id?: string;
@@ -104,6 +141,7 @@ export type Database = {
           category_id?: string | null;
           period_key: number;
           amount_eur: Money | number;
+          is_demo?: boolean;
         };
         Update: {
           id?: string;
@@ -111,6 +149,136 @@ export type Database = {
           category_id?: string | null;
           period_key?: number;
           amount_eur?: Money | number;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      // --- Demo-bearing fact/config tables (is_demo partition, D4-09) -------------------
+      // The seed writer (scripts/seed-demo.ts) writes is_demo=true rows here; real ingestion
+      // never sets is_demo (defaults false). Money columns are string over the wire.
+      balances: {
+        Row: {
+          id: string;
+          account_id: string;
+          as_of_date: string;
+          balance_eur: Money;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          account_id: string;
+          as_of_date: string;
+          balance_eur: Money | number;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          account_id?: string;
+          as_of_date?: string;
+          balance_eur?: Money | number;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      goals: {
+        Row: {
+          id: string;
+          name: string;
+          target_eur: Money;
+          metric: string;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          target_eur: Money | number;
+          metric?: string;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          target_eur?: Money | number;
+          metric?: string;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      milestones: {
+        Row: {
+          id: string;
+          goal_id: string;
+          threshold_eur: Money;
+          achieved_at: string | null;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          goal_id: string;
+          threshold_eur: Money | number;
+          achieved_at?: string | null;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          goal_id?: string;
+          threshold_eur?: Money | number;
+          achieved_at?: string | null;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      investment_contributions: {
+        Row: {
+          id: string;
+          transaction_id: string | null;
+          amount_eur: Money;
+          period_key: number;
+          member_id: string | null;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          transaction_id?: string | null;
+          amount_eur: Money | number;
+          period_key: number;
+          member_id?: string | null;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          transaction_id?: string | null;
+          amount_eur?: Money | number;
+          period_key?: number;
+          member_id?: string | null;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      insights: {
+        Row: {
+          id: string;
+          kind: string | null;
+          body: string | null;
+          created_at: string;
+          token_count: number | null;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          kind?: string | null;
+          body?: string | null;
+          created_at?: string;
+          token_count?: number | null;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          kind?: string | null;
+          body?: string | null;
+          created_at?: string;
+          token_count?: number | null;
+          is_demo?: boolean;
         };
         Relationships: [];
       };
@@ -150,18 +318,21 @@ export type Database = {
           last_pull_at: string | null;
           consent_status: string | null;
           created_at: string;
+          is_demo: boolean;
         };
         Insert: {
           id?: string;
           last_pull_at?: string | null;
           consent_status?: string | null;
           created_at?: string;
+          is_demo?: boolean;
         };
         Update: {
           id?: string;
           last_pull_at?: string | null;
           consent_status?: string | null;
           created_at?: string;
+          is_demo?: boolean;
         };
         Relationships: [];
       };
@@ -186,9 +357,12 @@ export type Database = {
     };
     Views: {
       // --- Analytics marts (read-only; mirror drizzle/0007_marts.sql) -------------------
+      // Every mart carries is_demo (the partition column from 0010); the demo-mode chokepoint
+      // src/lib/demo/mode.ts adds .eq('is_demo', true|false) to every read so it is typed.
       v_home_kpis: {
         Row: {
           period_key: number;
+          is_demo: boolean;
           revenue: Money;
           investimento: Money;
           costs: Money;
@@ -202,6 +376,7 @@ export type Database = {
       v_pnl_monthly: {
         Row: {
           period_key: number;
+          is_demo: boolean;
           revenue: Money;
           costs: Money;
           investimento: Money;
@@ -214,6 +389,7 @@ export type Database = {
       v_sublet_pnl: {
         Row: {
           period_key: number;
+          is_demo: boolean;
           sublet_revenue: Money;
           sublet_costs: Money;
           sublet_net: Money;
@@ -225,6 +401,7 @@ export type Database = {
           cost_center: string;
           category_id: string | null;
           period_key: number;
+          is_demo: boolean;
           budget: Money;
           actual: Money;
         };
@@ -233,6 +410,7 @@ export type Database = {
       v_category_breakdown: {
         Row: {
           period_key: number;
+          is_demo: boolean;
           grain: string;
           bucket_key: string | null;
           bucket_label: string;
@@ -243,6 +421,7 @@ export type Database = {
       v_pct_of_revenue: {
         Row: {
           period_key: number;
+          is_demo: boolean;
           category_id: string | null;
           category_label: string;
           category_cost: Money;
@@ -255,6 +434,7 @@ export type Database = {
         Row: {
           date: string;
           period_key: number;
+          is_demo: boolean;
           net_worth: Money;
         };
         Relationships: [];

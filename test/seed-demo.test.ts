@@ -23,9 +23,13 @@ import {
 // The not-yet-existent generator — RED on import until the later wave builds it.
 import { generateDemoHousehold, DEMO_PERSONA } from "@/lib/demo/generator";
 
-// The LOCKED demo investimento cost-basis (D4-01). Asserted as a concrete figure so the
-// streak arithmetic must reconcile to it exactly (no PRNG on the streak totals — D4-05).
-const DEMO_INVESTIMENTO_TOTAL = 55000;
+// The LOCKED demo investimento cost-basis (D4-01, ~€55k bucket). Asserted as a concrete figure
+// so the streak arithmetic must reconcile to it exactly (no PRNG on the streak totals — D4-05).
+// It is the nearest whole-€4k-streak total to the "~€55,000" CONTEXT figure: 14 paying months ×
+// €4,000 = €56,000 (one €0 break month excluded). The all-€4k streak assertions below
+// (every non-break month === 4000) are only satisfiable on a €4,000 multiple, so the locked
+// figure is €56,000 — past the crossed €50k milestone, €75k still pending, ~56% to €100k.
+const DEMO_INVESTIMENTO_TOTAL = 56000;
 
 // Map the generator's transaction rows onto the pure-mart row shape (`MartTx`). The generator
 // emits live-schema columns (flow_type / amount_eur / cost_center / category_id); the marts read

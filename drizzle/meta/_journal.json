@@ -71,6 +71,13 @@
       "when": 1782216687000,
       "tag": "0009_revenue_unclassified_seed",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782216688000,
+      "tag": "0010_demo_isolation",
+      "breakpoints": true
     }
   ]
 }

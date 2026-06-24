@@ -1,4 +1,7 @@
+import { cookies } from "next/headers";
+
 import { BudgetEditor, type BudgetRow } from "@/components/budget-editor";
+import { DemoToggle } from "@/components/demo-toggle";
 import {
   Card,
   CardContent,
@@ -6,11 +9,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DEMO_MODE_COOKIE } from "@/lib/demo/mode";
 import { currentPeriodKey, previousPeriodKey } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
+
+/** The Config tabs whose value `?tab=` may deep-link into (D4-22); fall back to budgets. */
+const VALID_TABS = ["budgets", "rules", "connection"] as const;
+function parseTab(raw: string | undefined): (typeof VALID_TABS)[number] {
+  return (VALID_TABS as readonly string[]).includes(raw ?? "")
+    ? (raw as (typeof VALID_TABS)[number])
+    : "budgets";
+}
 
 // Config (BI-06, D2-12/13/14).
 //
@@ -51,13 +61,19 @@ function num(v: string | number | null | undefined): number {
 export default async function ConfigPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; tab?: string }>;
 }) {
   const supabase = await createClient();
   const now = new Date();
   const currentKey = currentPeriodKey(now);
-  const { period: rawPeriod } = await searchParams;
+  const { period: rawPeriod, tab: rawTab } = await searchParams;
   const period = parsePeriod(rawPeriod, currentKey);
+  const activeTab = parseTab(rawTab);
+
+  // Read the current demo-mode state from the cookie so the toggle renders its initial position
+  // (the per-request MODE chokepoint owns the source of truth — D4-12).
+  const cookieStore = await cookies();
+  const demoEnabled = cookieStore.get(DEMO_MODE_COOKIE)?.value === "1";
 
   // Read existing cost-center-grain budgets for the selected period (under RLS).
   const { data: budgetRows, error } = await supabase
@@ -94,8 +110,26 @@ export default async function ConfigPage({
         <h1 className="text-xl font-semibold">Config</h1>
       </header>
 
-      {/* Three tabs (Budgets · Rules · Connection), each a Card surface (UI-SPEC §Re-Skin Map). */}
-      <Tabs defaultValue="budgets" className="gap-4">
+      {/* Workspace — the owner-only demo-mode toggle + the onboarding re-surface affordance
+          (Surface 3a). A top-level Card, not inside a tab. The toggle writes the demo_mode cookie
+          the single chokepoint reads; the persistent DEMO DATA banner appears in the shell. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-muted-foreground">
+            Workspace
+          </CardTitle>
+          <CardDescription>
+            Explore the app with a seeded sample household, or re-surface the setup checklist.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DemoToggle initialEnabled={demoEnabled} />
+        </CardContent>
+      </Card>
+
+      {/* Three tabs (Budgets · Rules · Connection), each a Card surface (UI-SPEC §Re-Skin Map).
+          ?tab= deep-links into a tab (D4-22); the value falls back to "budgets". */}
+      <Tabs defaultValue={activeTab} className="gap-4">
         <TabsList>
           <TabsTrigger value="budgets">Budgets</TabsTrigger>
           <TabsTrigger value="rules">Rules</TabsTrigger>
@@ -154,18 +188,6 @@ export default async function ConfigPage({
                 prompt, follow it to renew access — open banking consent lapses periodically.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {/* Demo-mode slot — wiring lands in Phase 4 (disabled placeholder this phase). */}
-              <div className="flex items-center gap-3 opacity-60">
-                <Switch id="demo-mode" disabled aria-describedby="demo-mode-hint" />
-                <Label htmlFor="demo-mode" className="text-sm">
-                  Demo mode
-                </Label>
-                <span id="demo-mode-hint" className="text-xs text-muted-foreground">
-                  Coming soon — Phase 4
-                </span>
-              </div>
-            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

@@ -4,6 +4,7 @@ import {
   CommandPaletteProvider,
   type JumpTarget,
 } from "@/components/command-palette/command-palette";
+import { DemoBanner } from "@/components/demo-banner";
 import { SiteHeader } from "@/components/site-header";
 import { StatusBanners } from "@/components/status/status-banners";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -69,6 +70,9 @@ export default async function ProtectedLayout({
           displayName={displayName}
         />
         <SidebarInset>
+          {/* The persistent DEMO DATA indicator stacks ABOVE the freshness/reconnect banners
+              whenever demo mode is active (owner toggle) or the public demo deploy is live. */}
+          <DemoBanner />
           {/* Status banners at the top of the inset (the "Data as of" trust strip). Must live
               INSIDE SidebarInset — a full-width sibling of the sidebar breaks the flex-row shell. */}
           <StatusBanners />

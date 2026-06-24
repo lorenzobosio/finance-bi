@@ -36,8 +36,12 @@
 -- .eq('period_key', …) and .eq('is_demo', …) from src/lib/demo/mode.ts.
 
 -- ===========================================================================
--- 1. is_demo partition column on the 7 demo-bearing tables (Mechanism A).
+-- 1. is_demo partition column on the demo-bearing tables (Mechanism A).
 --    `not null default false` → every existing real row is false with no backfill.
+--    The 7 mart/Goal-page tables (D4-09) PLUS connections — the onboarding-signal table the
+--    public demo's getOnboardingState probes and the seed writes an is_demo=true row into
+--    (D4-07/13). connections needs the column so the 0011 anon `using (is_demo = true)` policy
+--    has a column to filter on (without it the next migration fails to apply).
 -- ===========================================================================
 alter table public.transactions              add column is_demo boolean not null default false;
 --> statement-breakpoint
@@ -52,6 +56,8 @@ alter table public.milestones                add column is_demo boolean not null
 alter table public.investment_contributions  add column is_demo boolean not null default false;
 --> statement-breakpoint
 alter table public.insights                  add column is_demo boolean not null default false;
+--> statement-breakpoint
+alter table public.connections               add column is_demo boolean not null default false;
 --> statement-breakpoint
 
 -- ===========================================================================

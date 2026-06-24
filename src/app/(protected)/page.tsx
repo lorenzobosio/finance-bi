@@ -4,8 +4,10 @@ import { BusinessReadCard } from "@/components/business-read-card";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { NetWorthTrend, type NetWorthPoint } from "@/components/charts/net-worth-trend";
 import { GoalHeroCard } from "@/components/goal-hero-card";
+import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
 import { formatEUR, formatMonths } from "@/lib/format";
+import { resolveMe } from "@/lib/identity/me";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
@@ -60,6 +62,11 @@ export default async function Home({
   const { period: rawPeriod } = await searchParams;
   const period = parsePeriod(rawPeriod, currentKey);
   const provisional = isProvisional(period, now);
+
+  // Resolve the signed-in person → display name for the greeting h1 (PERS-02, D4-25). One
+  // resolver (shared with the sidebar); identity follows the SESSION, so demo mode never changes
+  // it and the persona names never reach the greeting (D4-26). Unmapped/null → generic greeting.
+  const { displayName } = await resolveMe();
 
   // --- Reads (all under RLS via @supabase/ssr) -----------------------------------------
   // 1. The selected month's headline KPIs (the full P&L row drives the business read).
@@ -175,7 +182,7 @@ export default async function Home({
     <div className="@container/main space-y-6">
       {/* Page header (h1 left); the shared month selector lives in the shell top bar. */}
       <header className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Home</h1>
+        <Greeting name={displayName} />
         {provisional && (
           <span
             className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-[var(--warning)]"

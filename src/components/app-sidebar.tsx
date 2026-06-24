@@ -35,14 +35,19 @@ import { cn } from "@/lib/utils";
 // This is a client island (usePathname for the active state); the layout stays an RSC.
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  /** The signed-in user's email (read once in the RSC layout, passed down for display). */
+  /** The signed-in user's email (read once in the RSC layout, passed down for the fallback chip). */
   userEmail?: string;
+  /** The resolved member display name (PERS-02); null when unmapped → falls back to the email. */
+  displayName?: string | null;
 }
 
-export function AppSidebar({ userEmail, ...props }: AppSidebarProps) {
+export function AppSidebar({ userEmail, displayName, ...props }: AppSidebarProps) {
   const pathname = usePathname();
 
-  const initial = (userEmail?.trim()?.[0] ?? "?").toUpperCase();
+  // The footer chip shows the resolved name (PERS-02, D4-25); falls back to the truncated email
+  // when the member is unmapped. The avatar initial follows: name first, then email.
+  const accountLabel = displayName ?? userEmail ?? "Signed in";
+  const initial = (displayName?.trim()?.[0] ?? userEmail?.trim()?.[0] ?? "?").toUpperCase();
 
   return (
     <Sidebar {...props}>
@@ -119,7 +124,7 @@ export function AppSidebar({ userEmail, ...props }: AppSidebarProps) {
             <AvatarFallback className="text-xs">{initial}</AvatarFallback>
           </Avatar>
           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            {userEmail ?? "Signed in"}
+            {accountLabel}
           </span>
           <ThemeToggle className="size-8" />
           <form action={signOut}>

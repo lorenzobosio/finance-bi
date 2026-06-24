@@ -7,6 +7,7 @@ import {
 import { SiteHeader } from "@/components/site-header";
 import { StatusBanners } from "@/components/status/status-banners";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { resolveMember, type Member } from "@/lib/identity/resolve-member";
 import { createClient } from "@/lib/supabase/server";
 
 // Authenticated app shell (UI-SPEC §App Shell, DSN-05). The dashboard-01-class layout:
@@ -27,14 +28,25 @@ export default async function ProtectedLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const supabase = await createClient();
 
-  // Read the signed-in email (for the sidebar account chip) + the non-sensitive category
-  // taxonomy (for the ⌘K "Jump to" group) ONCE, under RLS, in the RSC layout.
-  const [{ data: userData }, { data: catData }] = await Promise.all([
+  // Read the signed-in email + the household members (for the greeting/account chip) + the
+  // non-sensitive category taxonomy (for the ⌘K "Jump to" group) ONCE, under RLS, in the RSC
+  // layout. getUser() is network-validated (D4-25) — never the unvalidated session read. The members read joins
+  // the SAME Promise.all (one resolver, zero extra session reads); resolveMember is pure.
+  const [{ data: userData }, { data: memberData }, { data: catData }] = await Promise.all([
     supabase.auth.getUser(),
+    supabase.from("members").select("id, display_name, auth_email"),
     supabase.from("categories").select("id, name").order("name", { ascending: true }),
   ]);
 
   const userEmail = userData?.user?.email ?? undefined;
+  const members: Member[] = (memberData ?? []).map((m) => ({
+    id: m.id,
+    displayName: m.display_name,
+    authEmail: m.auth_email,
+  }));
+  // Resolve the signed-in person → display name. Unmapped/null degrades to null (cosmetic only;
+  // access stays on the RLS allowlist — D4-24/26). The sidebar renders displayName, never email.
+  const displayName = resolveMember(userEmail, members)?.displayName ?? null;
   const categories: JumpTarget[] = (catData ?? []).map((c) => ({
     href: `/spending?category=${c.id}`,
     label: c.name,
@@ -54,6 +66,7 @@ export default async function ProtectedLayout({
           collapsible="icon"
           variant="inset"
           userEmail={userEmail}
+          displayName={displayName}
         />
         <SidebarInset>
           {/* Status banners at the top of the inset (the "Data as of" trust strip). Must live

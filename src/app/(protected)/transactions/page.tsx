@@ -4,6 +4,7 @@ import { TxTable, type TxRow } from "@/components/transactions/tx-table";
 import type { CategoryOption, CostCenterOption } from "@/components/transactions/edit-popover";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoForReads } from "@/lib/demo/mode";
 
 // Transactions (CAT-04/05, D2-01/02/03) — the dense, server-side keyset-paginated table + the
 // inline edit/recategorize popover. ALL reads run through the @supabase/ssr server client
@@ -71,7 +72,10 @@ export default async function TransacoesPage({
   const { after } = await searchParams;
   const cursor = parseCursor(after);
 
-  // --- Reads (all under RLS via @supabase/ssr) -----------------------------------------
+  // Demo-mode partition selector (D4-12) — the transactions table carries is_demo post-0010.
+  const demoFilter = await isDemoForReads();
+
+  // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
   // The transactions page, embedding the account + category name. KEYSET seek, ordered by
   // (booking_date, id) DESC. The composite seek is `booking_date < d OR (booking_date = d AND
   // id < id)` — expressed via supabase-js `.or()` (parameterized; no string-built SQL).
@@ -80,6 +84,7 @@ export default async function TransacoesPage({
     .select(
       "id, booking_date, description, description_raw, counterparty, amount_eur, flow_type, category_id, cost_center, accounts(name), categories(name)",
     )
+    .eq("is_demo", demoFilter)
     .order("booking_date", { ascending: false })
     .order("id", { ascending: false })
     .limit(PAGE_SIZE + 1); // fetch one extra to detect a next page

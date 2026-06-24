@@ -8,6 +8,7 @@ import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
 import { formatEUR, formatMonths } from "@/lib/format";
 import { resolveMe } from "@/lib/identity/me";
+import { isDemoForReads } from "@/lib/demo/mode";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,31 +69,40 @@ export default async function Home({
   // it and the persona names never reach the greeting (D4-26). Unmapped/null → generic greeting.
   const { displayName } = await resolveMe();
 
-  // --- Reads (all under RLS via @supabase/ssr) -----------------------------------------
+  // Demo-mode partition selector (D4-12): EVERY mart read filters to ONE partition so demo and
+  // real rows are NEVER summed (the post-0010 marts emit both partitions). Real mode →
+  // is_demo=false; the in-app toggle / public demo deploy → is_demo=true.
+  const demoFilter = await isDemoForReads();
+
+  // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
   // 1. The selected month's headline KPIs (the full P&L row drives the business read).
   const { data: kpiRow, error: kpiError } = await supabase
     .from("v_home_kpis")
     .select("period_key, revenue, investimento, costs, sublet_net, result, margin, net_worth")
     .eq("period_key", period)
+    .eq("is_demo", demoFilter)
     .maybeSingle();
 
   // 2. Cumulative investimento cost-basis (sum across every populated period) — the €100k
   //    progress value + the 12-mo invested sparkline. Also the "any data ingested yet?" probe.
   const { data: allPnl, error: pnlError } = await supabase
     .from("v_pnl_monthly")
-    .select("period_key, investimento, costs");
+    .select("period_key, investimento, costs")
+    .eq("is_demo", demoFilter);
 
   // 3. Per-person budget-vs-actual at cost-center grain (category_id null) for this period.
   const { data: bvaRows } = await supabase
     .from("v_costcenter_bva")
     .select("cost_center, category_id, period_key, budget, actual")
     .eq("period_key", period)
+    .eq("is_demo", demoFilter)
     .is("category_id", null);
 
   // 4. The net-worth balance trend (Band C). Typed read; the chart is a client island.
   const { data: balanceTrend } = await supabase
     .from("v_balance_trend")
     .select("date, net_worth")
+    .eq("is_demo", demoFilter)
     .order("date", { ascending: true });
 
   if (kpiError || pnlError) {

@@ -75,11 +75,13 @@ export default async function ConfigPage({
   const cookieStore = await cookies();
   const demoEnabled = cookieStore.get(DEMO_MODE_COOKIE)?.value === "1";
 
-  // Read existing cost-center-grain budgets for the selected period (under RLS).
+  // Read existing cost-center-grain budgets for the selected period (under RLS), partitioned by
+  // is_demo (D4-12) — demoEnabled is the owner's per-request demo-mode cookie (same chokepoint).
   const { data: budgetRows, error } = await supabase
     .from("budgets")
     .select("cost_center, category_id, period_key, amount_eur")
     .eq("period_key", period)
+    .eq("is_demo", demoEnabled)
     .is("category_id", null);
 
   if (error) {

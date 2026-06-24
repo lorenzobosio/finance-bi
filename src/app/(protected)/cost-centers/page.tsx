@@ -12,6 +12,7 @@ import {
 import { formatEUR } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoForReads } from "@/lib/demo/mode";
 
 // Cost Centers + Sublocação (BI-02, BI-01, D2-06/07/08/12/14, CAT-06).
 //
@@ -63,12 +64,16 @@ export default async function CostCentersPage({
   const period = parsePeriod(rawPeriod, currentKey);
   const provisional = isProvisional(period, now);
 
-  // --- Reads (all under RLS via @supabase/ssr) -----------------------------------------
+  // Demo-mode partition selector (D4-12) — filter every mart read to one partition.
+  const demoFilter = await isDemoForReads();
+
+  // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
   // 1. Budget vs actual at cost-center grain (category_id null) for this period.
   const { data: bvaRows, error: bvaError } = await supabase
     .from("v_costcenter_bva")
     .select("cost_center, category_id, period_key, budget, actual")
     .eq("period_key", period)
+    .eq("is_demo", demoFilter)
     .is("category_id", null);
 
   // 2. The standalone Sublocação profit-center P&L (gross legs live ONLY here).
@@ -76,6 +81,7 @@ export default async function CostCentersPage({
     .from("v_sublet_pnl")
     .select("period_key, sublet_revenue, sublet_costs, sublet_net")
     .eq("period_key", period)
+    .eq("is_demo", demoFilter)
     .maybeSingle();
 
   // 3. The household P&L for the waterfall.
@@ -83,6 +89,7 @@ export default async function CostCentersPage({
     .from("v_pnl_monthly")
     .select("period_key, revenue, costs, investimento, sublet_net, result")
     .eq("period_key", period)
+    .eq("is_demo", demoFilter)
     .maybeSingle();
 
   if (bvaError || subletError || pnlError) {

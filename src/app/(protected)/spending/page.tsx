@@ -11,6 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEUR, formatPct } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoForReads } from "@/lib/demo/mode";
 
 // Spending (BI-03, D2-01, D2-15).
 //
@@ -71,19 +72,24 @@ export default async function SpendingPage({
   const grain = parseGrain(rawBreakdown);
   const provisional = isProvisional(period, now);
 
-  // --- Reads (all under RLS via @supabase/ssr) -----------------------------------------
+  // Demo-mode partition selector (D4-12) — filter every mart read to one partition.
+  const demoFilter = await isDemoForReads();
+
+  // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
   // 1. The breakdown for the selected grain (Uncategorized always present — coalesce-backed).
   const { data: breakdownRows, error: breakdownError } = await supabase
     .from("v_category_breakdown")
     .select("period_key, grain, bucket_key, bucket_label, costs")
     .eq("period_key", period)
-    .eq("grain", grain);
+    .eq("grain", grain)
+    .eq("is_demo", demoFilter);
 
   // 2. Category-as-%-of-revenue (D2-15) for the selected period.
   const { data: pctRows, error: pctError } = await supabase
     .from("v_pct_of_revenue")
     .select("category_id, category_label, category_cost, revenue, pct_of_revenue")
-    .eq("period_key", period);
+    .eq("period_key", period)
+    .eq("is_demo", demoFilter);
 
   if (breakdownError || pctError) {
     return (

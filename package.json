@@ -15,6 +15,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed-allowlist": "node scripts/seed-allowlist.mjs",
+    "db:seed-member-emails": "node scripts/seed-member-emails.mjs",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "db:seed:demo": "tsx scripts/seed-demo.ts",
     "eb:connect": "tsx scripts/eb-connect.ts",

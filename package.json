@@ -56,12 +56,12 @@
     "culori": "^4.0.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "15.5.19",
-    "shadcn": "^4.12.0",
+    "eslint-config-next": "15.5.20",
+    "shadcn": "^4.13.0",
     "tailwindcss": "^4",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.0",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "//overrides": "Security: force transitive deps off vulnerable ranges (Dependabot #1 esbuild, #2 postcss). Drop an entry once the parent package ships the fix natively.",

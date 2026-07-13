@@ -560,6 +560,21 @@ export type Database = {
         };
         Relationships: [];
       };
+      // v_bucket_spend (GOAL-13 / VIZ-01; drizzle/0014_goal_journey.sql) — per-bucket
+      // (cost_center) tagged spend at category grain per period, is_demo-partitioned. `costs`
+      // is the positive spend magnitude; category_id is null for the coalesced Uncategorized
+      // bucket. Feeds the Brazil/Adventures tagged-spend lists + the per-bucket category donut.
+      v_bucket_spend: {
+        Row: {
+          period_key: number;
+          is_demo: boolean;
+          cost_center: string | null;
+          category_id: string | null;
+          category_label: string;
+          costs: Money;
+        };
+        Relationships: [];
+      };
     };
     Functions: Record<never, never>;
     Enums: Record<never, never>;

@@ -364,6 +364,22 @@ export const vPctOfRevenue = pgView("v_pct_of_revenue", {
   pctOfRevenue: numeric("pct_of_revenue", { precision: 14, scale: 6 }),
 }).existing();
 
+/**
+ * v_bucket_spend — per-bucket (cost_center) tagged spend at category grain per period, is_demo
+ * -partitioned (GOAL-13 / VIZ-01, DDL in drizzle/0014_goal_journey.sql). Serves the Brazil /
+ * Adventures tagged-spend lists + the per-bucket category donut. `costs` is the POSITIVE spend
+ * magnitude (the view negates the signed `amount_eur` cost leg); `category_id` is null for the
+ * coalesced Uncategorized bucket. security_invoker = on, so a `.select()` runs under the caller's
+ * JWT + RLS and the demo/real partition never blends (coalesce(is_demo,false) in the view).
+ */
+export const vBucketSpend = pgView("v_bucket_spend", {
+  periodKey: integer("period_key").notNull(),
+  costCenter: text("cost_center"),
+  categoryId: text("category_id"),
+  categoryLabel: text("category_label").notNull(),
+  costs: money("costs").notNull(),
+}).existing();
+
 /** v_balance_trend — net worth per day across the dim_calendar spine (BI-07). */
 export const vBalanceTrend = pgView("v_balance_trend", {
   date: text("date").notNull(),

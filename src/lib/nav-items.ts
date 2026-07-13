@@ -1,4 +1,5 @@
 import {
+  Activity,
   Building2,
   LayoutDashboard,
   Mountain,
@@ -56,6 +57,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Goal", href: "/goal", icon: Target, shortLabel: "Goal", group: "Overview" },
   { label: "Brazil", href: "/goal/brazil", icon: Plane, shortLabel: "Brazil", group: "Overview", bottomNav: false },
   { label: "Adventures", href: "/goal/adventures", icon: Mountain, shortLabel: "Adventures", group: "Overview", bottomNav: false },
+  { label: "Health", href: "/health", icon: Activity, shortLabel: "Health", group: "Overview", bottomNav: false },
   { label: "Spending", href: "/spending", icon: TrendingDown, shortLabel: "Spending", group: "Money" },
   { label: "Cost Centers", href: "/cost-centers", icon: Building2, shortLabel: "Centers", group: "Money" },
   { label: "Transactions", href: "/transactions", icon: Receipt, shortLabel: "Transactions", group: "Money" },

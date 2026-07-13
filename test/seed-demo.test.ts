@@ -190,6 +190,41 @@ describe("generateDemoHousehold — believable tagged bucket-spend categories (G
   });
 });
 
+// Wave-0 TDD RED (AI-05 demo, Phase 6) — the demo must be ALIVE with authored insights and ZERO
+// model calls. Plan 06-07 replaces the single structural `kind:"demo"` stub (generator.ts:~589)
+// with 2–4 authored `DemoInsight` rows: a weekly_report, a whats_changed MoM note, and one
+// non-shame overspend note — each body PII-free (no @ / IBAN shape / real owner name), is_demo=true.
+// RED today because the generator still emits the single stub — the intended staged-RED anchor,
+// NOT a bug. The same no-PII negative-grep as the dataset suite above applies to each body.
+describe("generateDemoHousehold — authored PII-free demo insights (AI-05, Phase 6)", () => {
+  const ds = generateDemoHousehold(42);
+  const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}\b/;
+
+  it("emits 2–4 authored insight rows (replacing the single structural stub)", () => {
+    expect(ds.insights.length).toBeGreaterThanOrEqual(2);
+    expect(ds.insights.length).toBeLessThanOrEqual(4);
+  });
+
+  it("covers the weekly_report + whats_changed + a non-shame overspend kind", () => {
+    const kinds = new Set(ds.insights.map((i) => i.kind));
+    expect(kinds.has("weekly_report")).toBe(true);
+    expect(kinds.has("whats_changed")).toBe(true);
+    expect(kinds.has("overspend")).toBe(true);
+  });
+
+  it("every insight body is PII-free (no @-sign / IBAN shape / real owner name) and is_demo=true", () => {
+    for (const ins of ds.insights) {
+      expect(ins.isDemo).toBe(true);
+      expect(ins.body.length).toBeGreaterThan(0);
+      expect(ins.body.includes("@")).toBe(false);
+      expect(ibanShape.test(ins.body)).toBe(false);
+      const lc = ins.body.toLowerCase();
+      expect(lc.includes("lorenzo")).toBe(false);
+      expect(lc.includes("fernanda")).toBe(false);
+    }
+  });
+});
+
 // Wave-0 TDD RED (GOAL-04/07/08/10, D5-16) — the demo bucket-funding contract. Plan 09 extends the
 // generator with a few SURPLUS (>€4k) transfer months + an early demo launch date so the waterfall
 // funds Brazil/Adventures and a €10k Adventures-small tranche unlocks, ON TOP OF the existing

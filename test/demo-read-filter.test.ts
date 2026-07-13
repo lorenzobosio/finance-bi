@@ -18,6 +18,9 @@ const DEMO_BEARING = [
   "goals", "milestones", "investment_contributions", "insights",
   // Phase-5 goal tables (0014) — also demo-bearing; a missing filter blends demo↔real (T-05-12).
   "household", "goal_events", "transfer_overrides",
+  // Phase-6 health settings table (0015) — demo-bearing; a missing filter would blend the real
+  // household's threshold config into the public demo (Pitfall 3).
+  "insight_thresholds",
 ];
 
 // The mart-backed protected pages (extend when Phase 5 adds bucket pages).
@@ -27,6 +30,9 @@ const PAGES = [
   "src/app/(protected)/cost-centers/page.tsx",
   "src/app/(protected)/transactions/page.tsx",
   "src/app/(protected)/config/page.tsx",
+  // Phase-6 scorecard page (06-03) — every demo-bearing read here must thread `.eq("is_demo", …)`.
+  // Staged-RED until the page exists (readFileSync throws on the absent path — intended).
+  "src/app/(protected)/health/page.tsx",
 ];
 
 describe("demo-partition read filter (DEMO-03 / D4-12)", () => {

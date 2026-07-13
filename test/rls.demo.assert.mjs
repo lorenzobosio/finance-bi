@@ -60,6 +60,14 @@ const DEMO_TABLES = [
 const GOAL_DEMO_TABLES = ['household', 'goal_events', 'transfer_overrides'];
 const GOAL_DEMO_VISIBLE_TABLES = ['household', 'goal_events'];
 
+// Phase-6 (migration 0015) HEALTH-SCORECARD demo-bearing table — the new `insight_thresholds`
+// settings singleton (band config). It joins the additive anon-demo read surface, so a wrong anon
+// predicate would leak the real household's threshold config to the public internet. It gets the
+// full no-leak + cookie-escalation + write-deny directions but is NOT required demo-visible: the
+// public demo relies on the DEFAULT_BANDS fallback, so a seeded is_demo=true thresholds row is
+// OPTIONAL (mirrors transfer_overrides). Staged-RED until 0015 lands (the pre-check gates it).
+const HEALTH_DEMO_TABLES = ['insight_thresholds'];
+
 // `buckets` is REFERENCE data (like cost_centers in 0013): the same 3 rows (wealth/brazil/
 // adventures) for real + demo, anon-readable via `using (true)`, NO is_demo column. It is asserted
 // anon-SELECTable — NOT run through the is_demo no-leak check (there is nothing private in it).
@@ -107,6 +115,13 @@ try {
   for (const t of GOAL_DEMO_TABLES) {
     if (!(await hasIsDemo(t)))
       fail(`R-C: table public.${t} has no is_demo column yet (migration 0014 not applied)`);
+  }
+  // Phase-6: the health-scorecard settings table must carry is_demo before its directional
+  // assertions are meaningful. Missing column => RED (migration 0015 not applied) — the intended
+  // staged-RED state for this plan, exactly as Phase-4/5 staged their new tables.
+  for (const t of HEALTH_DEMO_TABLES) {
+    if (!(await hasIsDemo(t)))
+      fail(`R-C: table public.${t} has no is_demo column yet (migration 0015 not applied)`);
   }
 
   // A minimal synthetic real row to prove the anon no-leak direction. transactions.account_id is
@@ -387,6 +402,45 @@ try {
         `cost_center=${bWorst.cost_center} has |costs| = €${bWorst.money} (expected €0 zero-fill). ` +
         `A non-zero value means a reference table is exposing REAL bucket spend to the anon role.`,
     );
+
+  // ===========================================================================
+  // PHASE-6 (0015) HEALTH-SCORECARD SURFACE — the new insight_thresholds settings table.
+  //
+  // Same discipline as the household block above: NO-LEAK (anon sees 0 real is_demo=false rows) +
+  // COOKIE-ESCALATION (anon + explicit is_demo=false filter still 0) + WRITE-DENY (no anon write
+  // policy → RLS rejects). insight_thresholds is NOT required demo-visible — the demo uses the
+  // DEFAULT_BANDS fallback, so a seeded is_demo=true row is optional (mirrors transfer_overrides).
+  // A wrong anon predicate here would leak the real household's band config publicly. RED until
+  // 0015 lands (the pre-check above gates this) — the intended staged state for this plan.
+  // ===========================================================================
+  let itId = null;
+  try {
+    // A minimal real (is_demo=false) settings row the anon role must NOT see. Band columns carry
+    // seeded defaults (0015), so only the partition literal is supplied.
+    [{ id: itId }] = await sql`
+      insert into public.insight_thresholds (is_demo) values (false) returning id`;
+    const itLeak = await asAnon((tx) => tx`
+      select count(*)::int as c from public.insight_thresholds where id = ${itId}`);
+    if (itLeak[0].c !== 0)
+      fail(`R-A NO-LEAK: anon saw ${itLeak[0].c} real (is_demo=false) insight_thresholds row(s) (expected 0)`);
+    const itForged = await asAnon((tx) => tx`
+      select count(*)::int as c from public.insight_thresholds where is_demo = false`);
+    if (itForged[0].c !== 0)
+      fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${itForged[0].c} insight_thresholds row(s) (expected 0)`);
+
+    // Write-deny: anon cannot INSERT (no anon write policy → RLS rejects). A successful insert fails.
+    let wroteIt = false;
+    try {
+      await asAnon((tx) => tx`insert into public.insight_thresholds (is_demo) values (true)`);
+      wroteIt = true;
+    } catch {
+      // expected — RLS denies the anon insert.
+    }
+    if (wroteIt)
+      fail('R-A WRITE-DENY: anon INSERT into insight_thresholds SUCCEEDED (expected RLS denial)');
+  } finally {
+    if (itId) await sql`delete from public.insight_thresholds where id = ${itId}`;
+  }
 
   console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation + view.');
   console.log(

@@ -350,8 +350,12 @@ const BUCKET_SPEND: Array<{
   label: string;
   amount: number;
 }> = [
-  { periodKey: 202601, costCenter: "brazil", label: "Brazil visit — flights", amount: 150 },
-  { periodKey: 202602, costCenter: "adventures", label: "Weekend getaway", amount: 300 },
+  // Brazil: two distinct believable labels so the Brazil pie reads as real categories, not one slice
+  // (G4/VIZ-01). Sum €270 stays well under the folded Brazil balance (~€400) so the bucket reads healthy.
+  { periodKey: 202601, costCenter: "brazil", label: "Flights", amount: 150 },
+  { periodKey: 202602, costCenter: "brazil", label: "Hotels", amount: 120 },
+  // Adventures: one clearly-labelled trip so its donut renders a named slice (G4). €300 « €3.800 spendable.
+  { periodKey: 202602, costCenter: "adventures", label: "Europe trip", amount: 300 },
 ];
 
 // Cash account handle (the only account the demo balances/transactions land on — cash-only).
@@ -366,19 +370,23 @@ const COST_PLAN: Array<{
   base: number;
   recurring: boolean;
 }> = [
+  // Labels aligned to the seeded taxonomy (Groceries / Utilities / Transport / Entertainment /
+  // Dining Out / Housing / Shopping / Travel / Other) so the seed writer reuses the existing
+  // categories rows instead of creating near-duplicates (G4 — labels ONLY; every base / recurring
+  // flag / row count is unchanged, so monthCosts, the cash balance, and the jitter stay identical).
   { costCenter: "alex", label: "Transport", base: 220, recurring: false },
-  { costCenter: "alex", label: "Dining", base: 280, recurring: false },
-  { costCenter: "alex", label: "Fitness", base: 80, recurring: true },
+  { costCenter: "alex", label: "Dining Out", base: 280, recurring: false },
+  { costCenter: "alex", label: "Entertainment", base: 80, recurring: true },
   { costCenter: "alex", label: "Entertainment", base: 100, recurring: false },
   { costCenter: "alex", label: "Other", base: 700, recurring: false },
-  { costCenter: "sam", label: "Grocery", base: 400, recurring: false },
-  { costCenter: "sam", label: "Beauty", base: 150, recurring: false },
-  { costCenter: "sam", label: "Clothing", base: 200, recurring: false },
+  { costCenter: "sam", label: "Groceries", base: 400, recurring: false },
+  { costCenter: "sam", label: "Shopping", base: 150, recurring: false },
+  { costCenter: "sam", label: "Shopping", base: 200, recurring: false },
   { costCenter: "sam", label: "Entertainment", base: 100, recurring: false },
   { costCenter: "sam", label: "Other", base: 250, recurring: false },
-  { costCenter: "shared", label: "Rent", base: 700, recurring: true },
+  { costCenter: "shared", label: "Housing", base: 700, recurring: true },
   { costCenter: "shared", label: "Utilities", base: 180, recurring: true },
-  { costCenter: "shared", label: "Household", base: 140, recurring: false },
+  { costCenter: "shared", label: "Housing", base: 140, recurring: false },
 ];
 
 // Months WITH active sublet (the rest are vacant → v_sublet_pnl zero-fills). 10 of 15 active.
@@ -576,14 +584,6 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     trailingMonthlyCosts.push(monthCosts);
   });
 
-  // Milestones — €10k/€25k/€50k achieved, €75k pending (D4-03). Concrete achieved_at dates.
-  const milestones: DemoMilestone[] = [
-    { thresholdEur: 10000, achievedAt: "2025-03-01", isDemo: true },
-    { thresholdEur: 25000, achievedAt: "2025-06-01", isDemo: true },
-    { thresholdEur: 50000, achievedAt: "2025-12-01", isDemo: true },
-    { thresholdEur: 75000, achievedAt: null, isDemo: true },
-  ];
-
   // A pre-seeded synthetic insight (rich AI copy is Phase 6 — this is a structural stub so the
   // anon demo-visible gate sees an insights row; no PII, no real € figure).
   const insights: DemoInsight[] = [
@@ -614,7 +614,7 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     epicTripActive: false,
     isDemo: true,
   };
-  const { goalEvents, bucketState } = deriveGoalJourney(investmentStreak);
+  const { goalEvents, bucketState, milestones } = deriveGoalJourney(investmentStreak);
   const transferOverrides: DemoTransferOverride[] = []; // no manual split to showcase (all waterfall)
 
   return {
@@ -664,9 +664,15 @@ function periodKeyToAchievedAt(periodKey: number): string {
  * the trophy case. Every event is `seen: true` (a recorded trophy — the public demo never replays
  * confetti on load).
  */
+// The named milestone ladder the trophy shelf renders (D5-18). Their achieved_at dates are DERIVED
+// from the SAME fold the ladder walks so the ladder rung and the trophy seal show ONE reached-month
+// (G2 — the UAT caught the €50k ladder "Feb 2026" disagreeing with a hand-typed trophy "Dec 2025").
+const MILESTONE_THRESHOLDS = [10000, 25000, 50000, 75000] as const;
+
 function deriveGoalJourney(streak: StreakMonth[]): {
   goalEvents: DemoGoalEvent[];
   bucketState: BucketState;
+  milestones: DemoMilestone[];
 } {
   // Build the ordered transfer events (post-launch, > €0) — the exact shape the fold consumes and
   // the seed-demo contract rebuilds from `investmentStreak`.
@@ -682,11 +688,19 @@ function deriveGoalJourney(streak: StreakMonth[]): {
   const goalEvents: DemoGoalEvent[] = [];
   let state: BucketState = { ...EMPTY_STATE };
   let milestone50Period: number | null = null;
+  // The FIRST paying period whose running Wealth reaches each named milestone (G2/D5-18). Derived
+  // from the same fold, so the milestone achieved_at can never disagree with the ladder crossing.
+  const milestoneCrossedAt = new Map<number, number>();
   for (const m of streak) {
     if (m.amountEur <= 0) continue;
     const before = Math.floor(state.wealth / LEVEL_STEP_EUR);
     state = allocate(m.amountEur, state);
     const after = Math.floor(state.wealth / LEVEL_STEP_EUR);
+    for (const threshold of MILESTONE_THRESHOLDS) {
+      if (!milestoneCrossedAt.has(threshold) && state.wealth >= threshold) {
+        milestoneCrossedAt.set(threshold, m.periodKey);
+      }
+    }
     for (let gate = before + 1; gate <= after; gate++) {
       const threshold = gate * LEVEL_STEP_EUR;
       goalEvents.push({
@@ -701,6 +715,17 @@ function deriveGoalJourney(streak: StreakMonth[]): {
       if (threshold === 50000) milestone50Period = m.periodKey;
     }
   }
+
+  // The named-milestone rows with fold-derived achieved_at (truthy when crossed, null otherwise —
+  // €75k stays pending, preserving the sub-€75k tension / fact 3). Same-month as the ladder rung (G2).
+  const milestones: DemoMilestone[] = MILESTONE_THRESHOLDS.map((threshold) => {
+    const period = milestoneCrossedAt.get(threshold);
+    return {
+      thresholdEur: threshold,
+      achievedAt: period !== undefined ? periodKeyToAchievedAt(period) : null,
+      isDemo: true,
+    };
+  });
 
   // The final state MUST equal foldAllocation over the same events (the fold IS the balance) — this
   // ties the derivation to the canonical engine entry-point the app + the contract use.
@@ -734,7 +759,7 @@ function deriveGoalJourney(streak: StreakMonth[]): {
     });
   }
 
-  return { goalEvents, bucketState };
+  return { goalEvents, bucketState, milestones };
 }
 
 /** The longest consecutive run of paying (≥ €4,000) streak months + the period it ends on. */

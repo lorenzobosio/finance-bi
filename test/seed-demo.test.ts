@@ -95,6 +95,16 @@ describe("generateDemoHousehold — the 5 narrative facts reconcile through mart
     expect(m75?.achievedAt ?? null).toBeNull(); // tension: 75k pending (~55% to €100k)
   });
 
+  it("G2 — milestone achieved_at is FOLD-DERIVED, matching the ladder crossings (D5-18)", () => {
+    // The same fold the ladder walks: €10k→Mar 2025, €25k→Jul 2025, €50k→Feb 2026, €75k→never. The
+    // €50k month must now agree with the ladder ("Feb 2026"), the bug the UAT caught (trophy said Dec).
+    const byThreshold = new Map(ds.milestones.map((m) => [m.thresholdEur, m]));
+    expect(byThreshold.get(10000)?.achievedAt).toMatch(/^2025-03/);
+    expect(byThreshold.get(25000)?.achievedAt).toMatch(/^2025-07/);
+    expect(byThreshold.get(50000)?.achievedAt).toMatch(/^2026-02/);
+    expect(byThreshold.get(75000)?.achievedAt ?? null).toBeNull();
+  });
+
   it("fact 4 — months-of-reserve is finite from the cash-only ~€12k split (D4-04)", () => {
     const reserve = computeMonthsOfReserve(ds.cashReserveEur, ds.trailingMonthlyCosts);
     expect(reserve).not.toBeNull();
@@ -149,6 +159,34 @@ describe("generateDemoHousehold — no PII in the serialized dataset (D4-06, R-D
 
   it("flags every generated row is_demo=true (the isolation invariant, D4-09)", () => {
     expect(ds.transactions.every((t) => t.isDemo === true)).toBe(true);
+  });
+});
+
+// G4 (VIZ-01, GOAL-13) — the tagged bucket spend must carry believable, non-null category labels so
+// the Brazil / Adventures / Spending donuts render real category names, not all "Uncategorized". The
+// no-PII suite above already negative-greps the SAME serialization for @ / IBAN / owner names, so
+// these new labels must stay synthetic. (The seed WRITER resolving these labels to a real
+// categories.id is verified by the re-seed + UAT checkpoint — no live DB in unit tests.)
+describe("generateDemoHousehold — believable tagged bucket-spend categories (G4)", () => {
+  const ds = generateDemoHousehold(42);
+
+  const bucketCostLabels = (costCenter: "brazil" | "adventures") =>
+    new Set(
+      ds.transactions
+        .filter(
+          (t) => t.costCenter === costCenter && t.flowType === "cost" && t.categoryId !== null,
+        )
+        .map((t) => t.categoryId as string),
+    );
+
+  it("Brazil carries ≥2 distinct non-null category labels", () => {
+    const brazil = bucketCostLabels("brazil");
+    expect(brazil.size).toBeGreaterThanOrEqual(2);
+    expect([...brazil].every((label) => label.length > 0)).toBe(true);
+  });
+
+  it("Adventures carries ≥1 distinct non-null category label", () => {
+    expect(bucketCostLabels("adventures").size).toBeGreaterThanOrEqual(1);
   });
 });
 

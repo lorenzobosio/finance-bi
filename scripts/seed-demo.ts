@@ -191,12 +191,40 @@ export async function seedDemo(
       }
 
       // --- 6. transactions (the onboarding "hasTransactions" signal — the alive household). ---
+      // G4: resolve a real categories.id for demo COST rows so the category donuts render believable
+      // labels instead of all-"Uncategorized". Idempotent — reuses an existing row by NAME (the
+      // seeded taxonomy) and only inserts genuinely-new discretionary labels (group 'desire'). Because
+      // the pre-run DELETE clears only is_demo rows and this reuses categories by name, re-seeding
+      // never duplicates categories (T-05-10-03). Counts-only logging — a label is NEVER logged (V7).
+      const categoryIdCache = new Map<string, string>();
+      const resolveCategoryId = async (name: string): Promise<string> => {
+        const cached = categoryIdCache.get(name);
+        if (cached) return cached;
+        const [existing] = await tx`
+          select id from public.categories where name = ${name} limit 1`;
+        if (existing) {
+          categoryIdCache.set(name, existing.id as string);
+          return existing.id as string;
+        }
+        const [inserted] = await tx`
+          insert into public.categories (name, "group") values (${name}, ${"desire"})
+          returning id`;
+        categoryIdCache.set(name, inserted.id as string);
+        return inserted.id as string;
+      };
+
       let txIndex = 0;
       for (const t of dataset.transactions) {
         const hash = demoDedupeHash(
           `${txIndex}|${t.bookingDate}|${t.amountEur}|${t.flowType}|${t.costCenter}|${t.description}`,
         );
         txIndex += 1;
+        // Only COST rows carrying a generator category label get a real FK; revenue/investimento
+        // rows stay null (they are cost-center-grain, not category-grain — matches the marts).
+        const categoryId =
+          t.flowType === "cost" && t.categoryId !== null
+            ? await resolveCategoryId(t.categoryId)
+            : null;
         await tx`
           insert into public.transactions (
             account_id, booking_date, value_date, amount_eur, description,
@@ -204,7 +232,7 @@ export async function seedDemo(
             dedupe_hash, is_recurring, status, is_demo
           ) values (
             ${accountId}, ${t.bookingDate}, ${t.valueDate}, ${t.amountEur}, ${t.description},
-            ${t.counterparty}, ${t.counterpartyIban}, ${t.flowType}, ${COST_CENTER_FK[t.costCenter]}, ${null},
+            ${t.counterparty}, ${t.counterpartyIban}, ${t.flowType}, ${COST_CENTER_FK[t.costCenter]}, ${categoryId},
             ${hash}, ${t.isRecurring}, ${"BOOK"}, ${t.isDemo}
           )`;
         counts.transactions += 1;

@@ -9,6 +9,7 @@ import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { ScorecardChips } from "@/components/scorecard-chips";
+import { VoiceCard } from "@/components/voice-card";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatMonths } from "@/lib/format";
 import {
@@ -27,6 +28,10 @@ import { AnomalyChip } from "@/components/anomaly-chip";
 import { detectAnomalies } from "@/lib/health/anomaly";
 import { assembleScorecard } from "@/lib/health/scorecard";
 import {
+  readLatestInsight,
+  type InsightReadClient,
+} from "@/lib/health/insight-read";
+import {
   readInsightThresholds,
   type InsightThresholdsReadClient,
 } from "@/lib/health/thresholds";
@@ -38,11 +43,12 @@ import { getOnboardingState } from "@/lib/onboarding/state";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
-// Home — the BALANCED fintech composition (D3-06). Four bands top-to-bottom:
+// Home — the BALANCED fintech composition (D3-06). The AI VOICE card leads (AI-03, D-14), then four
+// bands top-to-bottom:
+//   (voice) — the latest AI CFO-memo insight, the FIRST element on Home (Phase 6).
 //   A — Goal Hero (live €100k cost-basis) + the house-as-business margin read, side by side.
 //   B — the KPI row (€4k this month [celebration host] · per-person budgets · months-of-reserve).
 //   C — the net-worth / balance trend area chart.
-//   D — an empty AI "phrase of the day" slot (Phase 6).
 //
 // It RE-SKINS the existing Phase-2 Home: same RLS mart reads (anon+JWT via @supabase/ssr — NEVER
 // the Drizzle client, NEVER service_role), the same shared ?period selector, the same first-class
@@ -148,6 +154,32 @@ export default async function Home({
     supabase as unknown as InsightThresholdsReadClient,
     demoFilter,
   );
+
+  // 4d. The latest AI insight (AI-03, D-14/15) — the narrative VOICE rendered FIRST on Home. Read
+  //     via the demo-partitioned readLatestInsight seam (threads `.eq("is_demo", …)`, orders newest,
+  //     limit 1). null → the warm first-run placeholder; a hard read failure → the degrade line. The
+  //     helper never throws (it degrades to null); the try/catch only guards a thrown client so the
+  //     KPIs below ALWAYS render — never an empty hole (AI-03). The read lives in the helper (not an
+  //     inline `.from("insights")`) so the demo-read-filter guard is satisfied by the helper's own test.
+  let latestInsight: Awaited<ReturnType<typeof readLatestInsight>> = null;
+  let insightErrored = false;
+  try {
+    latestInsight = await readLatestInsight(
+      supabase as unknown as InsightReadClient,
+      demoFilter,
+    );
+  } catch {
+    insightErrored = true;
+  }
+  // The generated-on date shown in the header lockup (de-DE, mono). An old date honestly signals
+  // staleness (D-15) — no separate "stale" banner.
+  const insightDateLabel = latestInsight
+    ? new Intl.DateTimeFormat("de-DE", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(latestInsight.createdAt))
+    : null;
 
   // 5. Onboarding existence probes (ONB-01, D4-19/12). hasConnection = any non-error connections
   //    row; hasBudgets = any budgets row (period-agnostic). BOTH are is_demo-gated via the SAME
@@ -427,6 +459,15 @@ export default async function Home({
         )}
       </header>
 
+      {/* The AI voice (AI-03, D-14/15) — the FIRST element on Home, above the KPI/CFO decomposition.
+          One warm, true CFO-memo paragraph; the latest insight (any kind) with its generated date, or
+          a warm first-run placeholder / degrade line so the goal hero + KPIs below always follow. */}
+      <VoiceCard
+        body={latestInsight?.body}
+        dateLabel={insightDateLabel}
+        errored={insightErrored}
+      />
+
       {/* BAND 0 — the non-blocking, dismissible onboarding checklist (ONB-01/02, D4-20). Renders
           only when setup is incomplete AND not dismissed; NEVER a route gate / middleware redirect.
           The green steps below explain WHY the sync band shows (complementary, not redundant). */}
@@ -579,9 +620,6 @@ export default async function Home({
       <section className="relative overflow-hidden rounded-xl bg-card p-6 text-card-foreground shadow-sm ring-1 ring-foreground/10 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-foreground/10">
         <NetWorthTrend data={trendPoints} />
       </section>
-
-      {/* BAND D — AI "phrase of the day" slot (Phase 6, intentionally empty this phase). */}
-      {/* TODO(Phase 6): mount the AI insights strip here, reading the `insights` table. */}
     </div>
   );
 }

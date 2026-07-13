@@ -50,6 +50,26 @@ const DEMO_TABLES = [
   'connections',
 ];
 
+// Phase-5 (migration 0014) GOAL-JOURNEY demo-bearing tables — the new public-demo read surface.
+// `household` (launch_date + shared "why") and `goal_events` (once-only celebrations) RENDER in the
+// demo, so they get the full no-leak + write-deny + cookie-escalation directions AND the staged
+// demo-visible direction. `transfer_overrides` is demo-bearing but MAY be empty for the demo
+// (per-transfer manual splits are optional), so it gets the no-leak directions but is NOT required
+// to be demo-visible. A wrong anon predicate on ANY of these would leak the real household's
+// finances to the public internet — exactly the T-05-01 boundary Task 3 closes.
+const GOAL_DEMO_TABLES = ['household', 'goal_events', 'transfer_overrides'];
+const GOAL_DEMO_VISIBLE_TABLES = ['household', 'goal_events'];
+
+// `buckets` is REFERENCE data (like cost_centers in 0013): the same 3 rows (wealth/brazil/
+// adventures) for real + demo, anon-readable via `using (true)`, NO is_demo column. It is asserted
+// anon-SELECTable — NOT run through the is_demo no-leak check (there is nothing private in it).
+const GOAL_REFERENCE_TABLES = ['buckets'];
+
+// The new mart the app actually reads on the Brazil/Adventures pages (GOAL-13). Per the 0013
+// lesson (assert the VIEWS the app reads, not only tables), the no-leak direction is asserted on
+// this view too: every is_demo=false row anon can read through it must be a €0 zero-fill.
+const GOAL_DEMO_VIEW = 'v_bucket_spend';
+
 function fail(msg) {
   console.error('FAILED: ' + msg);
   process.exitCode = 1;
@@ -80,6 +100,13 @@ try {
   for (const t of DEMO_TABLES) {
     if (!(await hasIsDemo(t)))
       fail(`R-C: table public.${t} has no is_demo column yet (migration 0010 not applied)`);
+  }
+  // Phase-5: the goal-journey demo-bearing tables must carry is_demo before their directional
+  // assertions are meaningful. Missing column => RED (migration 0014 not applied) — the intended
+  // staged-RED state for this plan, exactly as Phase-4 staged the 0010/0011 tables.
+  for (const t of GOAL_DEMO_TABLES) {
+    if (!(await hasIsDemo(t)))
+      fail(`R-C: table public.${t} has no is_demo column yet (migration 0014 not applied)`);
   }
 
   // A minimal synthetic real row to prove the anon no-leak direction. transactions.account_id is
@@ -216,6 +243,151 @@ try {
         `value means a reference table is exposing REAL financial data to the anon role.`,
     );
 
+  // ===========================================================================
+  // PHASE-5 (0014) GOAL-JOURNEY SURFACE — new demo-bearing tables + the v_bucket_spend mart.
+  //
+  // Same discipline as the transactions block above: NO-LEAK (anon sees 0 real is_demo=false rows)
+  // + COOKIE-ESCALATION (anon + explicit is_demo=false filter still 0) + WRITE-DENY (no anon write
+  // policy → RLS rejects) on household / goal_events / transfer_overrides; the staged DEMO-VISIBLE
+  // direction (RED until the Plan-09 seed) on household / goal_events; `buckets` asserted
+  // anon-SELECTable as reference data (using(true), no is_demo); and the v_bucket_spend VIEW no-leak
+  // (the 0013 lesson — assert the views the app reads). RED until 0014 lands (the pre-check above
+  // gates this) + the seed runs — the intended staged state for this plan.
+  // ===========================================================================
+  const gstamp = Date.now();
+  let hhId = null;
+  let geId = null;
+  let goalTxId = null;
+  let goalAcctId = null;
+  let goalMemberId = null;
+  try {
+    // --- household: no-leak + cookie-escalation on a real (is_demo=false) row ---
+    [{ id: hhId }] = await sql`
+      insert into public.household (is_demo) values (false) returning id`;
+    const hhLeak = await asAnon((tx) => tx`
+      select count(*)::int as c from public.household where id = ${hhId}`);
+    if (hhLeak[0].c !== 0)
+      fail(`R-A NO-LEAK: anon saw ${hhLeak[0].c} real (is_demo=false) household row(s) (expected 0)`);
+    const hhForged = await asAnon((tx) => tx`
+      select count(*)::int as c from public.household where is_demo = false`);
+    if (hhForged[0].c !== 0)
+      fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${hhForged[0].c} household row(s) (expected 0)`);
+
+    // --- goal_events: no-leak + cookie-escalation on a real (is_demo=false) row ---
+    [{ id: geId }] = await sql`
+      insert into public.goal_events (kind, dedupe_key, is_demo)
+      values ('level', ${'gsd-temp-' + gstamp}, false) returning id`;
+    const geLeak = await asAnon((tx) => tx`
+      select count(*)::int as c from public.goal_events where id = ${geId}`);
+    if (geLeak[0].c !== 0)
+      fail(`R-A NO-LEAK: anon saw ${geLeak[0].c} real (is_demo=false) goal_events row(s) (expected 0)`);
+    const geForged = await asAnon((tx) => tx`
+      select count(*)::int as c from public.goal_events where is_demo = false`);
+    if (geForged[0].c !== 0)
+      fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${geForged[0].c} goal_events row(s) (expected 0)`);
+
+    // --- transfer_overrides: needs a real transaction FK parent (member → account → transaction) ---
+    [{ id: goalMemberId }] = await sql`
+      insert into public.members (display_name) values (${'gsd-temp-goal-' + gstamp}) returning id`;
+    [{ id: goalAcctId }] = await sql`
+      insert into public.accounts (member_id, name)
+      values (${goalMemberId}, ${'gsd-temp-goal-acct-' + gstamp}) returning id`;
+    [{ id: goalTxId }] = await sql`
+      insert into public.transactions
+        (account_id, booking_date, amount_eur, description, dedupe_hash, is_demo)
+      values (${goalAcctId}, current_date, 0.01, ${'gsd-temp'}, ${'gsd-temp-goal-' + gstamp}, false)
+      returning id`;
+    await sql`
+      insert into public.transfer_overrides
+        (transaction_id, wealth_eur, brazil_eur, adv_small_eur, adv_big_eur, is_demo)
+      values (${goalTxId}, 0.01, 0, 0, 0, false)`;
+    const toLeak = await asAnon((tx) => tx`
+      select count(*)::int as c from public.transfer_overrides where transaction_id = ${goalTxId}`);
+    if (toLeak[0].c !== 0)
+      fail(`R-A NO-LEAK: anon saw ${toLeak[0].c} real (is_demo=false) transfer_overrides row(s) (expected 0)`);
+    const toForged = await asAnon((tx) => tx`
+      select count(*)::int as c from public.transfer_overrides where is_demo = false`);
+    if (toForged[0].c !== 0)
+      fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${toForged[0].c} transfer_overrides row(s) (expected 0)`);
+
+    // --- Write-deny: anon cannot INSERT into any of the three (no anon write policy → RLS rejects) ---
+    const writeAttempts = [
+      ['household', `insert into public.household (is_demo) values (true)`],
+      ['goal_events', `insert into public.goal_events (kind, dedupe_key, is_demo) values ('level', 'gsd-temp-anon-${gstamp}', true)`],
+      ['transfer_overrides', `insert into public.transfer_overrides (transaction_id, wealth_eur, brazil_eur, adv_small_eur, adv_big_eur, is_demo) values ('${goalTxId}', 0.01, 0, 0, 0, true)`],
+    ];
+    for (const [table, stmt] of writeAttempts) {
+      let wrote = false;
+      try {
+        await asAnon((tx) => tx.unsafe(stmt));
+        wrote = true;
+      } catch {
+        // expected — RLS denies the anon insert.
+      }
+      if (wrote) fail(`R-A WRITE-DENY: anon INSERT into ${table} SUCCEEDED (expected RLS denial)`);
+    }
+  } finally {
+    // Guaranteed cleanup (privileged driver) — respect the FK chain (override → transaction → account → member).
+    if (goalTxId) await sql`delete from public.transfer_overrides where transaction_id = ${goalTxId}`;
+    if (hhId) await sql`delete from public.household where id = ${hhId}`;
+    if (geId) await sql`delete from public.goal_events where id = ${geId}`;
+    if (goalTxId) await sql`delete from public.transactions where id = ${goalTxId}`;
+    if (goalAcctId) await sql`delete from public.accounts where id = ${goalAcctId}`;
+    if (goalMemberId) await sql`delete from public.members where id = ${goalMemberId}`;
+  }
+
+  // Direction 2 (DEMO-VISIBLE) on the goal-journey tables — anon sees ≥1 demo (is_demo=true) row.
+  // Staged: RED until the Plan-09 seed populates the demo partition of these tables (exactly the
+  // Phase-4 pattern — NOT a hard failure at Plan-03 migration time). transfer_overrides is excluded
+  // (may be empty for the demo).
+  for (const t of GOAL_DEMO_VISIBLE_TABLES) {
+    const seen = await asAnon((tx) =>
+      tx.unsafe(`select count(*)::int as c from public.${t} where is_demo = true`),
+    );
+    if (seen[0].c < 1)
+      fail(`R-A DEMO-VISIBLE: anon saw ${seen[0].c} demo (is_demo=true) row(s) in public.${t} (expected >= 1; seed not run?)`);
+  }
+
+  // `buckets` — reference data: anon must be able to SELECT it (using(true)); it carries NO private
+  // financial content, so it is NOT run through the is_demo no-leak check. The 3 seed rows land in
+  // migration 0014 (like cost_centers), so anon sees >= 1.
+  for (const t of GOAL_REFERENCE_TABLES) {
+    const cnt = await asAnon((tx) => tx.unsafe(`select count(*)::int as c from public.${t}`));
+    if (cnt[0].c < 1)
+      fail(`R-A REFERENCE: anon saw ${cnt[0].c} row(s) in reference table public.${t} (expected >= 1 anon-SELECTable rows; using(true) + 0014 seed)`);
+  }
+
+  // v_bucket_spend VIEW check (the 0013 lesson — the app reads this mart, not the tables directly).
+  //   Demo-visible: anon sees >= 1 demo (is_demo=true) tagged-spend row → the bucket pages render.
+  //   No-leak:      every is_demo=false row anon can read through the view has costs = €0 (a pure
+  //                 zero-fill from the now-readable reference spine); a non-zero value = a real leak.
+  const bucketViewDemo = await asAnon((tx) =>
+    tx.unsafe(`select count(*)::int as c from public.${GOAL_DEMO_VIEW} where is_demo = true`),
+  );
+  if (bucketViewDemo[0].c < 1)
+    fail(
+      `R-A VIEW DEMO-VISIBLE: anon saw ${bucketViewDemo[0].c} demo row(s) in public.${GOAL_DEMO_VIEW} ` +
+        `(expected >= 1; seed not run?). The mart JOINs reference tables — anon needs their SELECT ` +
+        `policy (0013/0014) or it collapses to zero rows.`,
+    );
+  const bucketViewReal = await asAnon((tx) =>
+    tx.unsafe(
+      `select cost_center, abs(costs)::numeric(14,2) as money
+         from public.${GOAL_DEMO_VIEW}
+        where is_demo = false
+        order by money desc
+        limit 1`,
+    ),
+  );
+  const bWorst = bucketViewReal[0];
+  // bWorst is undefined if anon sees zero is_demo=false rows at all — also a pass (no row = no leak).
+  if (bWorst && Number(bWorst.money) !== 0)
+    fail(
+      `R-A VIEW NO-LEAK: anon read a NON-ZERO real (is_demo=false) row in public.${GOAL_DEMO_VIEW} — ` +
+        `cost_center=${bWorst.cost_center} has |costs| = €${bWorst.money} (expected €0 zero-fill). ` +
+        `A non-zero value means a reference table is exposing REAL bucket spend to the anon role.`,
+    );
+
   console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation + view.');
   console.log(
     `  demo_tables=${DEMO_TABLES.length} anon: real-leak=0 demo-visible>=1/table forged-filter=0 write-deny=enforced`,
@@ -223,6 +395,11 @@ try {
   console.log(
     `  view=${DEMO_VIEW} anon: demo-visible=${viewDemo[0].c} real-money-leak=€${worst ? worst.money : 0} ` +
       `(every is_demo=false row is €0 zero-fill; app reads marts, not tables)`,
+  );
+  console.log(
+    `  goal-journey (0014): tables=${GOAL_DEMO_TABLES.join('/')} no-leak=0 write-deny=enforced ` +
+      `demo-visible>=1(${GOAL_DEMO_VISIBLE_TABLES.join('/')}) reference=${GOAL_REFERENCE_TABLES.join('/')} ` +
+      `view=${GOAL_DEMO_VIEW} real-money-leak=€${bWorst ? bWorst.money : 0}`,
   );
 } catch (err) {
   if (process.exitCode !== 1) {

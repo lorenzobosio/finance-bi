@@ -52,6 +52,10 @@ export interface RuleTx {
   counterpartyName: string | null;
   counterpartyIban: string | null;
   normalizedDescription: string;
+  /** Booking date (YYYY-MM-DD) — only consulted by booking-date-window DB rules (D5-09). */
+  bookingDate?: string;
+  /** Recurring-bill hint — booking-date-window rules SKIP recurring rows (D5-09). */
+  isRecurring?: boolean;
 }
 
 /** The classification stamped onto a transaction at ingest time. */

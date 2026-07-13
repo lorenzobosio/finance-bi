@@ -10,10 +10,27 @@
 // are affected, so a second pass over the updated set returns 0 (no destructive rewrite). The
 // matcher mirrors db-rules.ts `matchesDbRule` — a pure, case-insensitive substring test on the
 // normalized description; user input is never concatenated into a query (T-02-04).
+//
+// GOAL-09 / D5-09 — the booking-date-window auto-tag ("we're in Brazil Dec 1–20"). A travel
+// window is a rule whose match_criteria carries `bookingDateFrom`/`bookingDateTo` (inclusive
+// YYYY-MM-DD). When a window is present the matcher tags ONLY transactions booked inside the
+// window AND with `is_recurring = false` (known recurring bills are skipped — spec option (b)),
+// still purely in-memory (the window is a structured predicate, never a SQL string — T-05-18).
 
-/** How a rule decides it matches: a case-insensitive substring on the normalized description. */
+import { isWithinInterval, parseISO } from "date-fns";
+
+/**
+ * How a rule decides it matches. `contains` is the case-insensitive substring on the normalized
+ * description; `bookingDateFrom`/`bookingDateTo` (inclusive YYYY-MM-DD) are the optional
+ * booking-date window (D5-09). When a window is present it is ANDed with `contains` (if any) and
+ * additionally requires `is_recurring = false`; a pure date-window rule carries no `contains`.
+ */
 export interface ReapplyMatchCriteria {
   contains?: string;
+  /** Inclusive lower bound (YYYY-MM-DD) of the booking-date window (D5-09). */
+  bookingDateFrom?: string;
+  /** Inclusive upper bound (YYYY-MM-DD) of the booking-date window (D5-09). */
+  bookingDateTo?: string;
 }
 
 /** The rule being re-applied: its id, its match criteria, and the cost center it sets. */
@@ -28,13 +45,41 @@ export interface ReapplyTx {
   id: string;
   normalizedDescription: string;
   costCenter: string | null;
+  /** Booking date (YYYY-MM-DD) — only consulted for booking-date-window rules (D5-09). */
+  bookingDate?: string;
+  /** Recurring-bill hint — window rules SKIP recurring rows (D5-09, spec option (b)). */
+  isRecurring?: boolean;
 }
 
-/** Pure: does this transaction match the rule's criteria? Case-insensitive substring. */
+/**
+ * Pure: does this transaction match the rule's criteria? A `contains` predicate is a
+ * case-insensitive substring on the normalized description. A booking-date window (D5-09) is
+ * ANDed on top: the transaction's `bookingDate` must fall inside [from, to] inclusive AND its
+ * `isRecurring` flag must be false (recurring bills are skipped). A rule with neither predicate
+ * matches nothing. The window comparison is a pure `date-fns` interval test — no SQL concat.
+ */
 function matches(tx: ReapplyTx, rule: ReapplyRule): boolean {
-  const { contains } = rule.matchCriteria;
-  if (contains == null || contains === "") return false;
-  return tx.normalizedDescription.toLowerCase().includes(contains.toLowerCase());
+  const { contains, bookingDateFrom, bookingDateTo } = rule.matchCriteria;
+  const hasContains = contains != null && contains !== "";
+  const hasWindow = bookingDateFrom != null && bookingDateTo != null;
+  if (!hasContains && !hasWindow) return false;
+
+  if (hasContains && !tx.normalizedDescription.toLowerCase().includes(contains!.toLowerCase())) {
+    return false;
+  }
+
+  if (hasWindow) {
+    // D5-09: window rules skip known recurring bills and rows lacking a booking date.
+    if (tx.isRecurring === true) return false;
+    if (tx.bookingDate == null) return false;
+    const inWindow = isWithinInterval(parseISO(tx.bookingDate), {
+      start: parseISO(bookingDateFrom!),
+      end: parseISO(bookingDateTo!),
+    });
+    if (!inWindow) return false;
+  }
+
+  return true;
 }
 
 /**

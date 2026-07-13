@@ -9,11 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AnomalyChip } from "@/components/anomaly-chip";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
+import { detectAnomalies } from "@/lib/health/anomaly";
 import { formatEUR } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
-import { isDemoForReads } from "@/lib/demo/mode";
+import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
 
 // Cost Centers + Sublocação (BI-02, BI-01, D2-06/07/08/12/14, CAT-06).
 //
@@ -59,14 +61,16 @@ export default async function CostCentersPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const supabase = await createClient();
-  const now = new Date();
+  // Demo-mode partition selector (D4-12) resolved FIRST so the display clock is demo-anchored
+  // (G1/D5-16, mirroring Home): in demo mode `now` moves to the demo's latest data month so the
+  // current period + mid-month anomaly projection compute on the demo window; real mode is
+  // byte-identical (demoAwareNow(false, …) is the identity).
+  const demoFilter = await isDemoForReads();
+  const now = demoAwareNow(demoFilter, new Date());
   const currentKey = currentPeriodKey(now);
   const { period: rawPeriod } = await searchParams;
   const period = parsePeriod(rawPeriod, currentKey);
   const provisional = isProvisional(period, now);
-
-  // Demo-mode partition selector (D4-12) — filter every mart read to one partition.
-  const demoFilter = await isDemoForReads();
 
   // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
   // 1. Budget vs actual at cost-center grain (category_id null) for this period.
@@ -92,6 +96,13 @@ export default async function CostCentersPage({
     .eq("period_key", period)
     .eq("is_demo", demoFilter)
     .maybeSingle();
+
+  // 4. All populated periods (demo-partitioned) — the distinct-month count gates the anomaly
+  //    detector's statistical-spike branch (D-11: <2 months ⇒ no spike, only budget-relative flags).
+  const { data: allPeriods } = await supabase
+    .from("v_pnl_monthly")
+    .select("period_key")
+    .eq("is_demo", demoFilter);
 
   if (bvaError || subletError || pnlError) {
     return (
@@ -121,6 +132,30 @@ export default async function CostCentersPage({
     }
     return { ...cc, hasBudget, budget, actual, ratio, over: hasBudget && actual > budget, tone };
   });
+
+  // --- Non-shame anomaly flags (AI-05, D-10/11/12) — the SAME pure detector Home + REM-02 use -----
+  // Deterministic over-budget / on-pace flags from the demo-partitioned v_costcenter_bva rows; the
+  // statistical-spike branch is history-gated by the distinct-month count. Display-only (D-13).
+  const monthsWithData = new Set(
+    (allPeriods ?? []).map((r) => Number(r.period_key)),
+  ).size;
+  const anomalyFlags = detectAnomalies(
+    (bvaRows ?? []).map((r) => ({
+      costCenter: r.cost_center,
+      budget: num(r.budget),
+      actual: num(r.actual),
+    })),
+    [],
+    now,
+    monthsWithData,
+  ).slice(0, 2);
+  // scope code → display name (demo-remapped Alice/Bob on the public deploy — display-only, D4-08/26).
+  const anomalyLabels = Object.fromEntries(
+    HOUSEHOLD_CENTERS.map((c) => [
+      c.code,
+      costCenterDisplayName(c.code, c.name, demoFilter),
+    ]),
+  );
 
   // --- Sublocação standalone P&L (the ONLY place gross legs appear) -----------------------
   const subRevenue = num(subletRow?.sublet_revenue);
@@ -160,7 +195,16 @@ export default async function CostCentersPage({
 
       {/* --- Budgeted vs actual: the 3 household cost centers as SectionCards (BI-02, D2-12) --- */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">Budget vs actual</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">Budget vs actual</h2>
+          {/* Non-shame overspend chip — the top 1–2 deterministic flags (D-11/12, DISPLAY ONLY). */}
+          <AnomalyChip
+            flags={anomalyFlags}
+            monthsWithData={monthsWithData}
+            labels={anomalyLabels}
+            dayOfMonth={now.getDate()}
+          />
+        </div>
         <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-3">
           {budgetRows.map((r) => (
             <Card key={r.code} size="sm">

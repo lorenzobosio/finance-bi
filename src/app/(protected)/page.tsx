@@ -23,6 +23,8 @@ import { etaLine, nextMilestoneRemaining, streakChainNodes } from "@/lib/goal/he
 import { savingsRate } from "@/lib/goal/level";
 import { computeEta } from "@/lib/goal/momentum";
 import { computeStreak } from "@/lib/goal/streak";
+import { AnomalyChip } from "@/components/anomaly-chip";
+import { detectAnomalies } from "@/lib/health/anomaly";
 import { assembleScorecard } from "@/lib/health/scorecard";
 import {
   readInsightThresholds,
@@ -339,6 +341,30 @@ export default async function Home({
     healthBands,
   );
 
+  // --- Non-shame anomaly flags (AI-05, D-10/11/12) — the SAME pure detector Cost Centers + REM-02
+  //     use. Deterministic over-budget / on-pace flags from the demo-partitioned bvaRows Home ALREADY
+  //     read (no second fetch); the statistical-spike branch is gated by the distinct-month count.
+  //     The clock is the demo-aware `now` so the demo computes mid-month correctly. Display-only (D-13).
+  const monthsWithData = new Set(
+    (allPnl ?? []).map((r) => Number(r.period_key)),
+  ).size;
+  const anomalyFlags = detectAnomalies(
+    (bvaRows ?? []).map((r) => ({
+      costCenter: r.cost_center,
+      budget: num(r.budget),
+      actual: num(r.actual),
+    })),
+    [],
+    now,
+    monthsWithData,
+  ).slice(0, 2);
+  // scope code → display name (demo-remapped Alice/Bob on the public deploy — display-only, D4-08/26).
+  const anomalyLabels: Record<string, string> = {
+    lorenzo: costCenterDisplayName("lorenzo", "Lorenzo", demoFilter),
+    fernanda: costCenterDisplayName("fernanda", "Fernanda", demoFilter),
+    compartilhado: costCenterDisplayName("compartilhado", "Shared", demoFilter),
+  };
+
   // The net-worth trend points for the chart island.
   const trendPoints: NetWorthPoint[] = (balanceTrend ?? []).map((r) => ({
     date: r.date,
@@ -538,6 +564,15 @@ export default async function Home({
           </a>
         </div>
         <ScorecardChips card={scorecard} />
+        {/* Non-shame overspend chip — the top 1–2 deterministic flags, below the scorecard chips
+            (UI-SPEC §5, D-11/12). Amber-only, factual, DISPLAY ONLY (D-13). */}
+        <AnomalyChip
+          flags={anomalyFlags}
+          monthsWithData={monthsWithData}
+          labels={anomalyLabels}
+          dayOfMonth={now.getDate()}
+          className="mt-4"
+        />
       </section>
 
       {/* BAND C — the net-worth / balance trend. */}

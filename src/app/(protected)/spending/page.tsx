@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { BarList, type BarListItem } from "@/components/charts/bar-list";
+import { CategoryDonut, type DonutSlice } from "@/components/charts/category-donut";
+import { WeeklySpend, type WeeklyPoint } from "@/components/charts/weekly-spend";
 import {
   Card,
   CardContent,
@@ -59,6 +61,21 @@ function num(v: string | number | null | undefined): number {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : 0;
 }
+
+/** A period_key (YYYYMM) → an English "Mon YYYY" caption (UTC — no locale leakage into date math). */
+function periodLabel(key: number): string {
+  const year = Math.floor(key / 100);
+  const month = key % 100;
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-US", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+// The weekday axis for the VIZ-02 weekly chart (Mon-first; UTC getUTCDay is Sun=0 → shift by +6 %7).
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const MS_PER_DAY = 86_400_000;
 
 export default async function SpendingPage({
   searchParams,
@@ -161,6 +178,69 @@ export default async function SpendingPage({
     .sort((a, b) => b.cost - a.cost);
   const hasRevenue = (pctRows ?? []).some((r) => num(r.revenue) > 0);
 
+  // --- VIZ-01 category donut (month↔year), demo-partitioned -------------------------------
+  // The donut always reads the CATEGORY grain (independent of the BarList ?breakdown= toggle):
+  //  • month = the selected period; year = every period in that calendar year (aggregated).
+  const year = Math.floor(period / 100);
+  const { data: donutMonthRows } = await supabase
+    .from("v_category_breakdown")
+    .select("bucket_label, costs")
+    .eq("period_key", period)
+    .eq("grain", "category")
+    .eq("is_demo", demoFilter);
+  const { data: donutYearRows } = await supabase
+    .from("v_category_breakdown")
+    .select("bucket_label, costs")
+    .gte("period_key", year * 100 + 1)
+    .lte("period_key", year * 100 + 12)
+    .eq("grain", "category")
+    .eq("is_demo", demoFilter);
+
+  const monthSlices: DonutSlice[] = (donutMonthRows ?? []).map((r) => ({
+    label: r.bucket_label,
+    value: Math.abs(num(r.costs)),
+  }));
+  // Aggregate the year rows by category label (the same label recurs once per month).
+  const yearByLabel = new Map<string, number>();
+  for (const r of donutYearRows ?? []) {
+    yearByLabel.set(r.bucket_label, (yearByLabel.get(r.bucket_label) ?? 0) + Math.abs(num(r.costs)));
+  }
+  const yearSlices: DonutSlice[] = [...yearByLabel.entries()].map(([label, value]) => ({
+    label,
+    value,
+  }));
+
+  // --- VIZ-02 weekly (current vs previous 7-day window), demo-partitioned ------------------
+  // A small fold over the last 14 days of COST transactions into two weekday-aligned windows.
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const windowStart = new Date(todayUTC - 13 * MS_PER_DAY).toISOString().slice(0, 10);
+  const { data: recentCosts } = await supabase
+    .from("transactions")
+    .select("booking_date, amount_eur, flow_type")
+    .eq("flow_type", "cost")
+    .eq("is_demo", demoFilter)
+    .gte("booking_date", windowStart);
+
+  const current = new Array(7).fill(0) as number[];
+  const previous = new Array(7).fill(0) as number[];
+  for (const t of recentCosts ?? []) {
+    if (!t.booking_date) continue;
+    const [y, m, d] = t.booking_date.split("-").map(Number);
+    if (!y || !m || !d) continue;
+    const bookUTC = Date.UTC(y, m - 1, d);
+    const dayDiff = Math.floor((todayUTC - bookUTC) / MS_PER_DAY);
+    if (dayDiff < 0 || dayDiff > 13) continue;
+    const weekdayIdx = (new Date(bookUTC).getUTCDay() + 6) % 7; // Mon=0 … Sun=6
+    const amount = Math.abs(num(t.amount_eur));
+    if (dayDiff <= 6) current[weekdayIdx] += amount;
+    else previous[weekdayIdx] += amount;
+  }
+  const weeklyData: WeeklyPoint[] = WEEKDAYS.map((day, i) => ({
+    day,
+    current: current[i],
+    previous: previous[i],
+  }));
+
   return (
     <div className="@container/main space-y-6">
       {/* Page header (h1 left; the shared month selector lives in the shell top bar). */}
@@ -256,6 +336,26 @@ export default async function SpendingPage({
               ))}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      {/* --- VIZ-01: category donut with a month↔year toggle --- */}
+      <Card>
+        <CardContent className="pt-6">
+          <CategoryDonut
+            month={monthSlices}
+            year={yearSlices}
+            title="Spending by category"
+            monthLabel={periodLabel(period)}
+            yearLabel={String(year)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* --- VIZ-02: this week vs last week (spend is neutral, never red) --- */}
+      <Card>
+        <CardContent className="pt-6">
+          <WeeklySpend data={weeklyData} />
         </CardContent>
       </Card>
     </div>

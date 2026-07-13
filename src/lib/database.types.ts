@@ -475,6 +475,43 @@ export type Database = {
           },
         ];
       };
+      // insight_thresholds: the scorecard's editable healthy/watch/off-track bands (D-07,
+      // HEALTH-01), DEMO-BEARING singleton. One is_demo=false row holds the real config (06-04
+      // edits it); the demo partition seeds no row → code-side DEFAULT_BANDS fallback (06-03).
+      // numeric edges → Money string over the wire; streak_watch_misses is integer → number.
+      insight_thresholds: {
+        Row: {
+          id: string;
+          savings_rate_healthy: Money;
+          savings_rate_watch: Money;
+          reserve_healthy: Money;
+          reserve_watch: Money;
+          budget_over_watch_pct: Money;
+          streak_watch_misses: number;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          savings_rate_healthy: Money | number;
+          savings_rate_watch: Money | number;
+          reserve_healthy: Money | number;
+          reserve_watch: Money | number;
+          budget_over_watch_pct: Money | number;
+          streak_watch_misses: number;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          savings_rate_healthy?: Money | number;
+          savings_rate_watch?: Money | number;
+          reserve_healthy?: Money | number;
+          reserve_watch?: Money | number;
+          budget_over_watch_pct?: Money | number;
+          streak_watch_misses?: number;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       // --- Analytics marts (read-only; mirror drizzle/0007_marts.sql) -------------------

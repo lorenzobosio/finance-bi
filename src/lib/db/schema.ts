@@ -355,3 +355,30 @@ export const transferOverrides = pgTable('transfer_overrides', {
   advBigEur: numeric('adv_big_eur', { precision: 14, scale: 2 }).notNull(),
   isDemo: boolean('is_demo').notNull().default(false),
 });
+
+// ---------------------------------------------------------------------------
+// Phase-6 (0015) financial-health scorecard thresholds (D-07, HEALTH-01).
+//
+// DDL-vs-RLS split (0001/0002 convention): this def is the DDL source of truth; the RLS
+// enable + allowlist_all + anon `is_demo = true` policy + the single real-partition default
+// seed are hand-written in drizzle/0015_insight_thresholds.sql (Drizzle does not manage
+// RLS/seeds). Mirrors how 0010–0014 hand-write the demo isolation + anon-read surface.
+// ---------------------------------------------------------------------------
+
+// insight_thresholds — the scorecard's editable healthy/watch/off-track bands (D-07).
+// DEMO-BEARING singleton settings table: ONE is_demo=false row holds the real config
+// (06-04 edits it); the demo partition seeds NO row and relies on the code-side DEFAULT_BANDS
+// fallback (06-03), mirroring how `household` seeds no demo row and relies on
+// PRE_LAUNCH_HOUSEHOLD. savings_rate_* = (revenue−cost)/revenue band edges; reserve_* =
+// months-of-cost cash-reserve edges; budget_over_watch_pct = over-budget tolerance
+// (≤10% over = watch); streak_watch_misses = contribution-miss tolerance (1 = watch).
+export const insightThresholds = pgTable('insight_thresholds', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  savingsRateHealthy: numeric('savings_rate_healthy', { precision: 6, scale: 4 }).notNull(),
+  savingsRateWatch: numeric('savings_rate_watch', { precision: 6, scale: 4 }).notNull(),
+  reserveHealthy: numeric('reserve_healthy', { precision: 6, scale: 2 }).notNull(),
+  reserveWatch: numeric('reserve_watch', { precision: 6, scale: 2 }).notNull(),
+  budgetOverWatchPct: numeric('budget_over_watch_pct', { precision: 6, scale: 4 }).notNull(),
+  streakWatchMisses: integer('streak_watch_misses').notNull(),
+  isDemo: boolean('is_demo').notNull().default(false),
+});

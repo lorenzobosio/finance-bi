@@ -46,6 +46,30 @@ export function demoModeProbeFilter<T extends DemoFlagged>(rows: T[], demo: bool
   return rows.filter((r) => r.isDemo === demo);
 }
 
+/**
+ * DEMO_NOW_ISO — the demo's LATEST data month-end (the generator's last WINDOW monthEnd, 2026-03-31).
+ * The demo dataset ends BEFORE the real wall-clock "now", so on the public deploy the real current
+ * month (e.g. Jul 2026) is PAST the demo window — anchoring the display clock here keeps Home P&L,
+ * this-month-invested, months-of-reserve, the streak, and the VIZ charts POPULATED on first load
+ * (G1 / D5-16 demo-alive). Kept in lockstep with generateDemoHousehold()'s window (a test asserts
+ * currentPeriodKey(demoAwareNow(true, …)) equals the generator's max period_key, so a future window
+ * change fails loudly).
+ */
+export const DEMO_NOW_ISO = "2026-03-31";
+
+/**
+ * demoAwareNow — the demo-aware display clock. In REAL mode (demo=false) it returns `realNow`
+ * UNCHANGED (real mode is never re-anchored — byte-identical behaviour). In DEMO mode it returns a
+ * fixed Date in the demo's latest data month (DEMO_NOW_ISO), constructed from LOCAL date components
+ * at local noon so the derived getFullYear()/getMonth() (and thus currentPeriodKey) are timezone-
+ * stable. PURE (no cookies, no next/headers) so it stays node-testable like partitionByDemo (G1).
+ */
+export function demoAwareNow(demo: boolean, realNow: Date): Date {
+  if (!demo) return realNow;
+  const [year, month, day] = DEMO_NOW_ISO.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
 /** The cookie the Config toggle writes; the chokepoint reads it to select the partition. */
 export const DEMO_MODE_COOKIE = "demo_mode";
 

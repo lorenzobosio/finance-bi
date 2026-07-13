@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { setTravelWindowForm } from "@/lib/actions/set-travel-window";
-import { isDemoForReads } from "@/lib/demo/mode";
+import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
 import { formatEUR } from "@/lib/format";
 import {
   foldAllocation,
@@ -48,12 +48,12 @@ function periodLabel(key: number): string {
 
 export default async function BrazilPage() {
   const supabase = await createClient();
-  const now = new Date();
+  // Demo-mode partition selector (T-05-17) resolved FIRST so the display clock can be demo-anchored
+  // (G1/D5-16): every read filters to ONE partition (no demo↔real blend). Real mode is identical.
+  const demoFilter = await isDemoForReads();
+  const now = demoAwareNow(demoFilter, new Date());
   const currentKey = currentPeriodKey(now);
   const year = Math.floor(currentKey / 100);
-
-  // Demo-mode partition selector (T-05-17): every read filters to ONE partition (no demo↔real blend).
-  const demoFilter = await isDemoForReads();
 
   // The household singleton — launch_date gates the whole journey; NULL = pre-launch.
   const household = await readHouseholdConfig(

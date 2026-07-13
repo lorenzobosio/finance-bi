@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toggleEpicTripForm } from "@/lib/actions/toggle-epic-trip";
-import { isDemoForReads } from "@/lib/demo/mode";
+import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
 import { formatEUR } from "@/lib/format";
 import {
   foldAllocation,
@@ -57,12 +57,12 @@ function kLabel(eur: number): string {
 
 export default async function AdventuresPage() {
   const supabase = await createClient();
-  const now = new Date();
+  // Demo-mode partition selector (T-05-17) resolved FIRST so the display clock can be demo-anchored
+  // (G1/D5-16): every read filters to ONE partition (no demo↔real blend). Real mode is identical.
+  const demoFilter = await isDemoForReads();
+  const now = demoAwareNow(demoFilter, new Date());
   const currentKey = currentPeriodKey(now);
   const year = Math.floor(currentKey / 100);
-
-  // Demo-mode partition selector (T-05-17): every read filters to ONE partition (no demo↔real blend).
-  const demoFilter = await isDemoForReads();
 
   // The household singleton — launch_date gates the journey; epic_trip_active gates the big tranche.
   const household = await readHouseholdConfig(

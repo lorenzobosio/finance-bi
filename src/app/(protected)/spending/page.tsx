@@ -14,7 +14,7 @@ import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatPct } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
-import { isDemoForReads } from "@/lib/demo/mode";
+import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
 
 // Spending (BI-03, D2-01, D2-15).
 //
@@ -83,15 +83,15 @@ export default async function SpendingPage({
   searchParams: Promise<{ period?: string; breakdown?: string }>;
 }) {
   const supabase = await createClient();
-  const now = new Date();
+  // Demo-mode partition selector (D4-12) resolved FIRST so the display clock can be demo-anchored
+  // (G1/D5-16): in demo mode `now` moves to the demo's latest data month; real mode is identical.
+  const demoFilter = await isDemoForReads();
+  const now = demoAwareNow(demoFilter, new Date());
   const currentKey = currentPeriodKey(now);
   const { period: rawPeriod, breakdown: rawBreakdown } = await searchParams;
   const period = parsePeriod(rawPeriod, currentKey);
   const grain = parseGrain(rawBreakdown);
   const provisional = isProvisional(period, now);
-
-  // Demo-mode partition selector (D4-12) — filter every mart read to one partition.
-  const demoFilter = await isDemoForReads();
 
   // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
   // 1. The breakdown for the selected grain (Uncategorized always present — coalesce-backed).

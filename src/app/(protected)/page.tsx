@@ -23,7 +23,7 @@ import { computeEta } from "@/lib/goal/momentum";
 import { computeStreak } from "@/lib/goal/streak";
 import { resolveMe } from "@/lib/identity/me";
 import { resolveMember, type Member } from "@/lib/identity/resolve-member";
-import { isDemoForReads } from "@/lib/demo/mode";
+import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
 import { ONBOARDING_DISMISS_COOKIE } from "@/lib/onboarding/cookie";
 import { getOnboardingState } from "@/lib/onboarding/state";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
@@ -75,7 +75,11 @@ export default async function Home({
   searchParams: Promise<{ period?: string }>;
 }) {
   const supabase = await createClient();
-  const now = new Date();
+  // Demo-mode partition selector (D4-12) resolved FIRST so the display clock can be demo-anchored
+  // (G1/D5-16): in demo mode `now` moves to the demo's latest data month so the current period is
+  // populated; real mode is byte-identical (demoAwareNow(false, …) is the identity).
+  const demoFilter = await isDemoForReads();
+  const now = demoAwareNow(demoFilter, new Date());
   const currentKey = currentPeriodKey(now);
   const { period: rawPeriod } = await searchParams;
   const period = parsePeriod(rawPeriod, currentKey);
@@ -86,10 +90,8 @@ export default async function Home({
   // it and the persona names never reach the greeting (D4-26). Unmapped/null → generic greeting.
   const { displayName, email } = await resolveMe();
 
-  // Demo-mode partition selector (D4-12): EVERY mart read filters to ONE partition so demo and
-  // real rows are NEVER summed (the post-0010 marts emit both partitions). Real mode →
-  // is_demo=false; the in-app toggle / public demo deploy → is_demo=true.
-  const demoFilter = await isDemoForReads();
+  // (demoFilter resolved above so `now` is demo-anchored — EVERY mart read below filters to it so
+  // demo and real rows are NEVER summed. Real mode → is_demo=false; the toggle / public demo → true.)
 
   // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
   // 1. The selected month's headline KPIs (the full P&L row drives the business read).

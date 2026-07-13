@@ -7,7 +7,7 @@ import { TrophyShelf, type TrophySeal } from "@/components/trophy-shelf";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { setLaunchDate } from "@/lib/actions/set-launch-date";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
-import { isDemoForReads } from "@/lib/demo/mode";
+import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
 import { formatEUR, formatPct } from "@/lib/format";
 import {
   allocate,
@@ -75,12 +75,12 @@ function monthsSince(launchKey: number, currentKey: number): number {
 
 export default async function GoalPage() {
   const supabase = await createClient();
-  const now = new Date();
-  const currentKey = currentPeriodKey(now);
-
-  // Demo-mode partition selector (T-05-17): EVERY read filters to ONE partition so demo and real
-  // rows are NEVER blended (a missing is_demo filter would read the real launch date in demo mode).
+  // Demo-mode partition selector (T-05-17) resolved FIRST so the display clock can be demo-anchored
+  // (G1/D5-16). EVERY read filters to ONE partition so demo and real rows are NEVER blended (a
+  // missing is_demo filter would read the real launch date in demo mode). Real mode is identical.
   const demoFilter = await isDemoForReads();
+  const now = demoAwareNow(demoFilter, new Date());
+  const currentKey = currentPeriodKey(now);
 
   // The household singleton (D5-01/16) — launch_date gates the whole journey; NULL = pre-launch.
   const household = await readHouseholdConfig(

@@ -1,33 +1,39 @@
 "use client";
 
-// GoalHeroCard — the emotional center of Home (D3-06, DSN-05). A raised card showing the live
-// €100k cost-basis progress, reading EXISTING Phase-2 investimento data only. The rich journey
-// / streak / bucket content is Phase 5; this is the LAYOUT.
+// GoalHeroCard — the emotional center of Home (D3-06, DSN-05, D5-12). A raised card showing the live
+// €100k WEALTH COST BASIS progress (getGoalTotal — the smaller number, NOT Σ investimento) plus the
+// "1-minute glance": next-milestone, a gated honest ETA, and a compact €4k streak pulse.
 //
 // Anatomy (desktop ≥xl, side-by-side band):
 //   • eyebrow "INVESTED TOWARD €100.000"
 //   • the live cost-basis number — 32px mono, a violet `--brand-glow` radial behind it, count-up
 //   • the delta line: ▲ gain-green contribution this month · neutral remainder "to go"
+//   • next-milestone: "{€Z} to your next milestone."
+//   • a gated ETA sentence (honest RANGE, or the warm "building your pace" copy — never a false date)
+//   • a compact streak chain (last ~6 closed months + the filling provisional head; never red)
 //   • a thin 12-mo invested sparkline (pure SVG, accent stroke)
-//   • a violet progress arc (`42 %` centered in mono, 25/50/75/100k notches on a neutral ring)
+//   • a violet progress arc (`42 %` centered in mono, notches on a neutral ring)
+//
+// Pre-launch (D5-01/16): a calm state — no streak, no ETA, no "this month" delta, no "missed" copy.
 //
 // Mobile (<xl) variant: the arc sits ABOVE the number, full-width, stacked.
 //
 // All numbers come pre-formatted via formatEUR/formatPct (this island never calls Intl); the
-// animated display uses the de-DE CountUp wrapper. The whole card is the Goal drill-down — but
-// the Goal page is Phase 5 (disabled), so it renders as a non-navigating card with an
-// aria-disabled affordance + sr-only "Coming soon — Phase 5" hint (mirrors the nav placeholder).
+// animated display uses the de-DE CountUp wrapper. The card is the Goal drill-down — now that the
+// Goal page exists (Phase 5) it is a real link to /goal (the old "Coming soon" placeholder is gone).
 
+import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 
 import { CountUp } from "@/components/motion/count-up";
 import { formatEUR, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const NBSP = " ";
-
 export interface GoalHeroCardProps {
-  /** Cumulative investimento cost-basis toward €100k (the live hero number). */
+  /**
+   * The €100k progress figure = the WEALTH COST BASIS (getGoalTotal — D5-02). NOT Σ investimento.
+   * This is deliberately the smaller number; the eyebrow labels it "Invested toward €100.000".
+   */
   investedToDate: number;
   /** The €100k target. */
   goalEur: number;
@@ -38,6 +44,22 @@ export interface GoalHeroCardProps {
   /** Mobile variant: arc above the number, full-width stack. */
   mobile?: boolean;
   className?: string;
+
+  // --- Phase-5 glance (D5-12) — all optional so the card degrades gracefully -----------------
+  /** Pre-launch calm state (no launch_date): suppress streak / ETA / delta / "missed" copy. */
+  preLaunch?: boolean;
+  /** € remaining to the next milestone rung, or null past the top rung. */
+  nextMilestoneRemaining?: number | null;
+  /** The gated ETA sentence (already resolved via hero-view.etaLine). */
+  etaLine?: string;
+  /** The compact streak chain: last ~6 CLOSED months, oldest → newest (true = hit €4k). */
+  streakHits?: boolean[];
+  /** The OPEN month has already reached €4k (a filling head, not a closed count). */
+  streakProvisionalHit?: boolean;
+  /** Current consecutive-hit run (for the sr-only summary). */
+  streakCurrent?: number;
+  /** All-time longest run (for the sr-only summary). */
+  streakLongest?: number;
 }
 
 /** A thin pure-SVG sparkline of the cumulative-invested series; accent stroke, aria-hidden. */
@@ -75,7 +97,52 @@ function Sparkline({ values, className }: { values: number[]; className?: string
   );
 }
 
-/** The violet progress arc (3/4 circle) with the % centered in mono + 25/50/75/100k notches. */
+/**
+ * The compact €4k streak pulse: last ~6 closed months as dots (filled `--gain` on a hit, neutral on
+ * a lighter month — NEVER red, D5-07) + the provisional month as a brand-ringed filling head.
+ */
+function StreakChain({
+  hits,
+  provisionalHit,
+  current,
+  longest,
+}: {
+  hits: boolean[];
+  provisionalHit: boolean;
+  current?: number;
+  longest?: number;
+}) {
+  if (hits.length === 0 && !provisionalHit) return null;
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5" aria-hidden="true">
+        {hits.map((hit, i) => (
+          <span
+            key={i}
+            className={cn(
+              "size-2 rounded-full",
+              // filled = hit (gain green); a lighter month is NEUTRAL, never --loss/red (D5-07).
+              hit ? "bg-[var(--gain)]" : "bg-[var(--neutral-data)]",
+            )}
+          />
+        ))}
+        {/* The provisional (open) month — a filling head ringed in brand; green once it hits €4k. */}
+        <span
+          className={cn(
+            "size-2.5 rounded-full ring-2 ring-[var(--brand)]",
+            provisionalHit ? "bg-[var(--gain)]" : "bg-transparent",
+          )}
+        />
+      </div>
+      <span className="sr-only">
+        {`€4.000 streak: ${current ?? 0} month${(current ?? 0) === 1 ? "" : "s"} in a row` +
+          (longest ? `, longest ${longest}.` : ".")}
+      </span>
+    </div>
+  );
+}
+
+/** The violet progress arc (3/4 circle) with the % centered in mono + notches on a neutral ring. */
 function GoalArc({ pct, className }: { pct: number; className?: string }) {
   // A 270° arc (gap at the bottom). r=52, stroke 10, viewBox 120.
   const size = 120;
@@ -142,6 +209,13 @@ export function GoalHeroCard({
   sparkline,
   mobile = false,
   className,
+  preLaunch = false,
+  nextMilestoneRemaining,
+  etaLine,
+  streakHits,
+  streakProvisionalHit,
+  streakCurrent,
+  streakLongest,
 }: GoalHeroCardProps) {
   const remaining = Math.max(0, goalEur - investedToDate);
   const pct = Math.min(100, (investedToDate / goalEur) * 100);
@@ -160,18 +234,51 @@ export function GoalHeroCard({
       <div className="font-mono text-3xl font-semibold tabular-nums leading-none">
         <CountUp value={investedToDate} />
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm font-medium">
-        <span className="inline-flex items-center gap-1 text-[var(--gain)]">
-          <TrendingUp aria-hidden="true" className="size-4 shrink-0" />
-          {formatEUR(contributionThisMonth, 0)} this month
-        </span>
-        <span aria-hidden="true" className="text-muted-foreground">
-          ·
-        </span>
-        <span className="text-muted-foreground">
-          {formatEUR(remaining, 0)} to go
-        </span>
-      </div>
+
+      {preLaunch ? (
+        // Pre-launch calm state (D5-16): no delta / streak / ETA / "missed" copy.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Waiting to launch — your €100k journey begins when you set a date.
+        </p>
+      ) : (
+        <>
+          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm font-medium">
+            <span className="inline-flex items-center gap-1 text-[var(--gain)]">
+              <TrendingUp aria-hidden="true" className="size-4 shrink-0" />
+              {formatEUR(contributionThisMonth, 0)} this month
+            </span>
+            <span aria-hidden="true" className="text-muted-foreground">
+              ·
+            </span>
+            <span className="text-muted-foreground">
+              {formatEUR(remaining, 0)} to go
+            </span>
+          </div>
+
+          {nextMilestoneRemaining != null && nextMilestoneRemaining > 0 && (
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              <span className="font-mono tabular-nums text-foreground">
+                {formatEUR(nextMilestoneRemaining, 0)}
+              </span>{" "}
+              to your next milestone.
+            </p>
+          )}
+
+          {etaLine && (
+            <p className="mt-1 text-sm text-muted-foreground">{etaLine}</p>
+          )}
+
+          {streakHits && (
+            <StreakChain
+              hits={streakHits}
+              provisionalHit={streakProvisionalHit ?? false}
+              current={streakCurrent}
+              longest={streakLongest}
+            />
+          )}
+        </>
+      )}
+
       <Sparkline values={sparkline} className="mt-4" />
       <p className="sr-only">
         {`${formatEUR(investedToDate, 0)} invested of ${formatEUR(goalEur, 0)}, ${formatPct(pct)} toward the goal.`}
@@ -180,11 +287,10 @@ export function GoalHeroCard({
   );
 
   return (
-    <div
-      // The Goal page is Phase 5 — the card is the future drill-down but is inert this phase.
-      aria-disabled="true"
+    <Link
+      href="/goal"
       className={cn(
-        "group/card relative flex h-full flex-col gap-4 overflow-hidden rounded-xl bg-card p-6 text-card-foreground shadow-sm ring-1 ring-foreground/10",
+        "group/card relative flex h-full flex-col gap-4 overflow-hidden rounded-xl bg-card p-6 text-card-foreground shadow-sm ring-1 ring-foreground/10 outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring",
         // 1px inset top highlight (elevation system).
         "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-foreground/10",
         className,
@@ -205,8 +311,6 @@ export function GoalHeroCard({
           <GoalArc pct={pct} className="shrink-0" />
         </div>
       )}
-
-      <span className="sr-only">Goal detail — coming soon — Phase 5{NBSP}</span>
-    </div>
+    </Link>
   );
 }

@@ -30,14 +30,44 @@
 // Phase-7 E2E: generateDemoHousehold is the single importable fixture source the Phase-7
 // Playwright suite reuses verbatim (the same deterministic dataset the public demo seeds), so
 // the E2E asserts against the identical believable household the recruiter-facing demo shows.
+//
+// PHASE-5 EXTENSION (GOAL-04/07/08/10, D5-16): the demo now also carries a fully-alive
+// POST-LAUNCH journey. An early `household.launchDate` opens the game over the whole history; a
+// few SURPLUS (>€4.000) transfer months spill past the €4k Wealth cap so the allocation waterfall
+// funds Brazil (€200/mo) and Adventures, and a €10.000 Wealth gate RELEASES an Adventures-small
+// tranche (spendable > 0). The bucket balances + level celebrations are DERIVED by folding the
+// generated transfers through the SAME pure engine (`src/lib/goal/allocation.ts`) —
+// correctness-by-construction, never hand-typed. The break-and-recover €4k streak (D4-03) is
+// preserved untouched; the €100k-progress Wealth figure stays €56.000 (surplus spills to the
+// life-goal buckets, not Wealth), so €50k stays crossed and €75k stays pending.
+
+// The pure allocation engine — the demo folds its OWN generated transfers through this SAME fold
+// so the seeded bucket balances / tranche unlocks / level events are believable by construction
+// (the seed-demo contract asserts the folded outcome, not a hand-typed number).
+import {
+  allocate,
+  foldAllocation,
+  spendableAdventuresSmall,
+  EMPTY_STATE,
+  type AllocationEvent,
+  type BucketState,
+} from "@/lib/goal/allocation";
+import { LEVEL_STEP_EUR } from "@/lib/goal/constants";
 
 // ---------------------------------------------------------------------------
-// The locked demo investimento cost-basis (D4-01). The streak arithmetic reconciles to this
-// EXACTLY (no PRNG on the streak totals — D4-05). It is the ~€55k mid-journey bucket expressed
-// as the nearest whole-€4k-streak total (14 paying months × €4,000): past the crossed €50k
-// milestone, ~56% toward the €100k goal, €75k still pending. Fictional-by-design — the only
-// money literal the unit contract asserts.
-export const DEMO_INVESTIMENTO_TOTAL = 56000;
+// The demo TOTAL-INVESTED cost-basis across ALL buckets (D4-01, extended by Plan-09). The streak
+// arithmetic reconciles to this EXACTLY (no PRNG on the streak totals — D4-05): 12 paying months ×
+// €4.000 + 2 SURPLUS months × €8.000 = €64.000 total invested. Of this, the €100k-progress WEALTH
+// cost-basis is €56.000 (each paying month contributes min(transfer, €4.000) to Wealth — the
+// surplus spills into Brazil/Adventures, never Wealth): past the crossed €50k milestone, ~56%
+// toward the €100k goal, €75k still pending. Fictional-by-design — the money literal the unit
+// contract asserts as `sumInvestimento` (the whole investimento leg, i.e. total invested).
+export const DEMO_INVESTIMENTO_TOTAL = 64000;
+
+// The WEALTH cost-basis == the €100k-progress figure (getGoalTotal): Σ min(transfer, €4.000) over
+// paying months = 14 × €4.000. NEVER equal to DEMO_INVESTIMENTO_TOTAL after buckets (that is the
+// larger total-across-all-buckets; conflating them is the locked anti-pattern — RESEARCH Pitfall 1).
+export const DEMO_WEALTH_TOTAL = 56000;
 
 /** The fixed monthly contribution (BI / GOAL): the €4k pay-yourself-first leg. */
 const MONTHLY_CONTRIBUTION = 4000;
@@ -77,7 +107,16 @@ export const DEMO_PERSONA: DemoPersona = {
 // (scripts/seed-demo.ts) maps these to the live FK codes (cost_centers.code:
 // alex→lorenzo, sam→fernanda, shared→compartilhado, sublocacao→sublocacao) at insert time so
 // the generator output stays PII-free while the DB rows satisfy the FK (0003_ingestion.sql).
-type CostCenterCode = "alex" | "sam" | "shared" | "sublocacao";
+// 'brazil' / 'adventures' are the REAL bucket cost-center codes (seeded in 0014, like cost_centers);
+// they carry no PII, so the writer maps them to themselves. They tag the demo's discretionary bucket
+// SPEND so the Brazil/Adventures pages + the v_bucket_spend mart render tagged spend (GOAL-13).
+type CostCenterCode =
+  | "alex"
+  | "sam"
+  | "shared"
+  | "sublocacao"
+  | "brazil"
+  | "adventures";
 
 // ---------------------------------------------------------------------------
 // Row shapes — mirror the live schema columns (the TxUpsert shape from ingest.ts:57-74),
@@ -162,6 +201,39 @@ export interface StreakMonth {
   amountEur: number;
 }
 
+/** The singleton household settings row (D5-01/17). DEMO-BEARING — the demo renders launch_date
+ *  + the shared "why". `launchDate` is EARLY (window start) so the whole journey is post-launch. */
+export interface DemoHousehold {
+  launchDate: string; // YYYY-MM-DD (early — the demo journey is fully post-launch)
+  why: string; // shared editable statement — synthetic, no PII
+  epicTripActive: boolean;
+  isDemo: true;
+}
+
+/** A once-only celebration row (GOAL-11, D5-14). DEMO-BEARING. Kind is 'level' | 'milestone' |
+ *  'streak_best'; the level rows are DERIVED from the folded €10k Wealth-gate crossings. */
+export interface DemoGoalEvent {
+  kind: string;
+  threshold: number | null;
+  periodKey: number | null;
+  achievedAt: string; // ISO timestamp
+  dedupeKey: string; // unique per (dedupeKey, isDemo)
+  seen: boolean; // recorded trophy — already played (no confetti replay on the public demo)
+  isDemo: true;
+}
+
+/** A per-transfer manual split (D5-04). DEMO-BEARING but MAY be empty for the demo (the demo's
+ *  splits are all the automatic waterfall — no manual override to showcase). Kept as a typed,
+ *  empty surface so the writer + future E2E can populate it without a shape change. */
+export interface DemoTransferOverride {
+  transactionDedupeHash: string; // the writer resolves this to the transaction_id FK
+  wealthEur: number;
+  brazilEur: number;
+  advSmallEur: number;
+  advBigEur: number;
+  isDemo: true;
+}
+
 /** The complete deterministic demo household. */
 export interface DemoDataset {
   persona: DemoPersona;
@@ -179,6 +251,19 @@ export interface DemoDataset {
   cashReserveEur: number;
   /** Trailing monthly costs for the months-of-reserve formula. */
   trailingMonthlyCosts: number[];
+  // --- Phase-5 goal-journey surface (GOAL-04/07/08/10, D5-16) ---
+  /** The demo household settings (early launch_date + shared why). DEMO-BEARING. */
+  household: DemoHousehold;
+  /** Once-only celebrations — level crossings DERIVED from the fold + a milestone + best-streak. */
+  goalEvents: DemoGoalEvent[];
+  /** Per-transfer manual splits — empty for the demo (all splits are the automatic waterfall). */
+  transferOverrides: DemoTransferOverride[];
+  /** The final bucket balances FOLDED from the generated transfers through the pure engine
+   *  (correctness-by-construction, never hand-typed): Brazil > 0, an unlocked Adventures-small
+   *  tranche > 0, Wealth == DEMO_WEALTH_TOTAL. */
+  bucketState: BucketState;
+  /** The SPENDABLE Adventures-small amount (the unlocked tranche only, D5-11) at the fold's end. */
+  adventuresSmallSpendableEur: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -207,12 +292,16 @@ function jitter(base: number, rng: () => number): number {
 }
 
 // ---------------------------------------------------------------------------
-// The 14-month window (Jan 2025 → Feb 2026, eval-01 reference), with the streak shape:
-//   months 0..8  (Jan–Sep 2025) = €4,000   (a 9-month run)
+// The 15-month window (Jan 2025 → Mar 2026, eval-01 reference), with the streak shape:
+//   months 0..8  (Jan–Sep 2025) = €4,000, EXCEPT two SURPLUS months (Feb + Jun 2025) = €8,000
 //   month  9     (Oct 2025)      = €0       (the deliberate break — D4-03)
-//   months 10..14 (Nov 2025–Feb 2026 + the current paying month) = €4,000 (recovery)
-// 14 paying months × €4,000 = DEMO_INVESTIMENTO_TOTAL. The break sits mid-history so MoM/YoY
-// (BI-04) is non-trivial and the recovery is visible.
+//   months 10..14 (Nov 2025–Mar 2026) = €4,000 (recovery)
+// 12 paying months × €4,000 + 2 surplus months × €8,000 = €64,000 = DEMO_INVESTIMENTO_TOTAL
+// (total invested across all buckets). Each paying month still contributes min(transfer, €4,000)
+// = the €56,000 Wealth cost-basis (DEMO_WEALTH_TOTAL); the €4,000 surplus in each surplus month
+// spills through the waterfall into Brazil/Adventures and its accrual is RELEASED at the next €10k
+// Wealth gate → a funded Brazil balance + an unlocked Adventures-small tranche (GOAL-07/08/10). The
+// break sits mid-history so MoM/YoY (BI-04) is non-trivial and the recovery is visible.
 // ---------------------------------------------------------------------------
 
 const WINDOW: Array<{ periodKey: number; monthEnd: string }> = [
@@ -234,6 +323,36 @@ const WINDOW: Array<{ periodKey: number; monthEnd: string }> = [
 ];
 
 const BREAK_INDEX = 9; // Oct 2025 — exactly one €0 break, then recovery (D4-03)
+
+// The SURPLUS transfer months (Feb + Jun 2025): the couple invested €8,000 instead of the €4,000
+// pay-yourself-first cap. Only the first €4,000 reaches Wealth (the €100k engine); the €4,000
+// surplus spills through the waterfall (Brazil €200 → Adventures 50/50), and the accrued
+// Adventures-small LOCKED tranche is RELEASED at the next €10k Wealth gate → spendable > 0.
+const SURPLUS_MONTHS = new Set<number>([202502, 202506]);
+const SURPLUS_CONTRIBUTION = 8000;
+
+// The EARLY demo launch date (D5-16): the window START, so the ENTIRE journey is post-launch and
+// the streak/waterfall/celebrations all run over the full history (the real app stays pre-launch).
+const DEMO_LAUNCH_DATE = "2025-01-01";
+
+// The shared "why" statement (PERS-04, D5-01/17). Synthetic — no PII, no @, no owner name.
+const DEMO_WHY =
+  "Build a €100.000 safety base first, then fund Brazil visits and shared adventures.";
+
+// Discretionary bucket SPEND (GOAL-13, D5-09): a couple of late-window transactions tagged to the
+// Brazil / Adventures cost-centers so the bucket pages + the v_bucket_spend mart render tagged
+// spend. Each amount is well under its folded bucket balance (Brazil €400 / Adventures-small
+// unlocked €3,800) so the rendered balances stay positive. These are COST legs (never investimento
+// → they do not touch the streak, the €4k total, or the Wealth cost-basis).
+const BUCKET_SPEND: Array<{
+  periodKey: number;
+  costCenter: "brazil" | "adventures";
+  label: string;
+  amount: number;
+}> = [
+  { periodKey: 202601, costCenter: "brazil", label: "Brazil visit — flights", amount: 150 },
+  { periodKey: 202602, costCenter: "adventures", label: "Weekend getaway", amount: 300 },
+];
 
 // Cash account handle (the only account the demo balances/transactions land on — cash-only).
 const CASH_ACCOUNT = "demo-cash";
@@ -301,7 +420,12 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
   WINDOW.forEach((m, idx) => {
     const { periodKey, monthEnd } = m;
     const isBreak = idx === BREAK_INDEX;
-    const contribution = isBreak ? 0 : MONTHLY_CONTRIBUTION;
+    // The break month is €0; a surplus month invests €8,000; every other paying month €4,000.
+    const contribution = isBreak
+      ? 0
+      : SURPLUS_MONTHS.has(periodKey)
+        ? SURPLUS_CONTRIBUTION
+        : MONTHLY_CONTRIBUTION;
 
     // --- Revenue (salaries — fixed, no jitter) ---
     transactions.push(
@@ -411,6 +535,24 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
       );
     }
 
+    // --- Discretionary bucket SPEND (GOAL-13, D5-09): Brazil / Adventures tagged cost legs ---
+    for (const bs of BUCKET_SPEND) {
+      if (bs.periodKey !== periodKey) continue;
+      monthCosts += bs.amount;
+      transactions.push(
+        tx({
+          bookingDate: monthEnd,
+          amountEur: -bs.amount,
+          description: bs.label,
+          flowType: "cost",
+          costCenter: bs.costCenter,
+          categoryId: bs.label,
+          isRecurring: false,
+          periodKey,
+        }),
+      );
+    }
+
     // --- Budgets (one row per cost center per period — the onboarding "hasBudgets" signal) ---
     for (const b of BUDGETS) {
       budgets.push({
@@ -463,6 +605,18 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     { provider: "demo", status: "active", isDemo: true },
   ];
 
+  // --- The goal-journey surface (GOAL-04/07/08/10, D5-16): DERIVE the bucket balances + the level
+  // celebrations by FOLDING the generated transfers through the SAME pure engine the app reads
+  // (correctness-by-construction — never hand-typed). The seed-demo contract asserts THIS fold. ---
+  const household: DemoHousehold = {
+    launchDate: DEMO_LAUNCH_DATE,
+    why: DEMO_WHY,
+    epicTripActive: false,
+    isDemo: true,
+  };
+  const { goalEvents, bucketState } = deriveGoalJourney(investmentStreak);
+  const transferOverrides: DemoTransferOverride[] = []; // no manual split to showcase (all waterfall)
+
   return {
     persona: DEMO_PERSONA,
     connections,
@@ -478,7 +632,131 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     cashReserveEur: Math.round(cashBalance),
     // Trailing-3-month costs (the most recent three months) for months-of-reserve.
     trailingMonthlyCosts: trailingMonthlyCosts.slice(-3),
+    household,
+    goalEvents,
+    transferOverrides,
+    bucketState,
+    adventuresSmallSpendableEur: spendableAdventuresSmall(bucketState),
   };
+}
+
+/** Map a YYYYMM period key to a booking date (the 15th) — the deterministic ordering key the fold
+ *  uses; the 15th keeps every transfer strictly after the `2025-01-01` launch gate. */
+function periodKeyToTransferDate(periodKey: number): string {
+  const year = Math.floor(periodKey / 100);
+  const month = String(periodKey % 100).padStart(2, "0");
+  return `${year}-${month}-15`;
+}
+
+/** Map a YYYYMM period key to its month-end ISO timestamp (the celebration's achieved_at). */
+function periodKeyToAchievedAt(periodKey: number): string {
+  const entry = WINDOW.find((w) => w.periodKey === periodKey);
+  const date = entry ? entry.monthEnd : periodKeyToTransferDate(periodKey);
+  return `${date}T12:00:00.000Z`;
+}
+
+/**
+ * Fold the demo's monthly investimento transfers through the pure allocation engine to DERIVE both
+ * the final {@link BucketState} (Brazil > 0, an unlocked Adventures-small tranche > 0, Wealth ==
+ * DEMO_WEALTH_TOTAL) AND the once-only `level` celebrations (one per €10k Wealth gate crossed).
+ * Correctness-by-construction: the seeded balances are the engine's output, not a hand-typed guess.
+ * A `milestone` (the crossed €50k headline) and a `streak_best` (the pre-break run length) round out
+ * the trophy case. Every event is `seen: true` (a recorded trophy — the public demo never replays
+ * confetti on load).
+ */
+function deriveGoalJourney(streak: StreakMonth[]): {
+  goalEvents: DemoGoalEvent[];
+  bucketState: BucketState;
+} {
+  // Build the ordered transfer events (post-launch, > €0) — the exact shape the fold consumes and
+  // the seed-demo contract rebuilds from `investmentStreak`.
+  const transfers: AllocationEvent[] = streak
+    .filter((m) => m.amountEur > 0)
+    .map((m) => ({
+      kind: "transfer" as const,
+      amount: m.amountEur,
+      bookingDate: periodKeyToTransferDate(m.periodKey),
+    }));
+
+  // Step the fold month-by-month to detect each newly-crossed €10k Wealth gate (a `level` event).
+  const goalEvents: DemoGoalEvent[] = [];
+  let state: BucketState = { ...EMPTY_STATE };
+  let milestone50Period: number | null = null;
+  for (const m of streak) {
+    if (m.amountEur <= 0) continue;
+    const before = Math.floor(state.wealth / LEVEL_STEP_EUR);
+    state = allocate(m.amountEur, state);
+    const after = Math.floor(state.wealth / LEVEL_STEP_EUR);
+    for (let gate = before + 1; gate <= after; gate++) {
+      const threshold = gate * LEVEL_STEP_EUR;
+      goalEvents.push({
+        kind: "level",
+        threshold,
+        periodKey: m.periodKey,
+        achievedAt: periodKeyToAchievedAt(m.periodKey),
+        dedupeKey: `level:${threshold}`,
+        seen: true,
+        isDemo: true,
+      });
+      if (threshold === 50000) milestone50Period = m.periodKey;
+    }
+  }
+
+  // The final state MUST equal foldAllocation over the same events (the fold IS the balance) — this
+  // ties the derivation to the canonical engine entry-point the app + the contract use.
+  const bucketState = foldAllocation(transfers, { launchDate: DEMO_LAUNCH_DATE });
+
+  // The crossed €50k milestone celebration (the headline milestone — distinct dedupe_key from the
+  // level event at the same threshold so both partitions/kinds coexist under the composite unique).
+  if (milestone50Period !== null) {
+    goalEvents.push({
+      kind: "milestone",
+      threshold: 50000,
+      periodKey: milestone50Period,
+      achievedAt: periodKeyToAchievedAt(milestone50Period),
+      dedupeKey: "milestone:50000",
+      seen: true,
+      isDemo: true,
+    });
+  }
+
+  // The best streak run BEFORE the break (D4-03) — the longest consecutive paying-month run.
+  const bestRun = longestPayingRun(streak);
+  if (bestRun.length > 0) {
+    goalEvents.push({
+      kind: "streak_best",
+      threshold: bestRun.length,
+      periodKey: bestRun.lastPeriodKey,
+      achievedAt: periodKeyToAchievedAt(bestRun.lastPeriodKey),
+      dedupeKey: `streak_best:${bestRun.length}`,
+      seen: true,
+      isDemo: true,
+    });
+  }
+
+  return { goalEvents, bucketState };
+}
+
+/** The longest consecutive run of paying (≥ €4,000) streak months + the period it ends on. */
+function longestPayingRun(streak: StreakMonth[]): {
+  length: number;
+  lastPeriodKey: number;
+} {
+  let best = 0;
+  let bestLastPeriodKey = streak.length > 0 ? streak[0].periodKey : 0;
+  let run = 0;
+  for (const m of streak) {
+    if (m.amountEur >= MONTHLY_CONTRIBUTION) {
+      run += 1;
+      if (run > best) {
+        best = run;
+        bestLastPeriodKey = m.periodKey;
+      }
+    } else {
+      run = 0;
+    }
+  }
+  return { length: best, lastPeriodKey: bestLastPeriodKey };
 }
 
 /** Build a DemoTx with the always-on demo invariants (isDemo true, counterpartyIban null). */

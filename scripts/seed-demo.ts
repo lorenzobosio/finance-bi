@@ -10,11 +10,13 @@
 //   transaction: DELETE every is_demo=true row (+ the synthetic demo account/member) so a re-run
 //   adds ZERO net rows (idempotent, D4-18) -> INSERT a demo member + demo account (the FK parents
 //   transactions/balances need; accounts/members carry NO is_demo column, so they are matched for
-//   cleanup by the synthetic `gsd-demo-` name marker) -> INSERT is_demo=true rows into ALL EIGHT
+//   cleanup by the synthetic `gsd-demo-` name marker) -> INSERT is_demo=true rows into ALL the
 //   demo-bearing tables (transactions, balances, budgets, goals, milestones,
-//   investment_contributions, insights, connections) so the anon demo-VISIBLE gate
-//   (test/rls.demo.assert.mjs) sees >= 1 demo row per table and getOnboardingState resolves
-//   complete:true in demo mode (D4-07) -> log COUNTS ONLY -> release the connection in finally.
+//   investment_contributions, insights, connections + the Phase-5 goal-journey tables household,
+//   goal_events, transfer_overrides) so the anon demo-VISIBLE gate (test/rls.demo.assert.mjs) sees
+//   >= 1 demo row per demo-visible table (household/goal_events among them) and getOnboardingState
+//   resolves complete:true in demo mode (D4-07) -> log COUNTS ONLY -> release the connection in
+//   finally. transfer_overrides is demo-bearing but MAY be empty for the demo (all-waterfall splits).
 //
 // DB WRITES use the `postgres` driver via DATABASE_URL — the project's Node-side DB pattern,
 // mirroring scripts/ingest.ts / scripts/eb-connect.ts. It deliberately avoids the supabase-js
@@ -42,12 +44,16 @@ import {
   type DemoDataset,
 } from "@/lib/demo/generator";
 
-/** Map the generator's persona-neutral cost-center code to the live cost_centers(code) FK. */
+/** Map the generator's persona-neutral cost-center code to the live cost_centers(code) FK. The
+ *  bucket codes 'brazil'/'adventures' are REAL cost_centers rows (seeded in 0014) with no PII, so
+ *  they map to themselves — they tag the demo's discretionary bucket spend (GOAL-13). */
 const COST_CENTER_FK: Record<string, string> = {
   alex: "lorenzo",
   sam: "fernanda",
   shared: "compartilhado",
   sublocacao: "sublocacao",
+  brazil: "brazil",
+  adventures: "adventures",
 };
 
 /** The synthetic name marker for the demo account/member (those tables carry no is_demo column,
@@ -83,6 +89,9 @@ export interface SeedCounts {
   balances: number;
   investmentContributions: number;
   insights: number;
+  household: number;
+  goalEvents: number;
+  transferOverrides: number;
 }
 
 /**
@@ -106,6 +115,9 @@ export async function seedDemo(
     balances: 0,
     investmentContributions: 0,
     insights: 0,
+    household: 0,
+    goalEvents: 0,
+    transferOverrides: 0,
   };
 
   try {
@@ -120,8 +132,13 @@ export async function seedDemo(
       await tx`delete from public.goals where is_demo = true`;
       await tx`delete from public.budgets where is_demo = true`;
       await tx`delete from public.balances where is_demo = true`;
+      // transfer_overrides.transaction_id FKs a demo transaction — delete it BEFORE transactions.
+      await tx`delete from public.transfer_overrides where is_demo = true`;
       await tx`delete from public.transactions where is_demo = true`;
       await tx`delete from public.connections where is_demo = true`;
+      // The Phase-5 goal-journey demo-bearing singletons/events (no FK into transactions).
+      await tx`delete from public.goal_events where is_demo = true`;
+      await tx`delete from public.household where is_demo = true`;
       // The demo account/member carry no is_demo column — match the synthetic name marker. The
       // account must go before the member (accounts.member_id FK) and after its transactions/
       // balances (already deleted above as is_demo rows).
@@ -216,6 +233,44 @@ export async function seedDemo(
           values (${ins.kind}, ${ins.body}, ${ins.isDemo})`;
         counts.insights += 1;
       }
+
+      // --- 10. household (D5-01/17): the demo-visible launch_date + shared "why" singleton. The
+      //         anon demo-visible RLS direction (rls.demo.assert) requires >= 1 is_demo=true row. ---
+      {
+        const h = dataset.household;
+        await tx`
+          insert into public.household (launch_date, why, epic_trip_active, is_demo)
+          values (${h.launchDate}, ${h.why}, ${h.epicTripActive}, ${h.isDemo})`;
+        counts.household = 1;
+      }
+
+      // --- 11. goal_events (GOAL-11): the once-only celebrations DERIVED from the fold (level
+      //         crossings + the €50k milestone + best-streak). Demo-visible; unique per
+      //         (dedupe_key, is_demo) so the demo partition never collides with the real one. ---
+      for (const ge of dataset.goalEvents) {
+        await tx`
+          insert into public.goal_events
+            (kind, threshold, period_key, achieved_at, dedupe_key, seen, is_demo)
+          values
+            (${ge.kind}, ${ge.threshold}, ${ge.periodKey}, ${ge.achievedAt}, ${ge.dedupeKey}, ${ge.seen}, ${ge.isDemo})`;
+        counts.goalEvents += 1;
+      }
+
+      // --- 12. transfer_overrides (D5-04): per-transfer manual splits. EMPTY for the demo (all its
+      //         splits are the automatic waterfall) — the loop is a no-op, but resolves the
+      //         transaction_id FK by the synthetic dedupe_hash if a future dataset populates it. ---
+      for (const to of dataset.transferOverrides) {
+        const hash = demoDedupeHash(to.transactionDedupeHash);
+        const [row] = await tx`
+          select id from public.transactions where dedupe_hash = ${hash} limit 1`;
+        if (!row) continue; // no matching demo transfer — skip (defensive; empty for the demo)
+        await tx`
+          insert into public.transfer_overrides
+            (transaction_id, wealth_eur, brazil_eur, adv_small_eur, adv_big_eur, is_demo)
+          values
+            (${row.id as string}, ${to.wealthEur}, ${to.brazilEur}, ${to.advSmallEur}, ${to.advBigEur}, ${to.isDemo})`;
+        counts.transferOverrides += 1;
+      }
     });
 
     return counts;
@@ -237,7 +292,8 @@ if (invokedDirectly) {
         `[seed-demo] member=${c.member} account=${c.account} connections=${c.connections} ` +
           `goals=${c.goals} milestones=${c.milestones} budgets=${c.budgets} ` +
           `transactions=${c.transactions} balances=${c.balances} ` +
-          `investment_contributions=${c.investmentContributions} insights=${c.insights}`,
+          `investment_contributions=${c.investmentContributions} insights=${c.insights} ` +
+          `household=${c.household} goal_events=${c.goalEvents} transfer_overrides=${c.transferOverrides}`,
       );
       process.exit(0);
     })

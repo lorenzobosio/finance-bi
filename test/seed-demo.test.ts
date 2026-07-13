@@ -23,13 +23,14 @@ import {
 // The not-yet-existent generator — RED on import until the later wave builds it.
 import { generateDemoHousehold, DEMO_PERSONA } from "@/lib/demo/generator";
 
-// The LOCKED demo investimento cost-basis (D4-01, ~€55k bucket). Asserted as a concrete figure
-// so the streak arithmetic must reconcile to it exactly (no PRNG on the streak totals — D4-05).
-// It is the nearest whole-€4k-streak total to the "~€55,000" CONTEXT figure: 14 paying months ×
-// €4,000 = €56,000 (one €0 break month excluded). The all-€4k streak assertions below
-// (every non-break month === 4000) are only satisfiable on a €4,000 multiple, so the locked
-// figure is €56,000 — past the crossed €50k milestone, €75k still pending, ~56% to €100k.
-const DEMO_INVESTIMENTO_TOTAL = 56000;
+// The demo TOTAL-INVESTED cost-basis across ALL buckets (D4-01, extended by Plan-09). Asserted as a
+// concrete figure so the streak arithmetic must reconcile to it exactly (no PRNG on the streak
+// totals — D4-05): 12 paying months × €4,000 + 2 SURPLUS months × €8,000 = €64,000 (one €0 break
+// month excluded). This is the `sumInvestimento` leg total (total invested across Wealth + Brazil +
+// Adventures). The €100k-progress WEALTH cost-basis is the SMALLER €56,000 (Σ min(transfer, €4,000)
+// over paying months) — past the crossed €50k milestone, €75k still pending, ~56% to €100k. The two
+// figures MUST stay distinct (conflating them is the locked anti-pattern — RESEARCH Pitfall 1).
+const DEMO_INVESTIMENTO_TOTAL = 64000;
 
 // Map the generator's transaction rows onto the pure-mart row shape (`MartTx`). The generator
 // emits live-schema columns (flow_type / amount_eur / cost_center / category_id); the marts read
@@ -73,12 +74,14 @@ describe("generateDemoHousehold — the 5 narrative facts reconcile through mart
     const zeroMonths = monthly.filter((m) => m.amountEur === 0);
     expect(zeroMonths).toHaveLength(1); // exactly ONE deliberate break (a clean €0, not partial)
     const breakIdx = monthly.findIndex((m) => m.amountEur === 0);
-    // a multi-month €4k run BEFORE the break …
+    // a multi-month run of HITS BEFORE the break — every paying month clears the €4k bar (Plan-09
+    // surplus months invest MORE than €4k, so the bar is `>= 4000`, not `=== 4000`; a "hit" is
+    // total invested ≥ €4,000 — D5-06).
     expect(breakIdx).toBeGreaterThanOrEqual(2);
-    expect(monthly.slice(0, breakIdx).every((m) => m.amountEur === 4000)).toBe(true);
-    // … and a resumed €4k AFTER it (recovery).
-    expect(monthly.slice(breakIdx + 1).every((m) => m.amountEur === 4000)).toBe(true);
-    // the streak amounts reconcile to the locked total.
+    expect(monthly.slice(0, breakIdx).every((m) => m.amountEur >= 4000)).toBe(true);
+    // … and a resumed ≥ €4k AFTER it (recovery).
+    expect(monthly.slice(breakIdx + 1).every((m) => m.amountEur >= 4000)).toBe(true);
+    // the streak amounts reconcile to the locked total (12 × €4k + 2 × €8k = €64k).
     expect(monthly.reduce((acc, m) => acc + m.amountEur, 0)).toBe(DEMO_INVESTIMENTO_TOTAL);
   });
 

@@ -1,7 +1,9 @@
 import { Sparkles, TrendingUp } from "lucide-react";
 
+import { CelebrationOverlay, type CelebrationEvent } from "@/components/celebration-overlay";
 import { MilestoneLadder, type LadderRung } from "@/components/milestone-ladder";
 import { SharedWhyCard } from "@/components/shared-why-card";
+import { TrophyShelf, type TrophySeal } from "@/components/trophy-shelf";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { setLaunchDate } from "@/lib/actions/set-launch-date";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
@@ -15,7 +17,8 @@ import {
   type AllocationEvent,
   type BucketState,
 } from "@/lib/goal/allocation";
-import { GOAL_EUR, LEVEL_STEP_EUR, MAJOR_STEP_EUR } from "@/lib/goal/constants";
+import { GOAL_EUR, LEVEL_STEP_EUR, MAJOR_STEP_EUR, MILESTONES } from "@/lib/goal/constants";
+import { detectAndRecordGoalEvents } from "@/lib/goal/detect-events";
 import { activeDenominator, getGoalTotal } from "@/lib/goal/getGoalTotal";
 import { readHouseholdConfig, type HouseholdReadClient } from "@/lib/goal/household";
 import { computeEta } from "@/lib/goal/momentum";
@@ -51,6 +54,14 @@ function periodLabel(key: number): string {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+/** An ISO timestamp (e.g. milestones.achieved_at) → an English "Mon YYYY" caption (UTC). */
+function monthYearFromIso(iso: string | null): string | undefined {
+  if (iso === null) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 /** Whole calendar months between two period_keys (inclusive of the launch month → "Month 1"). */
@@ -286,6 +297,48 @@ export default async function GoalPage() {
     lastSixClosed.length === 6 &&
     lastSixClosed.every((m) => (invByPeriod.get(m.key) ?? 0) > 5000);
 
+  // ---------- The shared, once-only celebration + trophy shelf (GOAL-11/02, D5-14/18) ----------
+  // Detect newly-crossed €10k levels / €100k majors AFTER the fold and upsert them idempotently
+  // (on conflict (dedupe_key, is_demo) do nothing) — partition-scoped, via @supabase/ssr (never
+  // service_role). Stamps milestones.achieved_at on first cross. A re-render writes nothing new.
+  await detectAndRecordGoalEvents({ wealth: goalTotal, isDemo: demoFilter });
+
+  // The newest UNSEEN event for THIS partition — the celebration renders for it once, then the
+  // "Save to our wins" action flips the SHARED seen flag so it never replays (both partners, once).
+  const { data: unseenRows } = await supabase
+    .from("goal_events")
+    .select("id, kind, threshold, achieved_at")
+    .eq("is_demo", demoFilter)
+    .eq("seen", false)
+    .order("threshold", { ascending: false, nullsFirst: false })
+    .order("achieved_at", { ascending: false })
+    .limit(1);
+  const unseen = unseenRows?.[0];
+  const celebration: CelebrationEvent | null = unseen
+    ? {
+        id: unseen.id,
+        kind: unseen.kind,
+        threshold: unseen.threshold,
+        achievedAt: unseen.achieved_at,
+      }
+    : null;
+
+  // The trophy shelf seals — the named milestones (10/25/50/75/100k), demo-partitioned. Achieved =
+  // the Wealth cost basis has crossed it; the reached-month comes from the stamped achieved_at.
+  const { data: milestoneRows } = await supabase
+    .from("milestones")
+    .select("threshold_eur, achieved_at")
+    .eq("is_demo", demoFilter);
+  const achievedAtByThreshold = new Map<number, string | null>(
+    (milestoneRows ?? []).map((m) => [num(m.threshold_eur), m.achieved_at] as const),
+  );
+  const seals: TrophySeal[] = MILESTONES.map((threshold) => ({
+    threshold,
+    achieved: goalTotal >= threshold,
+    reachedLabel:
+      goalTotal >= threshold ? monthYearFromIso(achievedAtByThreshold.get(threshold) ?? null) : undefined,
+  }));
+
   return (
     <div className="@container/main space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -393,6 +446,12 @@ export default async function GoalPage() {
           </div>
         </div>
       </section>
+
+      {/* THE TROPHY SHELF — achieved (brand-fill + reached month) + locked (ghosted, motivating) seals. */}
+      <TrophyShelf seals={seals} />
+
+      {/* THE SHARED CELEBRATION — renders only for an unseen goal_events row; reduced-motion safe. */}
+      {celebration && <CelebrationOverlay event={celebration} names={{ a: nameA, b: nameB }} />}
     </div>
   );
 }

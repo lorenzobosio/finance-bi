@@ -205,7 +205,12 @@ export default async function Home({
   const costsThisMonth = num(kpiRow?.costs);
   const subletNet = num(kpiRow?.sublet_net);
   const result = num(kpiRow?.result);
-  const margin = kpiRow?.margin === null || kpiRow?.margin === undefined ? null : num(kpiRow.margin);
+
+  // BI-08 / D5-19: the operating margin (revenue − costs + sublet_net) is the HEADLINE — investing is
+  // BELOW the line (pay-yourself-first), not a cost. Computed inline (the page must NOT import the
+  // Drizzle-backed marts module, T-02-11); `result` (householdResult) is the net-after-investment.
+  const operatingMargin = revenue - costsThisMonth + subletNet;
+  const operatingMarginPct = revenue === 0 ? null : operatingMargin / revenue;
 
   // --- The €100k progress = the WEALTH COST BASIS via getGoalTotal, NOT Σ investimento -----------
   // THE #1 correctness hazard (D5-02 / RESEARCH Pitfall 1): the hero figure is the Wealth cost basis,
@@ -410,12 +415,13 @@ export default async function Home({
           className="@xl/main:hidden"
         />
         <BusinessReadCard
-          margin={margin}
+          operatingMargin={operatingMargin}
+          operatingMarginPct={operatingMarginPct}
           revenue={revenue}
           investimento={investimentoThisMonth}
           costs={costsThisMonth}
           subletNet={subletNet}
-          result={result}
+          netAfterInvestment={result}
           href="/spending"
         />
       </div>

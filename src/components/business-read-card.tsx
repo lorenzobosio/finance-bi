@@ -1,17 +1,21 @@
 "use client";
 
-// BusinessReadCard — the house-as-business wedge made PROMINENT (D3-06). A raised card with the
-// big OPERATING MARGIN % (32px mono, count-up) + "% of net revenue" sub, plus a compact P&L read:
+// BusinessReadCard — the house-as-business wedge, reframed to BI-08 / D5-19. The HEADLINE is now the
+// OPERATING MARGIN (revenue − costs + sublet_net) in € with its % of revenue — investing is NOT an
+// operating cost, so it is moved BELOW THE LINE as pay-yourself-first, never the old red "−44,5 %"
+// loss tag. The compact read:
 //
-//   Revenue            €5.038
-//   − Investimento     €4.000   (excluded — not a cost; the margin math excludes it)
-//   − Costs            €X
-//   + Sublet net       €X
-//   = Result           €X       (the ONLY colored row — gain/loss)
+//   Revenue                 €5.038
+//   − Costs                 €X
+//   + Sublet net            €X
+//   = Operating margin      €X       (the headline row — gain-green)
+//   ────────────────────────────────  (below the line — pay yourself first)
+//   − Investimento          €4.000   (neutral — feeds the €100k goal, not a cost)
+//   = Net after investment  €X       (the only genuinely gain/loss-colored row)
 //
-// Margin formula (locked, UI-SPEC §Conventions): (revenue − investimento − costs + sublet_net) ÷
-// revenue, labeled "% of net revenue". The margin value itself is computed upstream in the page
-// from the corrected marts (DSN-06b) and passed in as a 0–1 ratio (null when revenue is 0).
+// Operating margin (locked, marts.operatingMargin / D5-19): revenue − costs + sublet_net, labeled
+// "% of revenue". Net after investment is the locked householdResult (revenue − investimento − costs
+// + sublet_net) — both are computed upstream in the page (no marts import in src/app) and passed in.
 //
 // All amounts arrive pre-formatted via formatEUR (this island never calls Intl); the margin %
 // animates via the de-DE CountUp. The whole card drills to /spending (P&L surface).
@@ -19,17 +23,20 @@
 import Link from "next/link";
 
 import { CountUp } from "@/components/motion/count-up";
-import { formatEUR } from "@/lib/format";
+import { formatEUR, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface BusinessReadCardProps {
-  /** Operating margin as a 0–1 ratio, or null when there is no revenue this month. */
-  margin: number | null;
+  /** Operating margin in € (revenue − costs + sublet_net) — the headline (BI-08). */
+  operatingMargin: number;
+  /** Operating margin as a 0–1 ratio of revenue, or null when there is no revenue this month. */
+  operatingMarginPct: number | null;
   revenue: number;
   investimento: number;
   costs: number;
   subletNet: number;
-  result: number;
+  /** Net after investment = the locked householdResult (revenue − investimento − costs + sublet). */
+  netAfterInvestment: number;
   /** Drill-down target (the P&L / spending surface). */
   href?: string;
   className?: string;
@@ -38,29 +45,68 @@ export interface BusinessReadCardProps {
 interface PnlRow {
   label: string;
   value: number;
-  /** "excluded" tag (investimento — not a cost). */
-  excluded?: boolean;
-  /** The Result row — the only colored one. */
-  isResult?: boolean;
+  /** The operating-margin subtotal row (the headline figure, gain-toned). */
+  isMargin?: boolean;
+  /** The net-after-investment row — the only genuinely gain/loss-colored line. */
+  isNet?: boolean;
 }
 
 export function BusinessReadCard({
-  margin,
+  operatingMargin,
+  operatingMarginPct,
   revenue,
   investimento,
   costs,
   subletNet,
-  result,
+  netAfterInvestment,
   href = "/spending",
   className,
 }: BusinessReadCardProps) {
-  const rows: PnlRow[] = [
+  // Above-the-line: how the operating business performed (investing sits below the line — BI-08).
+  const aboveLine: PnlRow[] = [
     { label: "Revenue", value: revenue },
-    { label: "− Investimento", value: investimento, excluded: true },
     { label: "− Costs", value: costs },
     { label: "+ Sublet net", value: subletNet },
-    { label: "= Result", value: result, isResult: true },
+    { label: "= Operating margin", value: operatingMargin, isMargin: true },
   ];
+  // Below-the-line: pay-yourself-first — investimento feeds the €100k goal, then the net result.
+  const belowLine: PnlRow[] = [
+    { label: "− Investimento", value: investimento },
+    { label: "= Net after investment", value: netAfterInvestment, isNet: true },
+  ];
+
+  const renderRow = (r: PnlRow, opts: { topBorder?: boolean } = {}) => (
+    <div
+      key={r.label}
+      className={cn(
+        "flex items-baseline justify-between gap-3",
+        opts.topBorder && "border-t border-border pt-1.5",
+      )}
+    >
+      <dt
+        className={cn(
+          "flex items-center gap-1.5",
+          r.isMargin || r.isNet ? "font-semibold text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {r.label}
+      </dt>
+      <dd
+        className={cn(
+          "font-mono tabular-nums",
+          r.isMargin
+            ? "font-semibold text-[var(--gain)]"
+            : r.isNet
+              ? r.value >= 0
+                ? "font-semibold text-[var(--gain)]"
+                : "font-semibold text-[var(--loss)]"
+              : "text-foreground",
+        )}
+      >
+        {formatEUR(r.value)}
+      </dd>
+    </div>
+  );
 
   const body = (
     <div
@@ -77,56 +123,21 @@ export function BusinessReadCard({
 
       <div>
         <div className="font-mono text-3xl font-semibold tabular-nums leading-none">
-          {margin === null ? (
-            <span aria-hidden="true">—</span>
-          ) : (
-            <CountUp
-              value={margin * 100}
-              format={{ maximumFractionDigits: 1 }}
-              suffix=" %"
-            />
-          )}
+          <CountUp value={operatingMargin} />
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">% of net revenue</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {operatingMarginPct === null ? "— of revenue" : `${formatPct(operatingMarginPct * 100)} of revenue`}
+        </p>
       </div>
 
-      {/* Compact P&L read — only the Result row is colored. */}
+      {/* Compact P&L — operating result above the line, pay-yourself-first below it. */}
       <dl className="mt-auto space-y-1.5 text-sm">
-        {rows.map((r) => (
-          <div
-            key={r.label}
-            className={cn(
-              "flex items-baseline justify-between gap-3",
-              r.isResult && "border-t border-border pt-1.5",
-            )}
-          >
-            <dt
-              className={cn(
-                "flex items-center gap-1.5",
-                r.isResult ? "font-semibold text-foreground" : "text-muted-foreground",
-              )}
-            >
-              {r.label}
-              {r.excluded && (
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  excluded
-                </span>
-              )}
-            </dt>
-            <dd
-              className={cn(
-                "font-mono tabular-nums",
-                r.isResult
-                  ? r.value >= 0
-                    ? "font-semibold text-[var(--gain)]"
-                    : "font-semibold text-[var(--loss)]"
-                  : "text-foreground",
-              )}
-            >
-              {formatEUR(r.value)}
-            </dd>
-          </div>
-        ))}
+        {aboveLine.map((r) => renderRow(r, { topBorder: r.isMargin }))}
+        {/* Below the line — investing is not an operating cost (BI-08); pay yourself first. */}
+        <p className="pt-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Below the line — pay yourself first
+        </p>
+        {belowLine.map((r) => renderRow(r, { topBorder: r.isNet }))}
       </dl>
     </div>
   );

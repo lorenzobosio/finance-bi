@@ -10,6 +10,17 @@ import { KpiCard, type KpiStatus } from "@/components/kpi-card";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatMonths } from "@/lib/format";
+import {
+  allocate,
+  EMPTY_STATE,
+  foldAllocation,
+  type AllocationEvent,
+  type BucketState,
+} from "@/lib/goal/allocation";
+import { activeDenominator, getGoalTotal } from "@/lib/goal/getGoalTotal";
+import { etaLine, nextMilestoneRemaining, streakChainNodes } from "@/lib/goal/hero-view";
+import { computeEta } from "@/lib/goal/momentum";
+import { computeStreak } from "@/lib/goal/streak";
 import { resolveMe } from "@/lib/identity/me";
 import { resolveMember, type Member } from "@/lib/identity/resolve-member";
 import { isDemoForReads } from "@/lib/demo/mode";
@@ -111,6 +122,15 @@ export default async function Home({
     .eq("is_demo", demoFilter)
     .order("date", { ascending: true });
 
+  // 4b. The household singleton (D5-01/16): `launch_date` gates the whole game (streak/waterfall/
+  //     alerts run only post-launch); NULL = the first-class pre-launch "waiting" state. Demo-
+  //     partitioned (T-05-12 — a missing is_demo filter would read the real launch date in demo mode).
+  const { data: householdRow } = await supabase
+    .from("household")
+    .select("launch_date, why, epic_trip_active")
+    .eq("is_demo", demoFilter)
+    .maybeSingle();
+
   // 5. Onboarding existence probes (ONB-01, D4-19/12). hasConnection = any non-error connections
   //    row; hasBudgets = any budgets row (period-agnostic). BOTH are is_demo-gated via the SAME
   //    chokepoint value (demoFilter) — otherwise demo mode would read the REAL connection count
@@ -187,18 +207,69 @@ export default async function Home({
   const result = num(kpiRow?.result);
   const margin = kpiRow?.margin === null || kpiRow?.margin === undefined ? null : num(kpiRow.margin);
 
-  const investedToDate = (allPnl ?? []).reduce((acc, r) => acc + num(r.investimento), 0);
+  // --- The €100k progress = the WEALTH COST BASIS via getGoalTotal, NOT Σ investimento -----------
+  // THE #1 correctness hazard (D5-02 / RESEARCH Pitfall 1): the hero figure is the Wealth cost basis,
+  // which is STRICTLY SMALLER than Σ investimento once a surplus transfer funds Brazil/Adventures. We
+  // fold the demo-partitioned monthly investimento through the pure allocation waterfall. Leg-level
+  // transfers + per-transfer overrides are unavailable at the Home glance grain (only the monthly
+  // v_pnl_monthly total is), so we fold ONE transfer per populated month; the Goal page (Plan 05-05+)
+  // owns the per-leg/override fold. `launch_date` gates the fold — pre-launch wealth is €0 (D5-02).
+  const launchDate = householdRow?.launch_date ?? null;
+  const preLaunch = launchDate === null;
 
-  // The 12-mo invested sparkline: the running cumulative cost-basis over the last 12 periods.
   const periodsAsc = (allPnl ?? [])
     .slice()
     .sort((a, b) => Number(a.period_key) - Number(b.period_key));
-  let runningInvested = 0;
-  const cumulativeInvested = periodsAsc.map((r) => {
-    runningInvested += num(r.investimento);
-    return runningInvested;
+
+  const investEvents: AllocationEvent[] = periodsAsc
+    .filter((r) => num(r.investimento) > 0)
+    .map((r) => {
+      const key = Number(r.period_key);
+      const mm = String(key % 100).padStart(2, "0");
+      return {
+        kind: "transfer" as const,
+        amount: num(r.investimento),
+        bookingDate: `${Math.floor(key / 100)}-${mm}-01`,
+        id: key,
+      };
+    });
+
+  const goalState = foldAllocation(investEvents, { launchDate });
+  const goalTotal = getGoalTotal(goalState); // the Wealth cost basis — the €100k hero figure.
+
+  // The 12-mo sparkline now tracks cumulative WEALTH (the €100k figure's trajectory), not Σ
+  // investimento. Fold the launch-gated monthly transfers incrementally so each point is running Wealth.
+  const liveEvents =
+    launchDate === null ? [] : investEvents.filter((e) => e.bookingDate >= launchDate);
+  let runningState: BucketState = { ...EMPTY_STATE };
+  const cumulativeWealth = liveEvents.map((e) => {
+    runningState = allocate(e.amount, runningState, {});
+    return runningState.wealth;
   });
-  const sparkline = cumulativeInvested.slice(-12);
+  const sparkline = cumulativeWealth.slice(-12);
+
+  // The €4k streak (D5-06/08) over all populated months, launch-gated. Feeds the hero pulse + alert.
+  const invByPeriod = new Map<number, number>(
+    (allPnl ?? []).map((r) => [Number(r.period_key), num(r.investimento)] as const),
+  );
+  const streak = computeStreak(invByPeriod, now, launchDate);
+  const streakNodes = streakChainNodes(invByPeriod, now, 6, launchDate);
+
+  // The honest, confidence-gated ETA (D5-15) to the active €100k rung, from the trailing pace.
+  const launchKey =
+    launchDate === null ? null : Number(launchDate.slice(0, 7).replace("-", ""));
+  const postLaunchMonthly = periodsAsc
+    .filter((r) => (launchKey === null ? false : Number(r.period_key) >= launchKey))
+    .map((r) => num(r.investimento));
+  const eta = computeEta({
+    remaining: Math.max(0, activeDenominator(goalTotal) - goalTotal),
+    monthlyContributions: postLaunchMonthly.slice(-6),
+  });
+
+  // Pre-launch → the calm hero: no streak/ETA/next-milestone (D5-16). Post-launch → the full glance.
+  const heroEtaLine = preLaunch ? undefined : etaLine(eta);
+  const heroNextMilestone = preLaunch ? null : nextMilestoneRemaining(goalTotal);
+  const heroStreakHits = preLaunch ? undefined : streakNodes.hits;
 
   // Net worth + months-of-reserve (BI-07). Net worth from v_home_kpis; reserve = liquid cash ÷
   // trailing-3-month average costs, computed inline (the page must NOT import the Drizzle-backed
@@ -224,11 +295,19 @@ export default async function Home({
   // only when the month has reached €4.000.
   const remaining = MONTHLY_TARGET_EUR - investimentoThisMonth;
   const fourKHit = investimentoThisMonth >= MONTHLY_TARGET_EUR;
+  // A sub-€4k month is NEVER red (D5-07 — no shame): the open month reads "to go" (amber) and a
+  // closed miss reads "short — next month" (amber, us-framed), never `--loss`/red.
   const fourKStatus: KpiStatus = fourKHit
     ? { label: "On track", tone: "gain" }
     : provisional
       ? { label: `${formatEUR(remaining, 0)} to go`, tone: "warning" }
-      : { label: `Missed — ${formatEUR(remaining, 0)} short`, tone: "loss" };
+      : { label: `${formatEUR(remaining, 0)} short — next month`, tone: "warning" };
+
+  // The warm, us-framed sub-€4k Home alert (D5-07): fires ONLY when the SELECTED month is post-launch
+  // and its total investimento is under €4.000. Never red, never "owed"; suppressed entirely pre-launch.
+  const periodIsPostLaunch = launchKey !== null && period >= launchKey;
+  const showLightMonthAlert =
+    !preLaunch && periodIsPostLaunch && investimentoThisMonth < MONTHLY_TARGET_EUR;
 
   // Per-person budget status — names who; distinct neutral "not set" (never a false green).
   // In demo mode the person LABEL is the anonymized persona (Alice/Bob); the FK code/partition
@@ -286,21 +365,47 @@ export default async function Home({
         </div>
       )}
 
+      {/* Sub-€4k month alert (D5-07) — warm, us-framed, NEVER red, post-launch only. Acknowledges
+          what was invested, states the gap without alarm, resets to next month; never "owed". */}
+      {showLightMonthAlert && (
+        <div
+          role="status"
+          className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
+        >
+          A lighter month for you two — {formatEUR(investimentoThisMonth, 0)} toward the goal.
+          You&apos;ve got next month.
+        </div>
+      )}
+
       {/* BAND A — the balanced split: Goal Hero + business read, side by side on ≥xl. */}
       <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2">
         {/* Desktop hero (≥xl) and the mobile reorder share data; render both variants gated. */}
         <GoalHeroCard
-          investedToDate={investedToDate}
+          investedToDate={goalTotal}
           goalEur={GOAL_EUR}
           contributionThisMonth={investimentoThisMonth}
           sparkline={sparkline}
+          preLaunch={preLaunch}
+          nextMilestoneRemaining={heroNextMilestone}
+          etaLine={heroEtaLine}
+          streakHits={heroStreakHits}
+          streakProvisionalHit={streakNodes.provisionalHit}
+          streakCurrent={streak.current}
+          streakLongest={streak.longest}
           className="hidden @xl/main:flex"
         />
         <GoalHeroCard
-          investedToDate={investedToDate}
+          investedToDate={goalTotal}
           goalEur={GOAL_EUR}
           contributionThisMonth={investimentoThisMonth}
           sparkline={sparkline}
+          preLaunch={preLaunch}
+          nextMilestoneRemaining={heroNextMilestone}
+          etaLine={heroEtaLine}
+          streakHits={heroStreakHits}
+          streakProvisionalHit={streakNodes.provisionalHit}
+          streakCurrent={streak.current}
+          streakLongest={streak.longest}
           mobile
           className="@xl/main:hidden"
         />

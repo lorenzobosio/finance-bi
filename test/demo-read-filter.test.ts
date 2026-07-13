@@ -16,6 +16,8 @@ const DEMO_BEARING = [
   "v_category_breakdown", "v_pct_of_revenue", "v_sublet_pnl",
   "transactions", "balances", "budgets", "connections",
   "goals", "milestones", "investment_contributions", "insights",
+  // Phase-5 goal tables (0014) — also demo-bearing; a missing filter blends demo↔real (T-05-12).
+  "household", "goal_events", "transfer_overrides",
 ];
 
 // The mart-backed protected pages (extend when Phase 5 adds bucket pages).

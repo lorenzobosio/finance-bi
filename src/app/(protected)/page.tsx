@@ -8,6 +8,7 @@ import { GoalHeroCard } from "@/components/goal-hero-card";
 import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { ScorecardChips } from "@/components/scorecard-chips";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatMonths } from "@/lib/format";
 import {
@@ -19,8 +20,14 @@ import {
 } from "@/lib/goal/allocation";
 import { activeDenominator, getGoalTotal } from "@/lib/goal/getGoalTotal";
 import { etaLine, nextMilestoneRemaining, streakChainNodes } from "@/lib/goal/hero-view";
+import { savingsRate } from "@/lib/goal/level";
 import { computeEta } from "@/lib/goal/momentum";
 import { computeStreak } from "@/lib/goal/streak";
+import { assembleScorecard } from "@/lib/health/scorecard";
+import {
+  readInsightThresholds,
+  type InsightThresholdsReadClient,
+} from "@/lib/health/thresholds";
 import { resolveMe } from "@/lib/identity/me";
 import { resolveMember, type Member } from "@/lib/identity/resolve-member";
 import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
@@ -132,6 +139,13 @@ export default async function Home({
     .select("launch_date, why, epic_trip_active")
     .eq("is_demo", demoFilter)
     .maybeSingle();
+
+  // 4c. The config-editable scorecard bands (D-07) for the Financial-Health summary. Demo-partitioned
+  //     via the readInsightThresholds seam (DEFAULT_BANDS fallback when the partition has no row).
+  const healthBands = await readInsightThresholds(
+    supabase as unknown as InsightThresholdsReadClient,
+    demoFilter,
+  );
 
   // 5. Onboarding existence probes (ONB-01, D4-19/12). hasConnection = any non-error connections
   //    row; hasBudgets = any budgets row (period-agnostic). BOTH are is_demo-gated via the SAME
@@ -291,6 +305,39 @@ export default async function Home({
     ? trailingCosts.reduce((acc, c) => acc + c, 0) / trailingCosts.length
     : 0;
   const monthsReserve = avgCosts > 0 ? netWorth / avgCosts : null;
+
+  // --- Financial-Health scorecard (HEALTH-01/02, D-05..09) — NARRATES the values Home ALREADY
+  //     computed (never a second mart read): savings rate (level.ts), months-of-reserve, budget
+  //     adherence (max over-budget fraction from bvaRows), cost-basis growth momentum (D-08, the MoM
+  //     Δ of the getGoalTotal running Wealth), and the €4k streak. Resolved into bands for the 5-chip
+  //     summary below the KPI/CFO decomposition (UI-SPEC §2a). Pre-launch / no-income income-dependent
+  //     metrics read neutral (D-09) — the couple is currently between incomes, never a red chip.
+  const homeSavingsRate = savingsRate(investimentoThisMonth, revenue);
+  let budgetOverspendPct = 0;
+  for (const r of bvaRows ?? []) {
+    const budget = num(r.budget);
+    const actual = num(r.actual);
+    if (budget > 0 && actual > budget) {
+      budgetOverspendPct = Math.max(budgetOverspendPct, (actual - budget) / budget);
+    }
+  }
+  const investmentGrowthMoM =
+    cumulativeWealth.length >= 2
+      ? cumulativeWealth[cumulativeWealth.length - 1] -
+        cumulativeWealth[cumulativeWealth.length - 2]
+      : cumulativeWealth.length === 1
+        ? cumulativeWealth[0]
+        : 0;
+  const scorecard = assembleScorecard(
+    {
+      savingsRate: homeSavingsRate,
+      monthsOfReserve: monthsReserve,
+      budgetOverspendPct,
+      investmentGrowth: investmentGrowthMoM,
+      streak,
+    },
+    healthBands,
+  );
 
   // The net-worth trend points for the chart island.
   const trendPoints: NetWorthPoint[] = (balanceTrend ?? []).map((r) => ({
@@ -476,6 +523,22 @@ export default async function Home({
           }
         />
       </div>
+
+      {/* Financial-Health scorecard — the compact 5-chip status summary (D-05/06, UI-SPEC §2a),
+          below the KPI/CFO decomposition. NARRATES the values above (no second read); pre-launch /
+          no-income income-dependent chips read neutral "Not yet", never red (D-09). */}
+      <section className="relative overflow-hidden rounded-xl bg-card p-6 text-card-foreground shadow-sm ring-1 ring-foreground/10 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-foreground/10">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">Financial health</h2>
+          <a
+            href="/health"
+            className="text-sm font-medium text-[var(--brand)] hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            View details
+          </a>
+        </div>
+        <ScorecardChips card={scorecard} />
+      </section>
 
       {/* BAND C — the net-worth / balance trend. */}
       <section className="relative overflow-hidden rounded-xl bg-card p-6 text-card-foreground shadow-sm ring-1 ring-foreground/10 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-foreground/10">

@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Receipt,
   Settings,
+  Target,
   TrendingDown,
   type LucideIcon,
 } from "lucide-react";
@@ -37,9 +38,13 @@ export interface NavItem {
   group: NavGroup;
 }
 
-// Locked order (UI-SPEC §0): Home · Spending · Cost Centers · Transactions · Config.
+// Order (UI-SPEC §0 + Phase 5): Home · Goal · Spending · Cost Centers · Transactions · Config.
+// Goal joins the Overview group (Phase 5 — the €100k journey page; the disabled placeholder that
+// stood here through Phase 4 is now removed from app-nav.tsx / app-sidebar.tsx). Brazil/Adventures
+// bucket routes are Plan 08's to add — not here.
 export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: LayoutDashboard, shortLabel: "Home", group: "Overview" },
+  { label: "Goal", href: "/goal", icon: Target, shortLabel: "Goal", group: "Overview" },
   { label: "Spending", href: "/spending", icon: TrendingDown, shortLabel: "Spending", group: "Money" },
   { label: "Cost Centers", href: "/cost-centers", icon: Building2, shortLabel: "Centers", group: "Money" },
   { label: "Transactions", href: "/transactions", icon: Receipt, shortLabel: "Transactions", group: "Money" },

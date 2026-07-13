@@ -1,6 +1,5 @@
 "use client";
 
-import { Lock, Target } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -50,17 +49,6 @@ export function SidebarNav() {
           </Link>
         );
       })}
-
-      {/* Disabled Goal placeholder (Phase 5) — greyed, non-interactive. */}
-      <div
-        aria-disabled="true"
-        className="mt-1 flex min-h-11 cursor-not-allowed items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground/50"
-      >
-        <Target aria-hidden="true" className="size-4 shrink-0" />
-        <span>Goal</span>
-        <Lock aria-hidden="true" className="ml-auto size-3" />
-        <span className="sr-only">Coming soon — Phase 5</span>
-      </div>
     </nav>
   );
 }
@@ -71,7 +59,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="grid grid-cols-5"
+      className="grid grid-cols-6"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {NAV_ITEMS.map((item) => {

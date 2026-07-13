@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Lock, Target } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -18,7 +18,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
@@ -28,9 +27,9 @@ import { cn } from "@/lib/utils";
 
 // The dashboard-01-class app sidebar (DSN-05). Grouped IA driven by the NAV_ITEMS SoT + the
 // `group` field (Overview · Money · Setup), brand-tinted active pill (--brand-muted fill +
-// a brand left-bar), a brand wordmark, a disabled focusable "Goal" placeholder (Lock badge +
-// sr-only "Coming soon — Phase 5"), and a footer with the account chip + theme toggle + a
-// sign-out Server Action. `collapsible="icon" variant="inset"` is set by the layout shell.
+// a brand left-bar), a brand wordmark, and a footer with the account chip + theme toggle + a
+// sign-out Server Action. Phase 5 promoted the €100k Goal page to a real Overview nav item (the
+// former disabled placeholder is gone). `collapsible="icon" variant="inset"` is set by the layout shell.
 //
 // This is a client island (usePathname for the active state); the layout stays an RSC.
 
@@ -92,25 +91,6 @@ export function AppSidebar({ userEmail, displayName, ...props }: AppSidebarProps
                       </SidebarMenuItem>
                     );
                   })}
-
-                  {/* The €100k Goal page is Phase 5 — focusable, disabled, announced. */}
-                  {group === "Overview" && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        aria-disabled="true"
-                        tabIndex={0}
-                        className="cursor-not-allowed text-muted-foreground/50 hover:bg-transparent hover:text-muted-foreground/50"
-                        tooltip="Coming soon — Phase 5"
-                      >
-                        <Target aria-hidden="true" />
-                        <span>Goal</span>
-                        <span className="sr-only">Coming soon — Phase 5</span>
-                      </SidebarMenuButton>
-                      <SidebarMenuBadge>
-                        <Lock aria-hidden="true" className="size-3" />
-                      </SidebarMenuBadge>
-                    </SidebarMenuItem>
-                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

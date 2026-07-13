@@ -59,6 +59,28 @@ describe("etaLine (gated, honest — D5-15)", () => {
   it("shows a RANGE (never a single date) when confident", () => {
     expect(etaLine(confident)).toBe("~3–4 years at your current pace.");
   });
+
+  it("collapses equal bounds to a singular '~1 year' (never '~1–1 years' / '1 years') — G3", () => {
+    const oneYear: EtaResult = {
+      confident: true,
+      minYears: 0.9,
+      maxYears: 1.2,
+      message: "…",
+      confidence: 0.8,
+    };
+    expect(etaLine(oneYear)).toBe("~1 year at your current pace.");
+  });
+
+  it("collapses equal bounds to a plural '~2 years' — G3", () => {
+    const twoYears: EtaResult = {
+      confident: true,
+      minYears: 1.6,
+      maxYears: 2.4,
+      message: "…",
+      confidence: 0.8,
+    };
+    expect(etaLine(twoYears)).toBe("~2 years at your current pace.");
+  });
 });
 
 describe("streakChainNodes (compact 6-node pulse — never red)", () => {

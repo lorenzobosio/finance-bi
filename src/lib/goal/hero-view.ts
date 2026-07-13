@@ -42,8 +42,12 @@ export function etaLine(eta: EtaResult): string {
   }
   const lo = roundYears(eta.minYears);
   const hi = Math.max(lo, roundYears(eta.maxYears));
-  const range = lo === hi ? `${lo}` : `${lo}–${hi}`; // en-dash between the bounds
-  return `~${range} years at your current pace.`;
+  // Collapse EQUAL bounds to a single, singular-aware value (never the degenerate "~1–1 years" and
+  // never the ungrammatical "1 years" — G3/D5-15). A genuine range keeps the en-dash form.
+  if (lo === hi) {
+    return `~${lo} ${lo === 1 ? "year" : "years"} at your current pace.`;
+  }
+  return `~${lo}–${hi} years at your current pace.`; // en-dash between the bounds
 }
 
 export interface StreakChainNodes {

@@ -10,12 +10,12 @@ import {
 import { toggleEpicTripForm } from "@/lib/actions/toggle-epic-trip";
 import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
 import { formatEUR } from "@/lib/format";
+import { accruingParts } from "@/lib/goal/adventures-view";
 import {
   foldAllocation,
   spendableAdventuresSmall,
   type AllocationEvent,
 } from "@/lib/goal/allocation";
-import { LEVEL_STEP_EUR } from "@/lib/goal/constants";
 import { readHouseholdConfig, type HouseholdReadClient } from "@/lib/goal/household";
 import { currentPeriodKey } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
@@ -95,13 +95,12 @@ export default async function AdventuresPage() {
 
   const goalState = foldAllocation(investEvents, { launchDate });
 
-  // THE hard-lock two numbers (D5-11): "Spendable now" is the UNLOCKED-at-last-gate pool ONLY (never
-  // including the locked accrual); "Accruing" is everything still locked until its gate releases it.
+  // THE hard-lock display (D5-11): "Spendable now" is the UNLOCKED-at-last-gate pool ONLY (never
+  // including the locked accrual). The locked money is decomposed honestly per pool (G5): the small
+  // tranche unlocks at the next €10k Wealth gate, the big (epic-trip) pool at €100k — one row each,
+  // each with its TRUE threshold (never a single false "next €10k" claim covering the big pool).
   const spendable = spendableAdventuresSmall(goalState); // advSmallUnlocked ONLY.
-  const accruing = goalState.advSmallLocked + goalState.advBig;
-
-  // The next €10k Wealth gate that releases the accruing small tranche.
-  const nextGate = (Math.floor(goalState.wealth / LEVEL_STEP_EUR) + 1) * LEVEL_STEP_EUR;
+  const parts = accruingParts(goalState);
 
   // Tagged spend for this bucket (v_bucket_spend, demo-partitioned) — one read serves the donut
   // (month + year) AND the accumulated per-category list.
@@ -156,19 +155,32 @@ export default async function AdventuresPage() {
           {formatEUR(spendable, 0)}
         </div>
 
-        {/* Accruing — the LOCKED tranche, secondary + neutral, with the unmissable next-gate marker. */}
-        <div className="mt-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <div className="flex items-center gap-1.5 text-sm text-[var(--neutral-data)]">
-            <Lock aria-hidden="true" className="size-4 shrink-0" />
-            <span>Accruing (unlocks at {kLabel(nextGate)})</span>
+        {/* Accruing — the LOCKED pools, one honest row per pool with its TRUE unlock threshold (G5). */}
+        {parts.length > 0 && (
+          <div className="mt-5 space-y-2">
+            {parts.map((part) => (
+              <div
+                key={part.kind}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
+              >
+                <div className="flex items-center gap-1.5 text-sm text-[var(--neutral-data)]">
+                  <Lock aria-hidden="true" className="size-4 shrink-0" />
+                  <span>
+                    {part.kind === "small"
+                      ? `Accruing (unlocks at ${kLabel(part.unlocksAtEur)})`
+                      : `Accruing for the epic trip (unlocks at ${kLabel(part.unlocksAtEur)})`}
+                  </span>
+                </div>
+                <span className="font-mono text-xl font-semibold tabular-nums text-[var(--neutral-data)]">
+                  {formatEUR(part.amount, 0)}
+                </span>
+              </div>
+            ))}
           </div>
-          <span className="font-mono text-xl font-semibold tabular-nums text-[var(--neutral-data)]">
-            {formatEUR(accruing, 0)}
-          </span>
-        </div>
+        )}
         <p className="mt-2 text-sm text-muted-foreground">
-          Next unlock at {kLabel(nextGate)} of Wealth — money accrued after a gate stays locked until
-          the next one.
+          The spendable pool releases at each €10k of Wealth; the epic-trip pool unlocks at €100k —
+          money accrued after a gate stays locked until it&apos;s reached.
         </p>
       </section>
 

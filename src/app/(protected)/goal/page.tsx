@@ -17,8 +17,10 @@ import {
   type AllocationEvent,
   type BucketState,
 } from "@/lib/goal/allocation";
+import { accruingParts } from "@/lib/goal/adventures-view";
 import { GOAL_EUR, LEVEL_STEP_EUR, MAJOR_STEP_EUR, MILESTONES } from "@/lib/goal/constants";
 import { detectAndRecordGoalEvents } from "@/lib/goal/detect-events";
+import { etaLine } from "@/lib/goal/hero-view";
 import { activeDenominator, getGoalTotal } from "@/lib/goal/getGoalTotal";
 import { readHouseholdConfig, type HouseholdReadClient } from "@/lib/goal/household";
 import { computeEta } from "@/lib/goal/momentum";
@@ -43,6 +45,11 @@ function num(v: string | number | null | undefined): number {
   if (v === null || v === undefined) return 0;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** A euro threshold → a compact "€Nk" label (e.g. 100000 → "€100k"). */
+function kLabel(eur: number): string {
+  return `€${Math.round(eur / 1000)}k`;
 }
 
 /** A period_key (YYYYMM) → an English "Mon YYYY" caption (UTC, no locale leakage into the date math). */
@@ -277,18 +284,16 @@ export default async function GoalPage() {
     remaining: Math.max(0, denominator - goalTotal),
     monthlyContributions: postLaunchMonthly.slice(-6),
   });
-  const etaSentence =
-    eta.confident && eta.minYears !== null && eta.maxYears !== null
-      ? `~${Math.max(1, Math.round(eta.minYears))}–${Math.max(
-          Math.max(1, Math.round(eta.minYears)),
-          Math.round(eta.maxYears),
-        )} years at your current pace.`
-      : "Building your pace — your ETA appears after a couple of funded months.";
+  // The honest, singular-aware ETA copy (G3/D5-15) — shared with the Home hero via etaLine (no
+  // hand-rolled duplicate that could regress to "~1–1 years").
+  const etaSentence = etaLine(eta);
 
   // Buckets (post-launch balances).
   const brazil = goalState.brazil;
   const advSpendable = spendableAdventuresSmall(goalState);
-  const advAccruing = goalState.advSmallLocked + goalState.advBig;
+  // The honest per-pool accruing decomposition (G5/D5-11): each locked pool tagged with its TRUE
+  // unlock gate (small → next €10k, big/epic-trip → €100k) — never one false "next €10k" claim.
+  const advParts = accruingParts(goalState);
 
   // PERS-05 suggest-only nudge: six closed post-launch months in a row each over €5.000 → SUGGEST
   // raising targets. This NEVER writes a target — it is a suggestion the couple decides on.
@@ -440,9 +445,18 @@ export default async function GoalPage() {
               {formatEUR(advSpendable, 0)}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">Spendable now</p>
-            <p className="mt-2 text-sm text-[var(--neutral-data)]">
-              Accruing (unlocks at the next €10k): {formatEUR(advAccruing, 0)}
-            </p>
+            {advParts.length > 0 && (
+              <div className="mt-2 space-y-1 text-sm text-[var(--neutral-data)]">
+                {advParts.map((part) => (
+                  <p key={part.kind}>
+                    {part.kind === "small"
+                      ? `Accruing (unlocks at ${kLabel(part.unlocksAtEur)})`
+                      : `Accruing for the epic trip (unlocks at ${kLabel(part.unlocksAtEur)})`}
+                    : {formatEUR(part.amount, 0)}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>

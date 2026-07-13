@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { BudgetEditor, type BudgetRow } from "@/components/budget-editor";
 import { DemoToggle } from "@/components/demo-toggle";
+import { ThresholdsEditor } from "@/components/thresholds-editor";
 import {
   Card,
   CardContent,
@@ -11,12 +12,16 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
-import { DEMO_MODE_COOKIE } from "@/lib/demo/mode";
+import { DEMO_MODE_COOKIE, isDemoForReads } from "@/lib/demo/mode";
+import {
+  readInsightThresholds,
+  type InsightThresholdsReadClient,
+} from "@/lib/health/thresholds";
 import { currentPeriodKey, previousPeriodKey } from "@/lib/period";
 import { createClient } from "@/lib/supabase/server";
 
 /** The Config tabs whose value `?tab=` may deep-link into (D4-22); fall back to budgets. */
-const VALID_TABS = ["budgets", "rules", "connection"] as const;
+const VALID_TABS = ["budgets", "rules", "connection", "thresholds"] as const;
 function parseTab(raw: string | undefined): (typeof VALID_TABS)[number] {
   return (VALID_TABS as readonly string[]).includes(raw ?? "")
     ? (raw as (typeof VALID_TABS)[number])
@@ -94,6 +99,15 @@ export default async function ConfigPage({
     );
   }
 
+  // Read the current scorecard bands for the active partition (D-07). The insight_thresholds read
+  // lives INSIDE `readInsightThresholds` (external module), is_demo-scoped by the passed demoFilter;
+  // the seeded DEFAULT_BANDS back the editor when no row exists yet. Reads stay on the @supabase/ssr
+  // seam (never the Drizzle/postgres client, never service_role).
+  const bands = await readInsightThresholds(
+    supabase as unknown as InsightThresholdsReadClient,
+    await isDemoForReads(),
+  );
+
   // Build one editor row per household cost center — "not set" when no budget row exists
   // (D2-12: the absence of a row is the not-set state, never a synthesized €0 cap).
   const rows: BudgetRow[] = HOUSEHOLD_CENTERS.map((cc) => {
@@ -137,6 +151,7 @@ export default async function ConfigPage({
       <Tabs defaultValue={activeTab} className="gap-4">
         <TabsList>
           <TabsTrigger value="budgets">Budgets</TabsTrigger>
+          <TabsTrigger value="thresholds">Health bands</TabsTrigger>
           <TabsTrigger value="rules">Rules</TabsTrigger>
           <TabsTrigger value="connection">Connection</TabsTrigger>
         </TabsList>
@@ -160,6 +175,27 @@ export default async function ConfigPage({
                 periodKey={period}
                 priorPeriodKey={previousPeriodKey(period)}
               />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- Health bands editor (scorecard thresholds, D-07) --- */}
+        <TabsContent value="thresholds">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Health bands
+              </CardTitle>
+              <CardDescription>
+                Tune what <span className="font-medium">healthy</span>,{" "}
+                <span className="font-medium">watch</span>, and{" "}
+                <span className="font-medium">off-track</span> mean for the Financial-Health
+                scorecard. Save to retune Home and{" "}
+                <span className="font-medium">/health</span>, or reset to the seeded defaults.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ThresholdsEditor current={bands} />
             </CardContent>
           </Card>
         </TabsContent>

@@ -39,6 +39,14 @@
      active nav, focus ring, ⌘K, one hero number, the landing CTA. NOT a category/button color. */
   --color-brand: var(--brand);
   --color-brand-fg: var(--brand-fg);
+  /* The AI accent (D-17) — a SECOND signal, hue ~48 terracotta (from Claude "Crail" #D97757),
+     deliberately far from the house violet (hue 280) so "AI" reads as its own thing and never
+     cancels the brand. Reserved for the spark mark, the voice-card wash/hairline, the `Claude`
+     author label, and nominative "AI insights by Claude" text — NOT buttons/nav/focus rings. */
+  --color-ai-accent: var(--ai-accent);
+  --color-ai-accent-muted: var(--ai-accent-muted);
+  --color-ai-accent-glow: var(--ai-accent-glow);
+  --color-ai-accent-fg: var(--ai-accent-fg);
   /* Semantic finance palette (UI-SPEC §Color). Two tiers per semantic: a text/icon value
      (WCAG AA ≥4.5:1 on its surface) and a brighter fill value for bars/areas. These are the ONLY
      chromatic colors in the app — everything structural stays greyscale. */
@@ -104,6 +112,14 @@
   --brand-fg: oklch(0.985 0 0);
   --brand-muted: oklch(0.62 0.19 280 / 0.14);
   --brand-glow: oklch(0.62 0.19 280 / 0.25);
+  /* AI accent (D-17). Light L darkened from the discussion's 0.68 → 0.57 so `--ai-accent` used as
+     TEXT clears WCAG-AA (≥4.5:1) on the white `--card` (0.57 → 4.67:1; 0.68 was only 3.0:1). Hue 48
+     terracotta; the muted/glow alphas drive the ~8% surface wash + the ~35% warm top hairline. */
+  --ai-accent: oklch(0.57 0.12 48);
+  --ai-accent-muted: oklch(0.57 0.12 48 / 0.1);
+  --ai-accent-glow: oklch(0.57 0.12 48 / 0.17);
+  --ai-accent-fg: oklch(0.985 0 0);
+  --ai-paper: oklch(0.995 0.006 70);
   /* Semantic finance palette (UI-SPEC §Color). Text tier = AA on its surface (≥4.5:1);
      fill tier = brighter, for bars/areas where contrast-as-text doesn't apply. */
   --gain: oklch(0.52 0.15 150);
@@ -161,6 +177,13 @@
   --warning: oklch(0.82 0.13 80);
   --warning-fill: oklch(0.45 0.1 80);
   --neutral-data: oklch(0.708 0 0);
+  /* AI accent (D-17), dark tier: lighter L (0.74) so the mark/label clears AA on the dark
+     `--card` (0.205 → 7.48:1). Same hue 48; muted/glow alphas slightly higher for the wash. */
+  --ai-accent: oklch(0.74 0.12 48);
+  --ai-accent-muted: oklch(0.74 0.12 48 / 0.12);
+  --ai-accent-glow: oklch(0.74 0.12 48 / 0.18);
+  --ai-accent-fg: oklch(0.205 0 0);
+  --ai-paper: oklch(0.235 0.008 70);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.922 0 0);
@@ -204,4 +227,31 @@
   body {
     transition: none;
   }
+  /* Reduced-motion Layer 1 for the AI spark: no twinkle, render static (D-17). */
+  .ai-spark-twinkle {
+    animation: none !important;
+  }
+}
+
+/* The AI spark twinkle (D-17) — a one-time ~600ms warm burst on first reveal only (insights are
+   batch-written; there is no live "thinking" to animate). Runs once on mount; the reduced-motion
+   media query above zeroes it (Layer 1), and the root `<MotionConfig reducedMotion="user">` is
+   Layer 2. Both layers hold the gate. */
+@keyframes ai-spark-twinkle {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.85) rotate(-10deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) rotate(5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+.ai-spark-twinkle {
+  animation: ai-spark-twinkle 600ms ease-out 1;
+  transform-origin: center;
 }

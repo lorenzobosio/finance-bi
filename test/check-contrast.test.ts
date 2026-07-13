@@ -76,3 +76,24 @@ describe("contrast gate — every semantic text token ≥4.5:1 vs its surface (D
     assertTierAA(".dark");
   });
 });
+
+// The NEW AI accent (D-17) used as TEXT / a mark (the `Claude` label + the spark `fill=currentColor`)
+// must clear WCAG-AA on the `--card` surface it sits on, in BOTH themes. The discussion's light value
+// (0.68) was only 3.0:1 — darkened to 0.57 (4.67:1) so this gate stays green (UI-SPEC §Color, Pitfall 6).
+describe("AI accent contrast — --ai-accent as text on --card ≥4.5:1 both themes (D-17)", () => {
+  for (const selector of [":root", ".dark"] as const) {
+    it(`${selector} --ai-accent clears WCAG AA on --card`, () => {
+      const body = blockBody(selector);
+      expect(body, `globals.css must declare a ${selector} block`).not.toBeNull();
+      const accent = token(body as string, "ai-accent");
+      const card = token(body as string, "card");
+      expect(accent, `${selector} must declare --ai-accent`).not.toBeNull();
+      expect(card, `${selector} must declare --card`).not.toBeNull();
+      const ratio = wcagContrast(accent as string, card as string);
+      expect(
+        ratio,
+        `${selector} --ai-accent on --card = ${ratio.toFixed(2)}:1 (<4.5)`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});

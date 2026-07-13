@@ -91,3 +91,17 @@ export async function __setTravelWindow(
 export async function setTravelWindow(raw: unknown): Promise<{ affected: number }> {
   return __setTravelWindow(raw);
 }
+
+/**
+ * setTravelWindowForm — the progressive-enhancement `<form action={...}>` entrypoint the Brazil /
+ * Adventures bucket pages render (works with NO client JS). Reads the native `<input type="date">`
+ * `from`/`to` values + the hidden `costCenter` from FormData and delegates to `setTravelWindow`; the
+ * downstream zod `.parse` still owns validation (an inverted/malformed range is rejected there).
+ */
+export async function setTravelWindowForm(formData: FormData): Promise<void> {
+  await setTravelWindow({
+    from: String(formData.get("from") ?? ""),
+    to: String(formData.get("to") ?? ""),
+    costCenter: String(formData.get("costCenter") ?? ""),
+  });
+}

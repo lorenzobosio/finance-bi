@@ -62,7 +62,8 @@ export function BottomNav() {
       className="grid grid-cols-6"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {NAV_ITEMS.map((item) => {
+      {/* Bucket pages (Brazil/Adventures) opt out of the fixed 6-slot bar (bottomNav: false). */}
+      {NAV_ITEMS.filter((item) => item.bottomNav !== false).map((item) => {
         const active = isActive(pathname, item.href);
         const Icon = item.icon;
         return (

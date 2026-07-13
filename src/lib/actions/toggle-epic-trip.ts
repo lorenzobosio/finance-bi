@@ -49,3 +49,14 @@ export async function __toggleEpicTrip(
 export async function toggleEpicTrip(raw: unknown): Promise<{ ok: true }> {
   return __toggleEpicTrip(raw);
 }
+
+/**
+ * toggleEpicTripForm — the progressive-enhancement `<form action={...}>` entrypoint the Adventures
+ * page renders (works with NO client JS — Fernanda's mobile path). Reads the hidden
+ * `<input name="active">` (the NEXT desired state, "true"/"false"), coerces it to the boolean the
+ * zod-locked core expects, and delegates to `toggleEpicTrip`. The page emits `active` as the FLIP of
+ * the current `epic_trip_active`, so one submit toggles the real household's Adventures-big routing.
+ */
+export async function toggleEpicTripForm(formData: FormData): Promise<void> {
+  await toggleEpicTrip({ active: formData.get("active") === "true" });
+}

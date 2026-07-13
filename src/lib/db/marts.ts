@@ -146,6 +146,27 @@ export function householdMargin(b: PnlBuckets): number | null {
   return householdResult(b) / b.revenue;
 }
 
+/**
+ * Operating margin (BI-08, D5-19 — the house-as-business reframe):
+ *   operatingMargin = revenue − costs + sublet_net
+ * investimento is DELIBERATELY NOT subtracted — investing is BELOW the line (the €4k legs feed the
+ * €100k goal, they are not an operating cost). This is the new HEADLINE figure; `householdResult`
+ * (which DOES subtract investimento) is shown below the line, and the old "EXCLUDED / −44,5%" label
+ * is dropped. Same buckets as `householdResult`, minus the investimento term.
+ */
+export function operatingMargin(b: PnlBuckets): number {
+  return b.revenue - b.costs + b.subletNet;
+}
+
+/**
+ * Operating margin as a share of revenue (BI-08 companion): operatingMargin / revenue. Returns
+ * `null` when revenue is 0 — never divide by zero (marts null-not-NaN convention).
+ */
+export function operatingMarginPct(b: PnlBuckets): number | null {
+  if (b.revenue === 0) return null;
+  return operatingMargin(b) / b.revenue;
+}
+
 /** Budget-vs-actual grain (BI-02, D2-14): cost-center grain when no category is pinned. */
 export type BudgetGrain = "cost_center" | "category";
 

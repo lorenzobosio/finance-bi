@@ -21,6 +21,7 @@ import {
   budgetVsActual,
   monthsOfReserve,
   type MartTx,
+  type PnlBuckets,
 } from "@/lib/db/marts";
 import { applyRules, type RuleAccount } from "@/lib/ingestion/rules/engine";
 
@@ -149,5 +150,37 @@ describe("mart never sums a positive inflow as a negative cost (DSN-06b, engine�
 
   it("a revenue_unclassified inflow NEVER subtracts from costs", () => {
     expect(sumCosts([martRow])).toBe(0);
+  });
+});
+
+// Wave-0 TDD RED (BI-08, D5-19) — the operating-margin reframe helper. The headline house-as-
+// business figure becomes OPERATING MARGIN (revenue − costs (+ subletNet)); investimento moves
+// BELOW the line (never subtracted from operating margin) and the "EXCLUDED / −44,5%" label is
+// dropped. Add a pure `operatingMargin(b: PnlBuckets)` sibling to householdResult so the number is
+// tested like every other formula. RED until Plan 02 adds the helper — a DYNAMIC import keeps the
+// rest of this (green) suite green; only these cases fail (operatingMargin is undefined today).
+describe("operating-margin (BI-08) — operatingMargin = revenue − costs (+ subletNet), investimento NOT subtracted", () => {
+  it("operating-margin: returns a €-value distinct from householdResult (investimento below the line)", async () => {
+    const mod = (await import("@/lib/db/marts")) as Record<string, unknown>;
+    const operatingMargin = mod.operatingMargin as (b: PnlBuckets) => number;
+    // RED trigger: the helper does not exist yet.
+    expect(typeof operatingMargin).toBe("function");
+
+    // revenue 1000, costs 300, subletNet 100 → operating margin = 1000 − 300 + 100 = 800.
+    const b: PnlBuckets = { revenue: 1000, investimento: 400, costs: 300, subletNet: 100 };
+    expect(operatingMargin(b)).toBe(800);
+    // …and distinct from the full household result, which DOES subtract investimento (400) → 400.
+    expect(operatingMargin(b)).not.toBe(householdResult(b));
+    expect(householdResult(b)).toBe(400);
+  });
+
+  it("operating-margin: investimento is below the line — changing it does not move operating margin", async () => {
+    const mod = (await import("@/lib/db/marts")) as Record<string, unknown>;
+    const operatingMargin = mod.operatingMargin as (b: PnlBuckets) => number;
+    expect(typeof operatingMargin).toBe("function");
+
+    const base: PnlBuckets = { revenue: 1000, investimento: 400, costs: 300, subletNet: 100 };
+    const moreInvested: PnlBuckets = { ...base, investimento: 9999 };
+    expect(operatingMargin(moreInvested)).toBe(operatingMargin(base));
   });
 });

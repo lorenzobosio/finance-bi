@@ -63,3 +63,52 @@ describe("computeReapply — the pure affected-id core (CAT-05)", () => {
     expect(computeReapply(rule, first.transactions)).toEqual([]);
   });
 });
+
+// Wave-0 TDD RED (GOAL-09, D5-09) — the booking-date-window auto-tag. A travel window
+// ("in Brazil Dec 1–20") is a rule whose match_criteria carries `bookingDateFrom`/`bookingDateTo`;
+// the EXPLICIT re-apply tags ONLY transactions booked inside the window AND with `is_recurring =
+// false` (known recurring bills are skipped — spec option (b)), and stays idempotent. The pure
+// matcher (Plan 06 extends `computeReapply`) must add a window+recurring predicate WITHOUT any SQL
+// string-concat (T-05-18). RED for the right reason: today's matcher only tests `contains`, so a
+// pure date-window rule matches nothing → the in-window rows are not tagged.
+//
+// The extended shapes below are the FUTURE contract (extra fields on ReapplyRule/ReapplyTx). They
+// are cast to the imported types at the call site so the test compiles against the current types
+// while asserting the not-yet-implemented behavior.
+interface DateWindowCriteria {
+  bookingDateFrom?: string; // inclusive YYYY-MM-DD
+  bookingDateTo?: string; // inclusive YYYY-MM-DD
+}
+interface WindowTx extends ReapplyTx {
+  bookingDate: string; // YYYY-MM-DD
+  isRecurring: boolean;
+}
+
+describe("date-window (GOAL-09/D5-09) — booking-date-scoped rule tags only in-window, non-recurring rows", () => {
+  const windowRule = {
+    id: "rule-brazil-trip",
+    // A pure date-window rule (no `contains`): the window IS the match criteria.
+    matchCriteria: { bookingDateFrom: "2025-12-01", bookingDateTo: "2025-12-20" } as DateWindowCriteria,
+    setsCostCenter: "brazil",
+  } as unknown as ReapplyRule;
+
+  const seed: WindowTx[] = [
+    // inside the window, discretionary → SHOULD be tagged
+    { id: "in-1", normalizedDescription: "flight sao paulo", costCenter: "shared", bookingDate: "2025-12-05", isRecurring: false },
+    { id: "in-2", normalizedDescription: "hotel rio", costCenter: "shared", bookingDate: "2025-12-18", isRecurring: false },
+    // inside the window but RECURRING (a known bill) → SKIPPED (spec option (b))
+    { id: "rec", normalizedDescription: "netflix", costCenter: "shared", bookingDate: "2025-12-10", isRecurring: true },
+    // OUTSIDE the window → SKIPPED
+    { id: "out", normalizedDescription: "grocery run", costCenter: "shared", bookingDate: "2025-11-28", isRecurring: false },
+  ];
+
+  it("targets ONLY in-window, non-recurring rows (skips recurring + out-of-window)", () => {
+    const ids = computeReapply(windowRule, seed as unknown as ReapplyTx[]);
+    expect(ids.sort()).toEqual(["in-1", "in-2"]);
+  });
+
+  it("is idempotent: a second re-apply over the tagged set returns []", () => {
+    const first = reapplyRuleToTransactions(windowRule, seed as unknown as ReapplyTx[]);
+    expect(computeReapply(windowRule, first.transactions)).toEqual([]);
+  });
+});

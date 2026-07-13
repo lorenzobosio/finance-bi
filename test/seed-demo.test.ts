@@ -148,3 +148,56 @@ describe("generateDemoHousehold — no PII in the serialized dataset (D4-06, R-D
     expect(ds.transactions.every((t) => t.isDemo === true)).toBe(true);
   });
 });
+
+// Wave-0 TDD RED (GOAL-04/07/08/10, D5-16) — the demo bucket-funding contract. Plan 09 extends the
+// generator with a few SURPLUS (>€4k) transfer months + an early demo launch date so the waterfall
+// funds Brazil/Adventures and a €10k Adventures-small tranche unlocks, ON TOP OF the existing
+// break-and-recover streak (D4-03). This freezes what the extended demo MUST reconcile to when
+// folded through the (future) pure engine `@/lib/goal/allocation` — RED today for two right reasons:
+// the engine does not exist yet (Plan 02) AND the generator seeds no surplus yet (Plan 09).
+//
+// A DYNAMIC import of the not-yet-existent engine keeps the rest of this (green) suite green — only
+// these folded cases fail. Synthetic € only; the no-PII + arithmetic-total invariants above stay.
+describe("generateDemoHousehold — demo funds the buckets when folded through the pure engine (GOAL-07/08/10)", () => {
+  const ds = generateDemoHousehold(42);
+
+  // Build allocation transfers from the demo's monthly investimento legs (post-launch, > €0).
+  function transfersFromStreak() {
+    return ds.investmentStreak
+      .filter((m) => m.amountEur > 0)
+      .map((m) => {
+        const year = Math.floor(m.periodKey / 100);
+        const month = String(m.periodKey % 100).padStart(2, "0");
+        return { kind: "transfer" as const, amount: m.amountEur, bookingDate: `${year}-${month}-15` };
+      });
+  }
+
+  it("seeds ≥1 surplus (>€4k) transfer month so the waterfall can spill into Brazil/Adventures (Plan 09)", () => {
+    // RED until Plan 09: today every paying month is EXACTLY €4,000 (nothing spills past Wealth).
+    expect(ds.investmentStreak.some((m) => m.amountEur > 4000)).toBe(true);
+  });
+
+  it("folds to a funded Brazil bucket (balance > 0) and ≥1 UNLOCKED Adventures-small tranche (spendable > 0)", async () => {
+    const eng = (await import("@/lib/goal/allocation")) as Record<string, unknown>;
+    const foldAllocation = eng.foldAllocation as (
+      events: Array<{ kind: "transfer"; amount: number; bookingDate: string }>,
+      opts: { launchDate: string | null },
+    ) => { brazil: number };
+    const spendableAdventuresSmall = eng.spendableAdventuresSmall as (
+      s: { advSmallUnlocked: number },
+    ) => number;
+
+    const state = foldAllocation(transfersFromStreak(), { launchDate: "2025-01-01" });
+    expect(state.brazil).toBeGreaterThan(0); // Brazil sinking fund accrued from the surplus
+    expect(spendableAdventuresSmall(state as unknown as { advSmallUnlocked: number })).toBeGreaterThan(0); // a tranche unlocked
+  });
+
+  it("preserves the break-and-recover streak alongside the new bucket funding (D4-03)", () => {
+    // The bucket surplus must NOT erase the deliberate €0 break + recovery narrative.
+    const zeros = ds.investmentStreak.filter((m) => m.amountEur === 0);
+    expect(zeros).toHaveLength(1);
+    const breakIdx = ds.investmentStreak.findIndex((m) => m.amountEur === 0);
+    expect(breakIdx).toBeGreaterThanOrEqual(2); // a run before the break
+    expect(ds.investmentStreak.slice(breakIdx + 1).every((m) => m.amountEur >= 4000)).toBe(true); // recovery
+  });
+});

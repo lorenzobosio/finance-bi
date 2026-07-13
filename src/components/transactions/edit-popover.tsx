@@ -136,7 +136,12 @@ export function EditPopover({
                 <SelectValue placeholder="Uncategorized" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={UNCATEGORIZED}>Uncategorized</SelectItem>
+                {/* CAT-08: the AUTOMATIC fallback is styled distinctly (muted + "(automatic)")
+                    so it is never conflated with the real, user-assignable "Other" desire
+                    category — which renders as a normal option in the DB-driven list below. */}
+                <SelectItem value={UNCATEGORIZED} className="text-muted-foreground italic">
+                  Uncategorized (automatic)
+                </SelectItem>
                 {categories.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}

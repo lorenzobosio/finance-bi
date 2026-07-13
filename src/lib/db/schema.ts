@@ -284,3 +284,74 @@ export const importBatches = pgTable('import_batches', {
   skipped: integer('skipped'),
   error: text('error'),
 });
+
+// ---------------------------------------------------------------------------
+// Phase-5 (0014) Goal-as-a-Journey schema delta (D5-01/05/10/11/17/18).
+//
+// DDL-vs-RLS split (0001/0002 convention): these table defs are the DDL source of
+// truth; the RLS enable + allowlist_all + anon `is_demo = true` policies, the
+// buckets/cost_centers/categories seeds, the `goal_events (dedupe_key, is_demo)`
+// unique, and the `v_bucket_spend` mart are hand-written in drizzle/0014_goal_journey.sql
+// (Drizzle does not manage RLS/seeds/views). Mirrors how 0010–0013 hand-write the demo
+// isolation + anon-read surface (the migration journal is hand-maintained past 0009).
+// ---------------------------------------------------------------------------
+
+// buckets — the 3 virtual sinking-fund buckets over ONE ETF (GOAL-07). REFERENCE data
+// (like cost_centers): the same 3 rows serve real + demo → NO is_demo partition. Seeded
+// wealth/brazil/adventures with instrument_isin 'IE000716YHJ7' + monthly_target_eur
+// (wealth 4000 / brazil 200 / adventures NULL) in 0014. Value is derived pro-rata by
+// contribution share (ETF market value deferred to Phase 12 — D5-02, GOAL-06).
+export const buckets = pgTable('buckets', {
+  code: text('code').primaryKey(), // 'wealth' | 'brazil' | 'adventures'
+  name: text('name').notNull(),
+  instrumentIsin: text('instrument_isin').notNull(),
+  monthlyTargetEur: numeric('monthly_target_eur', { precision: 14, scale: 2 }), // nullable
+});
+
+// household — singleton settings (D5-01/10/17). DEMO-BEARING (the demo renders launch_date +
+// why). `launch_date` NULL = the first-class pre-launch "waiting" state (D5-16); `why` is the
+// shared editable statement (PERS-04); `epic_trip_active` gates the Adventures big-trip tranche
+// state (D5-10). is_demo partitions the real singleton from the seeded demo one.
+export const household = pgTable('household', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  launchDate: date('launch_date'),
+  why: text('why'),
+  epicTripActive: boolean('epic_trip_active').notNull().default(false),
+  isDemo: boolean('is_demo').notNull().default(false),
+});
+
+// goal_events — once-only celebrations (GOAL-11, D5-14/18). DEMO-BEARING. A crossed level
+// (every €10k) / major (every €100k) / milestone / best-streak is recorded ONCE via a
+// UNIQUE (dedupe_key, is_demo) composite so both partners see it on next login and a re-detect
+// is idempotent (`on conflict (dedupe_key, is_demo) do nothing`). A GLOBAL unique(dedupe_key)
+// would collide the real vs demo 'level:10000' key — the composite keeps the two partitions
+// independent. `seen` is the shared played-flag PATCHed true after the client shows it.
+export const goalEvents = pgTable(
+  'goal_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(), // 'level' | 'major' | 'milestone' | 'streak_best'
+    threshold: integer('threshold'), // 10000 / 100000 / streak length (nullable)
+    periodKey: integer('period_key'),
+    achievedAt: timestamp('achieved_at', { withTimezone: true }).notNull().defaultNow(),
+    dedupeKey: text('dedupe_key').notNull(),
+    seen: boolean('seen').notNull().default(false),
+    isDemo: boolean('is_demo').notNull().default(false),
+  },
+  (t) => [uniqueIndex('goal_events_dedupe_key_is_demo_uq').on(t.dedupeKey, t.isDemo)],
+);
+
+// transfer_overrides — per-transfer manual split of one investimento leg across the buckets
+// (D5-05). DEMO-BEARING (may be empty for the demo). The transaction is the PK (one override
+// per transfer). The four legs feed the auditable derived-on-read fold; there are NO stored
+// bucket balances — only this per-transfer override plus goal_events persist (never derived).
+export const transferOverrides = pgTable('transfer_overrides', {
+  transactionId: uuid('transaction_id')
+    .primaryKey()
+    .references(() => transactions.id),
+  wealthEur: numeric('wealth_eur', { precision: 14, scale: 2 }).notNull(),
+  brazilEur: numeric('brazil_eur', { precision: 14, scale: 2 }).notNull(),
+  advSmallEur: numeric('adv_small_eur', { precision: 14, scale: 2 }).notNull(),
+  advBigEur: numeric('adv_big_eur', { precision: 14, scale: 2 }).notNull(),
+  isDemo: boolean('is_demo').notNull().default(false),
+});

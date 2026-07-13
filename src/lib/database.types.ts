@@ -354,6 +354,127 @@ export type Database = {
         Update: { id?: string; name?: string };
         Relationships: [];
       };
+      // --- Phase-5 (0014) Goal-as-a-Journey tables --------------------------------------
+      // buckets: REFERENCE data (3 rows over one ETF, GOAL-07) — no is_demo. monthly_target_eur
+      // is numeric → Money string, nullable (Adventures has no fixed target).
+      buckets: {
+        Row: {
+          code: string;
+          name: string;
+          instrument_isin: string;
+          monthly_target_eur: Money | null;
+        };
+        Insert: {
+          code: string;
+          name: string;
+          instrument_isin: string;
+          monthly_target_eur?: Money | number | null;
+        };
+        Update: {
+          code?: string;
+          name?: string;
+          instrument_isin?: string;
+          monthly_target_eur?: Money | number | null;
+        };
+        Relationships: [];
+      };
+      // household: singleton settings (D5-01/10/17), DEMO-BEARING. launch_date NULL = pre-launch
+      // (D5-16); why is the shared editable statement; epic_trip_active gates Adventures big-trip.
+      household: {
+        Row: {
+          id: string;
+          launch_date: string | null;
+          why: string | null;
+          epic_trip_active: boolean;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          launch_date?: string | null;
+          why?: string | null;
+          epic_trip_active?: boolean;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          launch_date?: string | null;
+          why?: string | null;
+          epic_trip_active?: boolean;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      // goal_events: once-only celebrations (GOAL-11), DEMO-BEARING. dedupe_key is unique per
+      // (dedupe_key, is_demo); seen is PATCHed true after the client plays it.
+      goal_events: {
+        Row: {
+          id: string;
+          kind: string;
+          threshold: number | null;
+          period_key: number | null;
+          achieved_at: string;
+          dedupe_key: string;
+          seen: boolean;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          kind: string;
+          threshold?: number | null;
+          period_key?: number | null;
+          achieved_at?: string;
+          dedupe_key: string;
+          seen?: boolean;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          kind?: string;
+          threshold?: number | null;
+          period_key?: number | null;
+          achieved_at?: string;
+          dedupe_key?: string;
+          seen?: boolean;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      // transfer_overrides: per-transfer manual split (D5-05), DEMO-BEARING. transaction_id is PK.
+      transfer_overrides: {
+        Row: {
+          transaction_id: string;
+          wealth_eur: Money;
+          brazil_eur: Money;
+          adv_small_eur: Money;
+          adv_big_eur: Money;
+          is_demo: boolean;
+        };
+        Insert: {
+          transaction_id: string;
+          wealth_eur: Money | number;
+          brazil_eur: Money | number;
+          adv_small_eur: Money | number;
+          adv_big_eur: Money | number;
+          is_demo?: boolean;
+        };
+        Update: {
+          transaction_id?: string;
+          wealth_eur?: Money | number;
+          brazil_eur?: Money | number;
+          adv_small_eur?: Money | number;
+          adv_big_eur?: Money | number;
+          is_demo?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "transfer_overrides_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: true;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       // --- Analytics marts (read-only; mirror drizzle/0007_marts.sql) -------------------

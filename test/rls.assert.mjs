@@ -110,9 +110,12 @@ try {
   if (cal.min_period !== 202401 || cal.max_period !== 203512)
     fail(`FND-04b: dim_calendar bounds ${cal.min_period}/${cal.max_period} (expected 202401/203512)`);
 
-  // (g) FND-04c: exactly 2 members seeded (display names only — emails removed).
-  const [{ member_count }] = await sql`select count(*)::int as member_count from members`;
-  if (member_count !== 2) fail(`FND-04c: members has ${member_count} rows (expected 2)`);
+  // (g) FND-04c: exactly 2 REAL household members seeded (display names only — emails removed).
+  //     The Phase-4 demo seed adds a separate `gsd-demo-member` owner row (the `members` table has
+  //     no is_demo column, so the demo owner is a plain row). It is legitimate demo infrastructure,
+  //     not a real household member, so it is excluded from this count.
+  const [{ member_count }] = await sql`select count(*)::int as member_count from members where display_name <> 'gsd-demo-member'`;
+  if (member_count !== 2) fail(`FND-04c: real members has ${member_count} rows (expected 2, excluding gsd-demo-member)`);
   const [{ email_count }] = await sql`select count(email)::int as email_count from members`;
   if (email_count !== 0) fail(`HARDENING: ${email_count} member row(s) still store an email (expected 0)`);
 
@@ -156,12 +159,13 @@ try {
   // [compartilhado, fernanda, lorenzo, sublocacao]. Phase-2 (drizzle/0005, cost-center drift
   // fix) ADDED a `shared` alias so the engine's hardcoded `shared` fallback — asserted by the
   // frozen test/rules.test.ts — FK-resolves; real shared-account rows still use `compartilhado`
-  // (0003 translated legacy `shared` -> `compartilhado`). So the live set is now these 5.
+  // (0003 translated legacy `shared` -> `compartilhado`). Phase-5 (drizzle/0014, GOAL-09) ADDS
+  // `brazil` + `adventures` as bucket cost centers. So the live set is now these 7.
   const ccRows = await sql`select code from public.cost_centers`;
   const ccCodes = ccRows.map((r) => r.code).sort();
-  const expectedCC = ['compartilhado', 'fernanda', 'lorenzo', 'shared', 'sublocacao'];
+  const expectedCC = ['adventures', 'brazil', 'compartilhado', 'fernanda', 'lorenzo', 'shared', 'sublocacao'];
   if (ccCodes.length !== expectedCC.length || ccCodes.some((c, i) => c !== expectedCC[i]))
-    fail(`cost_centers has [${ccCodes.join(',')}] (expected the 4 D-24 codes + the Phase-2 \`shared\` alias: ${expectedCC.join(',')})`);
+    fail(`cost_centers has [${ccCodes.join(',')}] (expected the Phase-2 set + the Phase-5 brazil/adventures buckets: ${expectedCC.join(',')})`);
 
   console.log('RLS + seed + hardening assertions passed (FND-02a/b, FND-04a/b/c, table-driven allowlist, cost_centers seeded).');
   console.log(

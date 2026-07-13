@@ -1,0 +1,398 @@
+import { Sparkles, TrendingUp } from "lucide-react";
+
+import { MilestoneLadder, type LadderRung } from "@/components/milestone-ladder";
+import { SharedWhyCard } from "@/components/shared-why-card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { setLaunchDate } from "@/lib/actions/set-launch-date";
+import { costCenterDisplayName } from "@/lib/cost-center-display";
+import { isDemoForReads } from "@/lib/demo/mode";
+import { formatEUR, formatPct } from "@/lib/format";
+import {
+  allocate,
+  EMPTY_STATE,
+  foldAllocation,
+  spendableAdventuresSmall,
+  type AllocationEvent,
+  type BucketState,
+} from "@/lib/goal/allocation";
+import { GOAL_EUR, LEVEL_STEP_EUR, MAJOR_STEP_EUR } from "@/lib/goal/constants";
+import { activeDenominator, getGoalTotal } from "@/lib/goal/getGoalTotal";
+import { readHouseholdConfig, type HouseholdReadClient } from "@/lib/goal/household";
+import { computeEta } from "@/lib/goal/momentum";
+import { computeStreak, type StreakResult } from "@/lib/goal/streak";
+import { currentPeriodKey } from "@/lib/period";
+import { createClient } from "@/lib/supabase/server";
+
+// The Goal page (`/goal`) — the JOURNEY depth (D5-12). Home answers the 1-minute glance; THIS page is
+// the ladder you climb, the milestones with dates, the honest gated ETA, the multi-goal denominator,
+// the shared editable "why", and — crucially — the FIRST-CLASS pre-launch "waiting" state (D5-16).
+//
+// The couple is currently pre-launch (unemployed): with no launch_date the page is NOT an empty/sad
+// zero-state — it is a plan waiting for them (the "why" as primary content, a ghosted ladder, the
+// buckets defined-but-dormant, a "Set your launch date" CTA). NO streak / "missed €4k" copy appears.
+//
+// Reads go through @supabase/ssr under RLS, partitioned by is_demo (T-05-17) — NEVER src/lib/db/marts
+// (D3-13). The €100k figure is the WEALTH COST BASIS via getGoalTotal (the SMALLER number, D5-02),
+// visually distinct from any "total across all buckets". All €/% via formatEUR/formatPct (de-DE).
+
+/** numeric columns arrive from supabase-js as strings; parse to a finite number (0 fallback). */
+function num(v: string | number | null | undefined): number {
+  if (v === null || v === undefined) return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** A period_key (YYYYMM) → an English "Mon YYYY" caption (UTC, no locale leakage into the date math). */
+function periodLabel(key: number): string {
+  const year = Math.floor(key / 100);
+  const month = key % 100;
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-US", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** Whole calendar months between two period_keys (inclusive of the launch month → "Month 1"). */
+function monthsSince(launchKey: number, currentKey: number): number {
+  const ly = Math.floor(launchKey / 100);
+  const lm = launchKey % 100;
+  const cy = Math.floor(currentKey / 100);
+  const cm = currentKey % 100;
+  return (cy - ly) * 12 + (cm - lm) + 1;
+}
+
+export default async function GoalPage() {
+  const supabase = await createClient();
+  const now = new Date();
+  const currentKey = currentPeriodKey(now);
+
+  // Demo-mode partition selector (T-05-17): EVERY read filters to ONE partition so demo and real
+  // rows are NEVER blended (a missing is_demo filter would read the real launch date in demo mode).
+  const demoFilter = await isDemoForReads();
+
+  // The household singleton (D5-01/16) — launch_date gates the whole journey; NULL = pre-launch.
+  const household = await readHouseholdConfig(
+    supabase as unknown as HouseholdReadClient,
+    demoFilter,
+  );
+
+  // Monthly investimento totals (the only investimento grain available; per-leg transfers +
+  // per-transfer overrides are unavailable as a view — same Rule-3 data-grain adaptation as Home).
+  const { data: allPnl } = await supabase
+    .from("v_pnl_monthly")
+    .select("period_key, investimento")
+    .eq("is_demo", demoFilter);
+
+  // transfer_overrides — threaded (demo-partitioned) to keep the read guard honest (T-05-17); the
+  // monthly grain can't map a per-transaction override, so it does not alter the monthly fold here.
+  await supabase
+    .from("transfer_overrides")
+    .select("transaction_id, wealth_eur, brazil_eur, adv_small_eur, adv_big_eur")
+    .eq("is_demo", demoFilter);
+
+  const launchDate = household.launchDate;
+  const preLaunch = launchDate === null;
+
+  // Fold the launch-gated monthly investimento through the pure waterfall → the bucket balances.
+  const periodsAsc = (allPnl ?? [])
+    .slice()
+    .sort((a, b) => Number(a.period_key) - Number(b.period_key));
+
+  const investEvents: AllocationEvent[] = periodsAsc
+    .filter((r) => num(r.investimento) > 0)
+    .map((r) => {
+      const key = Number(r.period_key);
+      const mm = String(key % 100).padStart(2, "0");
+      return {
+        kind: "transfer" as const,
+        amount: num(r.investimento),
+        bookingDate: `${Math.floor(key / 100)}-${mm}-01`,
+        id: key,
+      };
+    });
+
+  const goalState = foldAllocation(investEvents, { launchDate });
+  const goalTotal = getGoalTotal(goalState); // the Wealth cost basis — the €100k figure (D5-02).
+  const denominator = activeDenominator(goalTotal); // GOAL-12 multi-goal ceiling.
+  const pct = denominator > 0 ? Math.min(100, (goalTotal / denominator) * 100) : 0;
+
+  // Walk the launch-gated transfers to record the month each €10k rung was first crossed (achieved-at).
+  const liveOrdered = investEvents
+    .filter((e) => launchDate !== null && e.bookingDate >= launchDate)
+    .sort((a, b) => Number(a.id) - Number(b.id));
+  const rungThresholds: number[] = [];
+  for (let t = LEVEL_STEP_EUR; t <= denominator; t += LEVEL_STEP_EUR) rungThresholds.push(t);
+  const crossedAt = new Map<number, number>();
+  let running: BucketState = { ...EMPTY_STATE };
+  for (const e of liveOrdered) {
+    running = allocate(e.amount, running, {});
+    for (const t of rungThresholds) {
+      if (!crossedAt.has(t) && running.wealth >= t) crossedAt.set(t, Number(e.id));
+    }
+  }
+
+  const rungs: LadderRung[] = rungThresholds.map((t) => ({
+    threshold: t,
+    achieved: goalTotal >= t,
+    achievedLabel: crossedAt.has(t) ? periodLabel(crossedAt.get(t)!) : undefined,
+    major: t % MAJOR_STEP_EUR === 0,
+  }));
+
+  // The launch key + tenure ("Month N") — pre-launch is Month 0 ("starts when you're ready").
+  const launchKey =
+    launchDate === null ? null : Number(launchDate.slice(0, 7).replace("-", ""));
+  const tenureMonth = launchKey === null ? 0 : Math.max(0, monthsSince(launchKey, currentKey));
+
+  // The demo-aware couple identity (the anon demo shows the personas, never the real owners — D4-08/26).
+  const nameA = costCenterDisplayName("lorenzo", "Lorenzo", demoFilter);
+  const nameB = costCenterDisplayName("fernanda", "Fernanda", demoFilter);
+  const attribution = `${nameA} & ${nameB}, Berlin`;
+
+  const identity = (
+    <div className="flex items-center gap-2">
+      <div className="flex -space-x-2">
+        <Avatar className="size-8 ring-2 ring-background">
+          <AvatarFallback className="text-xs">{nameA[0]?.toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <Avatar className="size-8 ring-2 ring-background">
+          <AvatarFallback className="text-xs">{nameB[0]?.toUpperCase()}</AvatarFallback>
+        </Avatar>
+      </div>
+      <span className="text-sm text-muted-foreground">
+        {nameA} &amp; {nameB}
+      </span>
+    </div>
+  );
+
+  // ---------- PRE-LAUNCH: the first-class "waiting" state (D5-16) ----------
+  if (preLaunch) {
+    return (
+      <div className="@container/main space-y-8">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold">Our €100k — the freedom fund.</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Building €100k together. Month 0 — starts when you&apos;re ready.
+            </p>
+          </div>
+          {identity}
+        </header>
+
+        <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Your plan is ready. The ladder ahead, the buckets, the €4.000-a-month rhythm — it all
+          starts the month you set your launch date. No streak is running yet; nothing to catch up
+          on.
+        </p>
+
+        {/* The launch-date CTA — the single primary action pre-launch (D5-16). Native date input +
+            a server-action <form> (no client JS needed; works on Fernanda's mobile). */}
+        <form
+          action={setLaunchDate}
+          className="flex flex-wrap items-end gap-3 rounded-xl bg-card p-6 ring-1 ring-foreground/10"
+        >
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="launchDate" className="text-sm font-medium">
+              Set your launch date
+            </label>
+            <input
+              id="launchDate"
+              name="launchDate"
+              type="date"
+              required
+              className="min-h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--brand)] px-5 text-sm font-medium text-white transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            Begin the journey
+          </button>
+        </form>
+
+        {/* The "why" as PRIMARY content + the ghosted ladder side by side. */}
+        <div className="grid grid-cols-1 gap-6 @3xl/main:grid-cols-2">
+          <SharedWhyCard why={household.why} attribution={attribution} />
+          <MilestoneLadder wealth={0} denominator={GOAL_EUR} rungs={rungs} preLaunch />
+        </div>
+
+        {/* The three buckets, defined but DORMANT (visible + hopeful, not absent). */}
+        <section aria-label="Your buckets, waiting to fund">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Your buckets — ready when you launch
+          </h2>
+          <div className="mt-3 grid grid-cols-1 gap-4 @xl/main:grid-cols-3">
+            {[
+              { name: "Wealth", note: "Pay-yourself-first toward €100k" },
+              { name: "Brazil", note: "The trips home" },
+              { name: "Adventures", note: "The bigger journeys" },
+            ].map((b) => (
+              <div key={b.name} className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+                <div className="text-sm font-medium">{b.name}</div>
+                <div className="mt-1 font-mono text-3xl font-semibold tabular-nums leading-none text-muted-foreground/60">
+                  {formatEUR(0, 0)}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{b.note} · dormant until launch</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // ---------- ACTIVE / mid-journey (post-launch) ----------
+  const invByPeriod = new Map<number, number>(
+    (allPnl ?? []).map((r) => [Number(r.period_key), num(r.investimento)] as const),
+  );
+  const streak: StreakResult = computeStreak(invByPeriod, now, launchDate);
+
+  // The full streak chain: every CLOSED post-launch month, oldest → newest (hit = ≥€4k).
+  const chainKeys: number[] = [];
+  for (let k = launchKey!; k < currentKey; ) {
+    chainKeys.push(k);
+    const mm = k % 100;
+    k = mm === 12 ? (Math.floor(k / 100) + 1) * 100 + 1 : k + 1;
+  }
+  const chain = chainKeys.map((key) => ({ key, hit: (invByPeriod.get(key) ?? -1) >= 4000 }));
+  const provisionalHit = (invByPeriod.get(currentKey) ?? -1) >= 4000;
+
+  // The honest, confidence-gated ETA (D5-15) to the active €100k rung, from the trailing pace.
+  const postLaunchMonthly = periodsAsc
+    .filter((r) => Number(r.period_key) >= launchKey!)
+    .map((r) => num(r.investimento));
+  const eta = computeEta({
+    remaining: Math.max(0, denominator - goalTotal),
+    monthlyContributions: postLaunchMonthly.slice(-6),
+  });
+  const etaSentence =
+    eta.confident && eta.minYears !== null && eta.maxYears !== null
+      ? `~${Math.max(1, Math.round(eta.minYears))}–${Math.max(
+          Math.max(1, Math.round(eta.minYears)),
+          Math.round(eta.maxYears),
+        )} years at your current pace.`
+      : "Building your pace — your ETA appears after a couple of funded months.";
+
+  // Buckets (post-launch balances).
+  const brazil = goalState.brazil;
+  const advSpendable = spendableAdventuresSmall(goalState);
+  const advAccruing = goalState.advSmallLocked + goalState.advBig;
+
+  // PERS-05 suggest-only nudge: six closed post-launch months in a row each over €5.000 → SUGGEST
+  // raising targets. This NEVER writes a target — it is a suggestion the couple decides on.
+  const lastSixClosed = chain.slice(-6);
+  const raiseTargetsNudge =
+    lastSixClosed.length === 6 &&
+    lastSixClosed.every((m) => (invByPeriod.get(m.key) ?? 0) > 5000);
+
+  return (
+    <div className="@container/main space-y-8">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Our €100k — the journey</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Building €100k together · Month {tenureMonth}
+          </p>
+        </div>
+        {identity}
+      </header>
+
+      {/* HERO — the Wealth cost basis (the €100k figure). Labeled unambiguously; distinct from any
+          all-bucket total (the hard visual rule, D5-02). */}
+      <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Invested toward €100.000
+        </div>
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="font-mono text-3xl font-semibold tabular-nums leading-none">
+            {formatEUR(goalTotal, 0)}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            of{" "}
+            <span className="font-mono tabular-nums">{formatEUR(denominator, 0)}</span> ·{" "}
+            {formatPct(pct)}
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">{etaSentence}</p>
+
+        {/* The full €4k streak chain (never red; a lighter month is neutral — D5-07). */}
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center gap-1.5" aria-hidden="true">
+            {chain.map((m) => (
+              <span
+                key={m.key}
+                className={`size-2.5 rounded-full ${m.hit ? "bg-[var(--gain)]" : "bg-[var(--neutral-data)]"}`}
+              />
+            ))}
+            <span
+              className={`size-3 rounded-full ring-2 ring-[var(--brand)] ${provisionalHit ? "bg-[var(--gain)]" : "bg-transparent"}`}
+            />
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {streak.comeback
+              ? `Back on track — the chain is alive again. Longest: ${streak.longest} months.`
+              : streak.isBroken
+                ? `Chain restarted — back on it. Longest: ${streak.longest} months.`
+                : `${streak.current} month${streak.current === 1 ? "" : "s"} in a row · longest ${streak.longest}.`}
+          </p>
+        </div>
+      </section>
+
+      {/* THE LADDER + the shared why. */}
+      <div className="grid grid-cols-1 gap-6 @3xl/main:grid-cols-2">
+        <MilestoneLadder wealth={goalTotal} denominator={denominator} rungs={rungs} />
+        <SharedWhyCard why={household.why} attribution={attribution} />
+      </div>
+
+      {/* PERS-05 suggest-only nudge — a suggestion the couple decides on; NEVER auto-changes a target. */}
+      {raiseTargetsNudge && (
+        <div
+          role="note"
+          className="flex items-start gap-3 rounded-xl border border-[var(--brand)]/30 bg-[var(--brand-muted)] p-4 text-sm"
+        >
+          <Sparkles aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--brand)]" />
+          <p>
+            You invested over €5.000 for 6 months running — want to raise your targets? You decide.
+          </p>
+        </div>
+      )}
+
+      {/* The multi-goal buckets (Brazil + Adventures). The Wealth engine is the hero above. */}
+      <section aria-label="Your buckets">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Your buckets
+        </h2>
+        <div className="mt-3 grid grid-cols-1 gap-4 @xl/main:grid-cols-2">
+          {/* Brazil — factual debt framing when negative (D5-06/GOAL-09), never blame. */}
+          <div className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+            <div className="text-sm font-medium">Brazil</div>
+            <div
+              className={`mt-1 font-mono text-3xl font-semibold tabular-nums leading-none ${brazil < 0 ? "text-[var(--loss)]" : ""}`}
+            >
+              {formatEUR(brazil, 0)}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {brazil < 0
+                ? `Brazil is ${formatEUR(-brazil, 0)} behind — the next transfer settles this first.`
+                : "The trips home."}
+            </p>
+          </div>
+
+          {/* Adventures — the hard-lock two-number display (D5-11): Spendable prominent, Accruing secondary. */}
+          <div className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+            <div className="text-sm font-medium">Adventures</div>
+            <div className="mt-1 flex items-center gap-1 font-mono text-3xl font-semibold tabular-nums leading-none text-[var(--gain)]">
+              <TrendingUp aria-hidden="true" className="size-5 shrink-0" />
+              {formatEUR(advSpendable, 0)}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Spendable now</p>
+            <p className="mt-2 text-sm text-[var(--neutral-data)]">
+              Accruing (unlocks at the next €10k): {formatEUR(advAccruing, 0)}
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

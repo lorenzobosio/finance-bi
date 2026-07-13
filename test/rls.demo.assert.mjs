@@ -415,10 +415,14 @@ try {
   // ===========================================================================
   let itId = null;
   try {
-    // A minimal real (is_demo=false) settings row the anon role must NOT see. Band columns carry
-    // seeded defaults (0015), so only the partition literal is supplied.
+    // A real (is_demo=false) settings row the anon role must NOT see. The band columns are NOT NULL
+    // with NO column default (0015: the seed provides ONE complete real row; the app's threshold
+    // editor writes full rows; the demo partition relies on the code-side DEFAULT_BANDS fallback),
+    // so supply the default band values explicitly alongside the partition literal.
     [{ id: itId }] = await sql`
-      insert into public.insight_thresholds (is_demo) values (false) returning id`;
+      insert into public.insight_thresholds
+        (savings_rate_healthy, savings_rate_watch, reserve_healthy, reserve_watch, budget_over_watch_pct, streak_watch_misses, is_demo)
+      values (0.20, 0.10, 6, 3, 0.10, 1, false) returning id`;
     const itLeak = await asAnon((tx) => tx`
       select count(*)::int as c from public.insight_thresholds where id = ${itId}`);
     if (itLeak[0].c !== 0)
@@ -428,10 +432,14 @@ try {
     if (itForged[0].c !== 0)
       fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${itForged[0].c} insight_thresholds row(s) (expected 0)`);
 
-    // Write-deny: anon cannot INSERT (no anon write policy → RLS rejects). A successful insert fails.
+    // Write-deny: anon cannot INSERT (no anon write policy → RLS rejects). Supply full band columns
+    // so the ONLY reason the insert fails is the RLS denial, not a NOT-NULL violation. A successful
+    // insert fails the test.
     let wroteIt = false;
     try {
-      await asAnon((tx) => tx`insert into public.insight_thresholds (is_demo) values (true)`);
+      await asAnon((tx) => tx`insert into public.insight_thresholds
+        (savings_rate_healthy, savings_rate_watch, reserve_healthy, reserve_watch, budget_over_watch_pct, streak_watch_misses, is_demo)
+        values (0.20, 0.10, 6, 3, 0.10, 1, true)`);
       wroteIt = true;
     } catch {
       // expected — RLS denies the anon insert.

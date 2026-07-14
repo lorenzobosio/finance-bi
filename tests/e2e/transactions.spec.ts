@@ -28,3 +28,39 @@ test.describe("Transactions — the demo table renders rows", () => {
     expect(bodyText.toLowerCase()).not.toContain("fernanda");
   });
 });
+
+// Power-table critical-flow E2E (TXN-01/02, D-03/04/05). Authored RED in Wave 0 — turns green after
+// 08-04 upgrades the transactions page to the @tanstack/react-table power table (filter/sort/search
+// toolbar in URL params) and 08-05 adds the owner-filtered CSV export. Runs on the same seeded anon
+// demo build. Contract for 08-04: the toolbar has a search input (placeholder /search/i) + at least one
+// filter control (a combobox); filters live in URL search params (e.g. ?flow=cost). Contract for 08-05:
+// an "Export CSV" affordance is visible on the page.
+test.describe("Transactions — the upgraded power table (filter / search / CSV)", () => {
+  test("renders the filter + search toolbar", async ({ page }) => {
+    await page.goto("/transactions");
+    // A free-text search input (D-04) …
+    await expect(page.getByPlaceholder(/search/i)).toBeVisible();
+    // … and at least one filter control (category / cost center / account / flow — a select/combobox).
+    await expect(page.getByRole("combobox").first()).toBeVisible();
+  });
+
+  test("applying a filter via URL search param still renders a populated table with no PII", async ({
+    page,
+  }) => {
+    // Filters are shareable URL params (D-04) — a direct hit still server-renders a populated table.
+    await page.goto("/transactions?flow=cost");
+    await expect(page.locator("table").first()).toBeVisible();
+    await expect(page.getByText("No transactions yet")).toHaveCount(0);
+    const bodyText = (await page.textContent("body")) ?? "";
+    expect(bodyText.toLowerCase()).not.toContain("lorenzo");
+    expect(bodyText.toLowerCase()).not.toContain("fernanda");
+  });
+
+  test("exposes a CSV export affordance", async ({ page }) => {
+    await page.goto("/transactions");
+    // The owner-only, filter-respecting CSV export (D-05) — a visible link/button.
+    await expect(page.getByRole("link", { name: /export csv/i }).or(
+      page.getByRole("button", { name: /export csv/i }),
+    )).toBeVisible();
+  });
+});

@@ -584,12 +584,28 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     trailingMonthlyCosts.push(monthCosts);
   });
 
-  // A pre-seeded synthetic insight (rich AI copy is Phase 6 — this is a structural stub so the
-  // anon demo-visible gate sees an insights row; no PII, no real € figure).
+  // Authored PII-free demo insights (AI-05, Phase 6): the demo voice is ALIVE with ZERO model call.
+  // Three hand-written rows in the owner's warm, true, non-shame CFO-memo tone — a weekly_report (the
+  // lead voice), a whats_changed monthly MoM note, and one non-shame overspend flag. Synthetic copy
+  // only: no @, no IBAN-shaped token, no real-owner name, no € tied to real data (the figures echo the
+  // demo's own locked narrative — ~56% to €100k, the €4k streak, the crossed €50k milestone).
   const insights: DemoInsight[] = [
     {
-      kind: "demo",
-      body: "Great liquidity that break month — but the monthly contribution paused. Back on track now.",
+      kind: "weekly_report",
+      body:
+        "You're about 44 thousand from the 100k invested goal, and this month behaved like a healthy business: four thousand went to future-you before anything else, and the operating margin stayed positive. The cash reserve still covers more than seven months of costs. A steady, calm week — keep the rhythm going.",
+      isDemo: true,
+    },
+    {
+      kind: "whats_changed",
+      body:
+        "Compared with last month, revenue held steady while shared costs eased a little, nudging the margin up. The four-thousand contribution landed on schedule again, so the invested total keeps climbing past the fifty-thousand milestone toward the next one. Nothing needs your attention this month.",
+      isDemo: true,
+    },
+    {
+      kind: "overspend",
+      body:
+        "One flag worth a glance: the shared cost center ran a bit ahead of its budget this month. It looks like a normal seasonal bump rather than a problem, and everything else stayed comfortably inside its lines. Worth a quick look together next week, nothing more.",
       isDemo: true,
     },
   ];

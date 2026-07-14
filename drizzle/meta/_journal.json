@@ -127,6 +127,13 @@
       "when": 1782216695000,
       "tag": "0017_accounts_summary",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782216696000,
+      "tag": "0018_recurring_series",
+      "breakpoints": true
     }
   ]
 }

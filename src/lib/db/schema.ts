@@ -417,3 +417,33 @@ export const reconciliationFlags = pgTable('reconciliation_flags', {
   detectedAt: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
   isDemo: boolean('is_demo').notNull().default(false),
 });
+
+// ---------------------------------------------------------------------------
+// Phase-9 (0018) cashflow-forecasting recurring-series table (FLOW-01).
+//
+// DDL-vs-RLS split (0001/0002 convention): this def is the DDL source of truth; the RLS enable +
+// allowlist_all (authenticated) + anon `is_demo = true` SELECT policy are hand-written in
+// drizzle/0018_recurring_series.sql (Drizzle does not manage RLS). Mirrors how 0010–0017 hand-write
+// the demo isolation + anon-read surface. NO seed here — real series are user-confirmed (09-03),
+// the PII-free demo series are seeded by scripts/seed-demo.ts.
+// ---------------------------------------------------------------------------
+
+// recurring_series — the source of truth for the managed recurring list (09-03), the bills calendar
+// (09-05), and the cash-flow projection (09-06). DEMO-BEARING: real series carry is_demo=false; the
+// public demo seeds a few PII-free is_demo=true series so the anon /cashflow renders alive. series_key
+// = the stable cluster key (normalized counterparty + amount) the detector emits and confirm/dismiss
+// idempotency keys on. cadence = 'weekly' | 'monthly' | 'yearly'; next_date nullable (a just-detected
+// candidate may have no next occurrence yet). status = 'active' | 'dismissed'. category = the optional
+// per-series taxonomy label (A6). is_income (D-08) lanes an income series (salary) apart from a bill.
+export const recurringSeries = pgTable('recurring_series', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  seriesKey: text('series_key').notNull(),
+  label: text('label').notNull(),
+  amountEur: numeric('amount_eur', { precision: 14, scale: 2 }).notNull(),
+  cadence: text('cadence').notNull(), // 'weekly' | 'monthly' | 'yearly'
+  nextDate: date('next_date'), // nullable: a just-detected candidate may have no next occurrence yet
+  status: text('status').notNull().default('active'), // 'active' | 'dismissed'
+  category: text('category'), // optional per-series taxonomy label (A6)
+  isIncome: boolean('is_income').notNull().default(false), // D-08: income series vs bill
+  isDemo: boolean('is_demo').notNull().default(false),
+});

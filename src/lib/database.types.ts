@@ -666,6 +666,51 @@ export type Database = {
           },
         ];
       };
+      // recurring_series: the FLOW-01 source of truth for the managed recurring list (09-03), the
+      // bills calendar (09-05), and the cash-flow projection (09-06), added by 0018. DEMO-BEARING:
+      // real series carry is_demo=false; the public demo seeds PII-free is_demo=true series. amount_eur
+      // is numeric → Money string over the wire; next_date is a nullable date → string | null. cadence
+      // = 'weekly'|'monthly'|'yearly'; status = 'active'|'dismissed'; is_income lanes income vs a bill
+      // (D-08); category is the optional per-series taxonomy label (A6). NO PII column beyond the label.
+      recurring_series: {
+        Row: {
+          id: string;
+          series_key: string;
+          label: string;
+          amount_eur: Money;
+          cadence: string;
+          next_date: string | null;
+          status: string;
+          category: string | null;
+          is_income: boolean;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          series_key: string;
+          label: string;
+          amount_eur: Money | number;
+          cadence: string;
+          next_date?: string | null;
+          status?: string;
+          category?: string | null;
+          is_income?: boolean;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          series_key?: string;
+          label?: string;
+          amount_eur?: Money | number;
+          cadence?: string;
+          next_date?: string | null;
+          status?: string;
+          category?: string | null;
+          is_income?: boolean;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       // --- Analytics marts (read-only; mirror drizzle/0007_marts.sql) -------------------

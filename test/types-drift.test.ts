@@ -70,3 +70,19 @@ describe("diffColumnSets — a nullability FLIP is drift", () => {
     expect(drift.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("diffColumnSets — v_* view nullability is NOT compared (DAT-03)", () => {
+  it("does not flag a view column whose live nullability differs from declared (Postgres reports every view column nullable regardless of COALESCE)", async () => {
+    const diff = await loadDiff();
+    const declared = [{ table: "v_pnl_monthly", column: "revenue", nullable: false }];
+    const live = [{ table: "v_pnl_monthly", column: "revenue", nullable: true }];
+    expect(diff(live, declared)).toHaveLength(0);
+  });
+
+  it("still flags a renamed/dropped VIEW column (name drift on views is real)", async () => {
+    const diff = await loadDiff();
+    const declared = [{ table: "v_pnl_monthly", column: "revenue", nullable: false }];
+    const live = [{ table: "v_pnl_monthly", column: "revenue_renamed", nullable: true }];
+    expect(diff(live, declared).length).toBeGreaterThanOrEqual(1);
+  });
+});

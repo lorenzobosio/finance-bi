@@ -68,43 +68,70 @@ export type Database = {
       };
       // --- Writable base tables (Server Actions) ---------------------------------------
       transactions: {
+        // Row mirrors the LIVE public.transactions column set exactly (DAT-03 drift gate — the
+        // ingestion columns from Phase-1 0003/0004 + the go-forward nullability are declared here so
+        // `pnpm types:drift` stays green; nullability matches information_schema).
         Row: {
           id: string;
-          account_id: string | null;
-          booking_date: string | null;
+          account_id: string;
+          booking_date: string;
+          value_date: string | null;
           description: string | null;
           description_raw: string | null;
           counterparty: string | null;
+          counterparty_iban: string | null;
           amount_eur: Money;
           flow_type: string | null;
           category_id: string | null;
           cost_center: string | null;
+          rule_id: string | null;
+          import_batch_id: string | null;
+          dedupe_hash: string;
+          created_at: string;
+          is_recurring: boolean;
+          status: string | null;
           is_demo: boolean;
         };
         Insert: {
           id?: string;
-          account_id?: string | null;
-          booking_date?: string | null;
+          account_id?: string;
+          booking_date?: string;
+          value_date?: string | null;
           description?: string | null;
           description_raw?: string | null;
           counterparty?: string | null;
+          counterparty_iban?: string | null;
           amount_eur?: Money;
           flow_type?: string | null;
           category_id?: string | null;
           cost_center?: string | null;
+          rule_id?: string | null;
+          import_batch_id?: string | null;
+          dedupe_hash?: string;
+          created_at?: string;
+          is_recurring?: boolean;
+          status?: string | null;
           is_demo?: boolean;
         };
         Update: {
           id?: string;
-          account_id?: string | null;
-          booking_date?: string | null;
+          account_id?: string;
+          booking_date?: string;
+          value_date?: string | null;
           description?: string | null;
           description_raw?: string | null;
           counterparty?: string | null;
+          counterparty_iban?: string | null;
           amount_eur?: Money;
           flow_type?: string | null;
           category_id?: string | null;
           cost_center?: string | null;
+          rule_id?: string | null;
+          import_batch_id?: string | null;
+          dedupe_hash?: string;
+          created_at?: string;
+          is_recurring?: boolean;
+          status?: string | null;
           is_demo?: boolean;
         };
         // Embedded-relation reads (`accounts(name), categories(name)`) need the FK relationships
@@ -285,9 +312,10 @@ export type Database = {
       rules: {
         Row: {
           id: string;
-          match_criteria: Json;
+          match_criteria: Json | null;
           set_category: string | null;
           set_cost_center: string | null;
+          set_flow_type: string | null;
           priority: number;
           version: number;
           created_at: string;
@@ -297,6 +325,7 @@ export type Database = {
           match_criteria: Json;
           set_category?: string | null;
           set_cost_center?: string | null;
+          set_flow_type?: string | null;
           priority?: number;
           version?: number;
           created_at?: string;
@@ -306,6 +335,7 @@ export type Database = {
           match_criteria?: Json;
           set_category?: string | null;
           set_cost_center?: string | null;
+          set_flow_type?: string | null;
           priority?: number;
           version?: number;
           created_at?: string;
@@ -315,43 +345,109 @@ export type Database = {
       connections: {
         Row: {
           id: string;
+          account_ref: string | null;
+          provider: string | null;
+          expires_at: string | null;
+          status: string | null;
           last_pull_at: string | null;
           consent_status: string | null;
+          session_id: string | null;
           created_at: string;
           is_demo: boolean;
         };
         Insert: {
           id?: string;
+          account_ref?: string | null;
+          provider?: string | null;
+          expires_at?: string | null;
+          status?: string | null;
           last_pull_at?: string | null;
           consent_status?: string | null;
+          session_id?: string | null;
           created_at?: string;
           is_demo?: boolean;
         };
         Update: {
           id?: string;
+          account_ref?: string | null;
+          provider?: string | null;
+          expires_at?: string | null;
+          status?: string | null;
           last_pull_at?: string | null;
           consent_status?: string | null;
+          session_id?: string | null;
           created_at?: string;
           is_demo?: boolean;
         };
         Relationships: [];
       };
       categories: {
-        Row: { id: string; name: string };
-        Insert: { id?: string; name: string };
-        Update: { id?: string; name?: string };
+        Row: {
+          id: string;
+          name: string;
+          group: string;
+          parent_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          group?: string;
+          parent_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          group?: string;
+          parent_id?: string | null;
+        };
         Relationships: [];
       };
       cost_centers: {
-        Row: { code: string; label: string };
-        Insert: { code: string; label: string };
-        Update: { code?: string; label?: string };
+        Row: { code: string; label: string | null };
+        Insert: { code: string; label?: string | null };
+        Update: { code?: string; label?: string | null };
         Relationships: [];
       };
       accounts: {
-        Row: { id: string; name: string };
-        Insert: { id?: string; name: string };
-        Update: { id?: string; name?: string };
+        Row: {
+          id: string;
+          member_id: string | null;
+          name: string;
+          kind: string | null;
+          default_cost_center: string | null;
+          currency: string;
+          is_investment: boolean;
+          enable_banking_id: string | null;
+          iban: string | null;
+          is_synced: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id?: string | null;
+          name: string;
+          kind?: string | null;
+          default_cost_center?: string | null;
+          currency?: string;
+          is_investment?: boolean;
+          enable_banking_id?: string | null;
+          iban?: string | null;
+          is_synced?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string | null;
+          name?: string;
+          kind?: string | null;
+          default_cost_center?: string | null;
+          currency?: string;
+          is_investment?: boolean;
+          enable_banking_id?: string | null;
+          iban?: string | null;
+          is_synced?: boolean;
+          created_at?: string;
+        };
         Relationships: [];
       };
       // --- Phase-5 (0014) Goal-as-a-Journey tables --------------------------------------

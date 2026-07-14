@@ -18,6 +18,10 @@ import {
   type InsightThresholdsReadClient,
 } from "@/lib/health/thresholds";
 import { currentPeriodKey } from "@/lib/period";
+import {
+  readOpenReconcileFlags,
+  type ReconcileReadClient,
+} from "@/lib/reconcile/read";
 import { createClient } from "@/lib/supabase/server";
 
 // The Financial-Health scorecard page (`/health`, D-05). It NARRATES the five metrics (HEALTH-02) —
@@ -78,6 +82,13 @@ export default async function HealthPage() {
     .eq("period_key", currentKey)
     .eq("is_demo", demoFilter)
     .is("category_id", null);
+
+  // Data-reconciliation drill-down (DAT-02) — the OPEN flags for the active partition, is_demo-scoped
+  // under RLS (T-07-05: a missing filter would blend real discrepancies into the public demo).
+  const { flags: reconcileFlags } = await readOpenReconcileFlags(
+    supabase as unknown as ReconcileReadClient,
+    demoFilter,
+  );
 
   const hasAnyData = (allPnl ?? []).length > 0;
 
@@ -243,8 +254,60 @@ export default async function HealthPage() {
           </div>
         </>
       )}
+
+      {/* Data reconciliation drill-down (DAT-02) — factual, non-shame: either a calm "all reconciled"
+          empty state or the open flags with expected/actual/delta in font-mono tabular-nums. */}
+      <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Data reconciliation
+        </div>
+        {reconcileFlags.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            All reconciled — your balances and totals tie out to the bank.
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {reconcileFlags.length}{" "}
+              {reconcileFlags.length === 1 ? "discrepancy" : "discrepancies"} to review —
+              the numbers below don&apos;t yet tie out.
+            </p>
+            <ul className="mt-4 space-y-3">
+              {reconcileFlags.map((f, i) => (
+                <li
+                  key={`${f.periodKey}-${f.kind}-${i}`}
+                  className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-foreground/5 pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="text-sm">
+                    <span className="font-medium">{periodLabel(f.periodKey)}</span>
+                    <span className="ml-2 text-muted-foreground">
+                      {f.kind === "balance_delta"
+                        ? "Balance vs ledger"
+                        : "Mart vs source"}
+                    </span>
+                  </div>
+                  <div className="font-mono text-sm tabular-nums text-[var(--neutral-data)]">
+                    expected {formatEUR(f.expectedEur, 2)} · actual{" "}
+                    {formatEUR(f.actualEur, 2)} ·{" "}
+                    <span className="text-[var(--warning)]">
+                      Δ {formatEUR(f.deltaEur, 2)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
     </div>
   );
+}
+
+/** Render a YYYYMM period key as "YYYY-MM" (e.g. 202607 → "2026-07"). */
+function periodLabel(periodKey: number): string {
+  const yyyy = Math.floor(periodKey / 100);
+  const mm = String(periodKey % 100).padStart(2, "0");
+  return `${yyyy}-${mm}`;
 }
 
 // A single band read line for the detail cards (icon + text + tone color — color never sole signal).

@@ -4,6 +4,7 @@ import { CelebrationOverlay, type CelebrationEvent } from "@/components/celebrat
 import { MilestoneLadder, type LadderRung } from "@/components/milestone-ladder";
 import { SharedWhyCard } from "@/components/shared-why-card";
 import { TrophyShelf, type TrophySeal } from "@/components/trophy-shelf";
+import { WhatIfPanel } from "@/components/goal/what-if-panel";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { setLaunchDate } from "@/lib/actions/set-launch-date";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
@@ -288,6 +289,16 @@ export default async function GoalPage() {
   // hand-rolled duplicate that could regress to "~1–1 years").
   const etaSentence = etaLine(eta);
 
+  // The what-if base pace: the average of the FUNDED (>0) months in the SAME trailing window the
+  // hero ETA uses (guard the empty case to 0). Reuses the already-is_demo-partitioned reads — no
+  // new query (WHATIF-02, Pitfall 4). The panel receives plain numbers only (no client Supabase).
+  const trailingSix = postLaunchMonthly.slice(-6);
+  const fundedTrailing = trailingSix.filter((m) => m > 0);
+  const baseMonthlyContribution =
+    fundedTrailing.length > 0
+      ? fundedTrailing.reduce((sum, m) => sum + m, 0) / fundedTrailing.length
+      : 0;
+
   // Buckets (post-launch balances).
   const brazil = goalState.brazil;
   const advSpendable = spendableAdventuresSmall(goalState);
@@ -396,6 +407,15 @@ export default async function GoalPage() {
           </p>
         </div>
       </section>
+
+      {/* THE "WHAT IF?" PANEL — the reporting app becomes a planning app (WHATIF-02, active branch
+          only; hidden pre-launch where no baseline pace exists). Fed by the already-resolved,
+          is_demo-partitioned numbers — no new read. Ephemeral: it never writes or mutates the goal. */}
+      <WhatIfPanel
+        currentInvested={goalTotal}
+        baseMonthlyContribution={baseMonthlyContribution}
+        trailingContributions={trailingSix}
+      />
 
       {/* THE LADDER + the shared why. */}
       <div className="grid grid-cols-1 gap-6 @3xl/main:grid-cols-2">

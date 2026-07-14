@@ -124,6 +124,7 @@ export interface SeedCounts {
   household: number;
   goalEvents: number;
   transferOverrides: number;
+  recurringSeries: number;
 }
 
 /**
@@ -150,6 +151,7 @@ export async function seedDemo(
     household: 0,
     goalEvents: 0,
     transferOverrides: 0,
+    recurringSeries: 0,
   };
 
   try {
@@ -171,6 +173,8 @@ export async function seedDemo(
       // The Phase-5 goal-journey demo-bearing singletons/events (no FK into transactions).
       await tx`delete from public.goal_events where is_demo = true`;
       await tx`delete from public.household where is_demo = true`;
+      // The Phase-9 recurring-series demo rows (0018, no FK into transactions).
+      await tx`delete from public.recurring_series where is_demo = true`;
       // The demo accounts (ACC-01): after 0017 they carry is_demo=true — delete on it, plus the
       // name-prefix net that also catches a pre-0017 demo account (is_demo=false default). The member
       // carries no is_demo column — match its exact synthetic name. Accounts go before the member
@@ -363,6 +367,18 @@ export async function seedDemo(
             (${row.id as string}, ${to.wealthEur}, ${to.brazilEur}, ${to.advSmallEur}, ${to.advBigEur}, ${to.isDemo})`;
         counts.transferOverrides += 1;
       }
+
+      // --- 13. recurring_series (FLOW-01, 0018): the PII-free `active` demo series the anon
+      //         /cashflow renders (managed list + bills calendar). is_demo=true so the anon
+      //         demo_anon_read policy surfaces them; persona-neutral labels only (no PII). ---
+      for (const rs of dataset.recurringSeries) {
+        await tx`
+          insert into public.recurring_series
+            (series_key, label, amount_eur, cadence, next_date, status, category, is_income, is_demo)
+          values
+            (${rs.seriesKey}, ${rs.label}, ${rs.amountEur}, ${rs.cadence}, ${rs.nextDate}, ${rs.status}, ${rs.category}, ${rs.isIncome}, ${rs.isDemo})`;
+        counts.recurringSeries += 1;
+      }
     });
 
     return counts;
@@ -385,7 +401,8 @@ if (invokedDirectly) {
           `goals=${c.goals} milestones=${c.milestones} budgets=${c.budgets} ` +
           `transactions=${c.transactions} balances=${c.balances} ` +
           `investment_contributions=${c.investmentContributions} insights=${c.insights} ` +
-          `household=${c.household} goal_events=${c.goalEvents} transfer_overrides=${c.transferOverrides}`,
+          `household=${c.household} goal_events=${c.goalEvents} transfer_overrides=${c.transferOverrides} ` +
+          `recurring_series=${c.recurringSeries}`,
       );
       process.exit(0);
     })

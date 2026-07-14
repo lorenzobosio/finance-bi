@@ -188,6 +188,34 @@ export interface DemoInvestmentContribution {
   isDemo: true;
 }
 
+/** A generated recurring-series row (FLOW-01, mirrors `recurring_series`). PII-free by construction:
+ *  persona-neutral merchant labels (no real merchant / IBAN / owner name), is_demo=true. `cadence`
+ *  = 'weekly' | 'monthly' | 'yearly'; `nextDate` is anchored INSIDE the calendar's 60-day / the
+ *  projection's 6-month windows (measured from DEMO_NOW_ISO = 2026-03-31) so the anon demo renders
+ *  populated with ZERO external calls (Pitfall 2). `isIncome` lanes a salary income series apart from
+ *  a bill (D-08). `category` is the optional per-series taxonomy label (A6) — null for the income leg. */
+export interface DemoRecurringSeries {
+  seriesKey: string; // stable cluster key (persona-neutral) — confirm/dismiss idempotency
+  label: string; // synthetic merchant/bill label only (no PII)
+  amountEur: number; // positive magnitude
+  cadence: "weekly" | "monthly" | "yearly";
+  nextDate: string; // YYYY-MM-DD, anchored inside the demo windows
+  status: "active"; // the demo seeds only confirmed-active series
+  category: string | null; // optional taxonomy label (null for the income leg)
+  isIncome: boolean; // D-08: income series (salary) vs a bill
+  isDemo: true;
+}
+
+/** A generated cash-flow projection month (FLOW-04, the balance-forward position the demo chart
+ *  renders). `opening` steps from the prior month's `close`; all rows are `isProjected: true` (the
+ *  projection is forward of the demo's latest data month — the dashed "Expected" segment, D-10). */
+export interface DemoCashflowProjection {
+  periodKey: number; // YYYYMM
+  opening: number;
+  close: number;
+  isProjected: boolean;
+}
+
 /** A generated insight row (a pre-seeded synthetic narrative stub — populated richly in Phase 6). */
 export interface DemoInsight {
   kind: string;
@@ -282,6 +310,13 @@ export interface DemoDataset {
   bucketState: BucketState;
   /** The SPENDABLE Adventures-small amount (the unlocked tranche only, D5-11) at the fold's end. */
   adventuresSmallSpendableEur: number;
+  // --- Phase-9 cashflow-forecasting surface (FLOW-01/04, D-11) ---
+  /** The PII-free `active` recurring series the anon /cashflow demo renders (managed list + bills
+   *  calendar): persona-neutral bill labels + ≥1 salary income leg (isIncome=true), next_date anchored
+   *  inside the demo windows so the calendar/projection land on data. is_demo=true, zero external call. */
+  recurringSeries: DemoRecurringSeries[];
+  /** The 6-month balance-forward cash-flow projection the demo chart renders (all isProjected=true). */
+  cashflowProjection: DemoCashflowProjection[];
 }
 
 // ---------------------------------------------------------------------------
@@ -378,6 +413,102 @@ const BUCKET_SPEND: Array<{
 
 // Cash account handle (the only account the demo balances/transactions land on — cash-only).
 const CASH_ACCOUNT = "demo-cash";
+
+// ---------------------------------------------------------------------------
+// Phase-9 cashflow-forecasting demo surface (FLOW-01/04, D-11). The PII-free `active` recurring
+// series that light up the anon /cashflow demo (managed list + bills calendar + safe-to-spend) with
+// ZERO external calls. Persona-neutral labels only (no real merchant / IBAN / owner name — the
+// no-PII gate greps the serialized dataset). next_date is anchored to APRIL 2026 so it lands inside
+// BOTH the calendar's 60-day and the projection's 6-month windows measured from DEMO_NOW_ISO
+// (2026-03-31, the demo's latest data month) — Pitfall 2 (a wall-clock/off-window anchor renders the
+// demo dead). ≥1 salary INCOME series (isIncome=true) is laned apart from the bills (D-08).
+const DEMO_RECURRING_SERIES: DemoRecurringSeries[] = [
+  {
+    seriesKey: "demo-salary",
+    label: "Monthly Salary",
+    amountEur: SALARY_ALEX + SALARY_SAM, // 8200 — the combined household income leg
+    cadence: "monthly",
+    nextDate: "2026-04-30",
+    status: "active",
+    category: null, // income legs carry no cost taxonomy
+    isIncome: true, // D-08: the income lane
+    isDemo: true,
+  },
+  {
+    seriesKey: "demo-housing",
+    label: "Rent",
+    amountEur: 700,
+    cadence: "monthly",
+    nextDate: "2026-04-01",
+    status: "active",
+    category: "Housing",
+    isIncome: false,
+    isDemo: true,
+  },
+  {
+    seriesKey: "demo-utilities",
+    label: "Utilities",
+    amountEur: 180,
+    cadence: "monthly",
+    nextDate: "2026-04-05",
+    status: "active",
+    category: "Utilities",
+    isIncome: false,
+    isDemo: true,
+  },
+  {
+    seriesKey: "demo-streaming",
+    label: "Streaming Service",
+    amountEur: 80,
+    cadence: "monthly",
+    nextDate: "2026-04-15",
+    status: "active",
+    category: "Entertainment",
+    isIncome: false,
+    isDemo: true,
+  },
+];
+
+// The projection horizon: 6 months forward of the demo's latest data month (202603). The first
+// projected month is Apr 2026. A monthly discretionary estimate rounds out the balance-forward step
+// (income − recurring bills − the €4k pay-yourself-first contribution − discretionary).
+const DEMO_PROJECTION_HORIZON = 6;
+const DEMO_PROJECTION_START_PERIOD = 202604; // Apr 2026 — the first month past DEMO_NOW_ISO
+const DEMO_MONTHLY_DISCRETIONARY = 2500; // a plausible flat discretionary lane (synthetic)
+
+/** Advance a YYYYMM period key by one month (Dec → next-year Jan). */
+function nextPeriodKey(periodKey: number): number {
+  const year = Math.floor(periodKey / 100);
+  const month = periodKey % 100;
+  return month === 12 ? (year + 1) * 100 + 1 : periodKey + 1;
+}
+
+/** Build the 6-month balance-forward projection (FLOW-04) the demo chart renders. Deterministic —
+ *  pure arithmetic over the seeded recurring series + the fixed contribution, opening at the demo's
+ *  closing cash reserve. Every month is isProjected=true (forward of the latest data month, D-10). */
+function buildDemoProjection(openingCashEur: number): DemoCashflowProjection[] {
+  const monthlyIncome = DEMO_RECURRING_SERIES.filter((s) => s.isIncome).reduce(
+    (acc, s) => acc + s.amountEur,
+    0,
+  );
+  const monthlyRecurringOutflows = DEMO_RECURRING_SERIES.filter((s) => !s.isIncome).reduce(
+    (acc, s) => acc + s.amountEur,
+    0,
+  );
+  const monthlyNet =
+    monthlyIncome - monthlyRecurringOutflows - MONTHLY_CONTRIBUTION - DEMO_MONTHLY_DISCRETIONARY;
+
+  const rows: DemoCashflowProjection[] = [];
+  let opening = Math.round(openingCashEur);
+  let periodKey = DEMO_PROJECTION_START_PERIOD;
+  for (let i = 0; i < DEMO_PROJECTION_HORIZON; i++) {
+    const close = opening + monthlyNet;
+    rows.push({ periodKey, opening, close, isProjected: true });
+    opening = close;
+    periodKey = nextPeriodKey(periodKey);
+  }
+  return rows;
+}
 
 // Synthetic cost category labels (no PII, no real merchants). The categoryId field carries the
 // label string in the demo (the live demo has no category FK rows; the marts' Uncategorized
@@ -675,6 +806,10 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     transferOverrides,
     bucketState,
     adventuresSmallSpendableEur: spendableAdventuresSmall(bucketState),
+    // The Phase-9 cashflow demo surface (FLOW-01/04, D-11): PII-free active series + the
+    // balance-forward projection opening at the demo's closing cash reserve. ZERO external calls.
+    recurringSeries: DEMO_RECURRING_SERIES,
+    cashflowProjection: buildDemoProjection(cashBalance),
   };
 }
 

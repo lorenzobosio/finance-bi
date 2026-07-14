@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { PiggyBank, ShieldCheck, Users } from "lucide-react";
 
@@ -9,6 +10,7 @@ import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { ScorecardChips } from "@/components/scorecard-chips";
+import { Skeleton } from "@/components/ui/skeleton";
 import { VoiceCard } from "@/components/voice-card";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatMonths } from "@/lib/format";
@@ -38,6 +40,7 @@ import {
 import { resolveMe } from "@/lib/identity/me";
 import { resolveMember, type Member } from "@/lib/identity/resolve-member";
 import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
+import { readHomeKpis, readPnlMonthly, readBalanceTrend } from "@/lib/db/marts-read";
 import { ONBOARDING_DISMISS_COOKIE } from "@/lib/onboarding/cookie";
 import { getOnboardingState } from "@/lib/onboarding/state";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
@@ -50,10 +53,17 @@ import { createClient } from "@/lib/supabase/server";
 //   B — the KPI row (€4k this month [celebration host] · per-person budgets · months-of-reserve).
 //   C — the net-worth / balance trend area chart.
 //
-// It RE-SKINS the existing Phase-2 Home: same RLS mart reads (anon+JWT via @supabase/ssr — NEVER
-// the Drizzle client, NEVER service_role), the same shared ?period selector, the same first-class
-// comparability states (Provisional pill, never-fake-€0, "Missed only on a closed month"). The
-// rich Goal-Hero journey/streak/bucket content is Phase 5; here we build the LAYOUT on real data.
+// It RE-SKINS the existing Phase-2 Home: the same first-class comparability states (Provisional pill,
+// never-fake-€0, "Missed only on a closed month"), the same shared ?period selector. The three
+// headline mart reads (v_home_kpis / v_pnl_monthly / v_balance_trend) now flow through the CACHED,
+// is_demo-partitioned seam `@/lib/db/marts-read` (OBS-02, D-08) — the cookie demo-partition is
+// resolved at the page level and passed down; the cache callback reads via a non-request client and
+// NEVER blends partitions. Per-request reads that legitimately need the session (onboarding probes,
+// identity, budgets, household, the insight voice) stay on the anon+JWT @supabase/ssr client under
+// RLS — NEVER the Drizzle client, NEVER service_role.
+//
+// STREAMING (OBS-02): the shell (header + greeting) renders immediately; the data-heavy dashboard
+// (<HomeDashboard>) streams in behind a <Suspense> boundary with a layout-matching skeleton.
 
 // The €100k goal and the €4k monthly contribution target (CLAUDE.md north-star).
 const GOAL_EUR = 100_000;
@@ -77,7 +87,7 @@ function parsePeriod(raw: string | string[] | undefined, currentKey: number): nu
   return key;
 }
 
-/** numeric columns arrive from supabase-js as strings; parse to a finite number (0 fallback). */
+/** numeric columns arrive from the DB as strings; parse to a finite number (0 fallback). */
 function num(v: string | number | null | undefined): number {
   if (v === null || v === undefined) return 0;
   const n = typeof v === "number" ? v : Number(v);
@@ -89,10 +99,11 @@ export default async function Home({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const supabase = await createClient();
   // Demo-mode partition selector (D4-12) resolved FIRST so the display clock can be demo-anchored
   // (G1/D5-16): in demo mode `now` moves to the demo's latest data month so the current period is
-  // populated; real mode is byte-identical (demoAwareNow(false, …) is the identity).
+  // populated; real mode is byte-identical (demoAwareNow(false, …) is the identity). The cookie read
+  // stays HERE at the page level — `isDemo` is then passed to the cached mart seam as an explicit
+  // argument (the cache callback must never read a cookie — Pitfall 2).
   const demoFilter = await isDemoForReads();
   const now = demoAwareNow(demoFilter, new Date());
   const currentKey = currentPeriodKey(now);
@@ -103,28 +114,95 @@ export default async function Home({
   // Resolve the signed-in person → display name for the greeting h1 (PERS-02, D4-25). One
   // resolver (shared with the sidebar); identity follows the SESSION, so demo mode never changes
   // it and the persona names never reach the greeting (D4-26). Unmapped/null → generic greeting.
+  // The email threads to the dashboard for the onboarding-dismissal lookup. This is the only
+  // per-request read the shell awaits, so the header renders before the dashboard streams.
   const { displayName, email } = await resolveMe();
 
-  // (demoFilter resolved above so `now` is demo-anchored — EVERY mart read below filters to it so
-  // demo and real rows are NEVER summed. Real mode → is_demo=false; the toggle / public demo → true.)
+  return (
+    <div className="@container/main space-y-6">
+      {/* Page header (h1 left); the shared month selector lives in the shell top bar. */}
+      <header className="flex items-center gap-3">
+        <Greeting name={displayName} />
+        {provisional && (
+          <span
+            className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-[var(--warning)]"
+            title="Month in progress; figures will change."
+          >
+            Provisional
+          </span>
+        )}
+      </header>
 
-  // --- Reads (all under RLS via @supabase/ssr, partitioned by is_demo) -------------------
-  // 1. The selected month's headline KPIs (the full P&L row drives the business read).
-  const { data: kpiRow, error: kpiError } = await supabase
-    .from("v_home_kpis")
-    .select("period_key, revenue, investimento, costs, sublet_net, result, margin, net_worth")
-    .eq("period_key", period)
-    .eq("is_demo", demoFilter)
-    .maybeSingle();
+      {/* The data-heavy dashboard streams behind a Suspense boundary (OBS-02) — the cached mart
+          reads + the per-request budget/household/insight reads resolve here, not in the shell. */}
+      <Suspense fallback={<DashboardFallback />}>
+        <HomeDashboard
+          demoFilter={demoFilter}
+          period={period}
+          now={now}
+          provisional={provisional}
+          email={email}
+        />
+      </Suspense>
+    </div>
+  );
+}
 
-  // 2. Cumulative investimento cost-basis (sum across every populated period) — the €100k
-  //    progress value + the 12-mo invested sparkline. Also the "any data ingested yet?" probe.
-  const { data: allPnl, error: pnlError } = await supabase
-    .from("v_pnl_monthly")
-    .select("period_key, investimento, costs")
-    .eq("is_demo", demoFilter);
+/** The Suspense fallback — mirrors the voice card + BAND A/B/C shape so the swap causes no jump. */
+function DashboardFallback() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-live="polite">
+      {/* Voice card slot. */}
+      <Skeleton className="h-28 w-full rounded-xl" />
+      {/* BAND A — Goal hero + business read. */}
+      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2">
+        <Skeleton className="h-56 w-full rounded-xl" />
+        <Skeleton className="h-56 w-full rounded-xl" />
+      </div>
+      {/* BAND B — the KPI row. */}
+      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-40 w-full rounded-xl" />
+        ))}
+      </div>
+      {/* Scorecard + BAND C chart. */}
+      <Skeleton className="h-32 w-full rounded-xl" />
+      <Skeleton className="h-72 w-full rounded-xl" />
+      <span className="sr-only">Loading dashboard…</span>
+    </div>
+  );
+}
 
-  // 3. Per-person budget-vs-actual at cost-center grain (category_id null) for this period.
+async function HomeDashboard({
+  demoFilter,
+  period,
+  now,
+  provisional,
+  email,
+}: {
+  demoFilter: boolean;
+  period: number;
+  now: Date;
+  provisional: boolean;
+  email: string | undefined;
+}) {
+  const supabase = await createClient();
+
+  // (demoFilter/`now` resolved in the shell so `now` is demo-anchored — EVERY mart read below filters
+  // to the same partition so demo and real rows are NEVER summed. Real mode → is_demo=false; the
+  // toggle / public demo → true.)
+
+  // --- Reads ---------------------------------------------------------------------------
+  // 1. The selected month's headline KPIs (the full P&L row drives the business read) — CACHED,
+  //    is_demo-partitioned (readHomeKpis passes `demoFilter` into the cache key + tag).
+  const kpiRow = await readHomeKpis(demoFilter, period);
+
+  // 2. Cumulative investimento cost-basis (sum across every populated period) — the €100k progress
+  //    value + the 12-mo invested sparkline. Also the "any data ingested yet?" probe. CACHED.
+  const allPnl = await readPnlMonthly(demoFilter);
+
+  // 3. Per-person budget-vs-actual at cost-center grain (category_id null) for this period. Stays on
+  //    @supabase/ssr (per-request, per-period; also drives the budget KPI + anomaly flags).
   const { data: bvaRows } = await supabase
     .from("v_costcenter_bva")
     .select("cost_center, category_id, period_key, budget, actual")
@@ -132,12 +210,8 @@ export default async function Home({
     .eq("is_demo", demoFilter)
     .is("category_id", null);
 
-  // 4. The net-worth balance trend (Band C). Typed read; the chart is a client island.
-  const { data: balanceTrend } = await supabase
-    .from("v_balance_trend")
-    .select("date, net_worth")
-    .eq("is_demo", demoFilter)
-    .order("date", { ascending: true });
+  // 4. The net-worth balance trend (Band C). CACHED, is_demo-partitioned; the chart is a client island.
+  const balanceTrend = await readBalanceTrend(demoFilter);
 
   // 4b. The household singleton (D5-01/16): `launch_date` gates the whole game (streak/waterfall/
   //     alerts run only post-launch); NULL = the first-class pre-launch "waiting" state. Demo-
@@ -203,15 +277,6 @@ export default async function Home({
       // no SSR flash). RLS scopes this to the allowlisted household.
       supabase.from("members").select("id, display_name, auth_email, onboarding_dismissed_at"),
     ]);
-
-  if (kpiError || pnlError) {
-    return (
-      <p role="alert" className="text-sm text-[var(--loss)]">
-        Couldn&apos;t load this view. The data sync may be in progress. Refresh in a moment;
-        if it persists, check the connection on Config.
-      </p>
-    );
-  }
 
   // First-use (forward-only): no ingested P&L anywhere yet → the calm sync band + €0 states.
   const hasAnyData = (allPnl ?? []).length > 0;
@@ -445,23 +510,11 @@ export default async function Home({
   }
 
   return (
-    <div className="@container/main space-y-6">
-      {/* Page header (h1 left); the shared month selector lives in the shell top bar. */}
-      <header className="flex items-center gap-3">
-        <Greeting name={displayName} />
-        {provisional && (
-          <span
-            className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-[var(--warning)]"
-            title="Month in progress; figures will change."
-          >
-            Provisional
-          </span>
-        )}
-      </header>
-
-      {/* The AI voice (AI-03, D-14/15) — the FIRST element on Home, above the KPI/CFO decomposition.
-          One warm, true CFO-memo paragraph; the latest insight (any kind) with its generated date, or
-          a warm first-run placeholder / degrade line so the goal hero + KPIs below always follow. */}
+    <>
+      {/* The AI voice (AI-03, D-14/15) — the FIRST element of the dashboard, above the KPI/CFO
+          decomposition. One warm, true CFO-memo paragraph; the latest insight (any kind) with its
+          generated date, or a warm first-run placeholder / degrade line so the goal hero + KPIs
+          below always follow. */}
       <VoiceCard
         body={latestInsight?.body}
         dateLabel={insightDateLabel}
@@ -620,6 +673,6 @@ export default async function Home({
       <section className="relative overflow-hidden rounded-xl bg-card p-6 text-card-foreground shadow-sm ring-1 ring-foreground/10 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-foreground/10">
         <NetWorthTrend data={trendPoints} />
       </section>
-    </div>
+    </>
   );
 }

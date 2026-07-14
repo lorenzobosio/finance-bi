@@ -22,6 +22,8 @@ import {
 } from "@/lib/db/marts";
 // The not-yet-existent generator — RED on import until the later wave builds it.
 import { generateDemoHousehold, DEMO_PERSONA } from "@/lib/demo/generator";
+// The single pinned MVP ISIN (Invesco FTSE All-World) — the demo price series is keyed to it.
+import { WEALTH_ISIN } from "@/lib/goal/constants";
 
 // The demo TOTAL-INVESTED cost-basis across ALL buckets (D4-01, extended by Plan-09). Asserted as a
 // concrete figure so the streak arithmetic must reconcile to it exactly (no PRNG on the streak
@@ -339,5 +341,45 @@ describe("generateDemoHousehold — alive PII-free cashflow demo (FLOW-01/04, D-
     const proj = ds.cashflowProjection ?? [];
     expect(proj.length).toBeGreaterThanOrEqual(1);
     expect(proj.some((m) => m.isProjected === true)).toBe(true);
+  });
+});
+
+// Wave-0 TDD RED (ETF-01/03 demo, D-07) — the public /goal demo must render a LIVE market value + P/L
+// + EUR≈BRL remittance with ZERO external call, so the generator must seed a realistic priced ETF
+// series + static FX rates. Plan 12-02 extends the generator with a `priceSeries` (one close per
+// period, ascending, isin=WEALTH_ISIN, USD base ccy) + `fxRates` (EUR/USD ~1.14, EUR/BRL ~5.84), all
+// is_demo=true + PII-free. RED today because the generator emits no such fields yet — the intended
+// staged-RED anchor, NOT a bug. The cast keeps `tsc --noEmit` green (the fields are not on the current
+// DemoDataset type). The same no-PII negative-grep as the dataset suite above still covers the
+// serialized output (an ISIN is not @/IBAN/owner-name shaped).
+describe("generateDemoHousehold — seeds a priced + rated demo series (ETF-01/03, Phase 12)", () => {
+  const ds = generateDemoHousehold(42) as unknown as {
+    priceSeries?: Array<{ isin: string; close: number; currency: string; isDemo: boolean }>;
+    fxRates?: Array<{ base: string; quote: string; rate: number; isDemo: boolean }>;
+  };
+
+  it("emits a priceSeries surface (RED until the 12-02 generator adds it)", () => {
+    expect(Array.isArray(ds.priceSeries)).toBe(true);
+  });
+
+  it("carries ≥1 is_demo=true price row for the WEALTH ISIN (positive close, USD)", () => {
+    const priced = (ds.priceSeries ?? []).filter(
+      (p) => p.isin === WEALTH_ISIN && p.isDemo === true && p.close > 0 && p.currency === "USD",
+    );
+    expect(priced.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("emits an fxRates surface (RED until the 12-02 generator adds it)", () => {
+    expect(Array.isArray(ds.fxRates)).toBe(true);
+  });
+
+  it("carries ≥1 is_demo=true rate per quote (EUR/USD + EUR/BRL, positive rate)", () => {
+    const rates = ds.fxRates ?? [];
+    for (const quote of ["USD", "BRL"]) {
+      const q = rates.filter(
+        (r) => r.base === "EUR" && r.quote === quote && r.isDemo === true && r.rate > 0,
+      );
+      expect(q.length).toBeGreaterThanOrEqual(1);
+    }
   });
 });

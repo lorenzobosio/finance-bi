@@ -10,6 +10,16 @@ import { describe, expect, it } from "vitest";
 // (`12,4 %`) — asserted literally below with a U+00A0 in the expected string.
 import { formatEUR, formatMonths, formatPct } from "@/lib/format";
 
+// Phase-12 (BRL-01) — `formatBRL` joins this SINGLE-source formatter file (the format.test.ts grep
+// confines every `new Intl.NumberFormat` here). It is loaded via the COMPUTED dynamic-import idiom so
+// `tsc --noEmit` stays green while the symbol is absent (added in 12-03); RED at runtime until then
+// ("formatBRL is not a function") — the intended staged anchor, NOT a bug.
+const FORMAT_MODULE = "@/lib/format";
+async function loadFormatBRL(): Promise<(n: number, decimals?: number) => string> {
+  const mod = (await import(/* @vite-ignore */ FORMAT_MODULE)) as Record<string, unknown>;
+  return mod.formatBRL as (n: number, decimals?: number) => string;
+}
+
 // A literal non-breaking space (U+00A0) — the German thin-space-before-% convention.
 // Spelled out as a unicode escape so the intent survives editors that collapse it.
 const NBSP = " ";
@@ -47,5 +57,23 @@ describe("formatMonths — de-DE months-of-reserve (BI-07)", () => {
   it("renders one decimal max with the non-breaking space before 'months'", () => {
     expect(formatMonths(3.2)).toBe(`3,2${NBSP}months`);
     expect(formatMonths(3)).toBe(`3${NBSP}months`);
+  });
+});
+
+describe("formatBRL — de-DE money, R$ prefixed (BRL-01, Fernanda's remittance view)", () => {
+  it("renders period thousands + comma decimals with 2 decimals by default", async () => {
+    const formatBRL = await loadFormatBRL();
+    expect(formatBRL(246418.5)).toBe("R$246.418,50");
+  });
+
+  it("honors an explicit 0-decimals argument (hero KPI values)", async () => {
+    const formatBRL = await loadFormatBRL();
+    expect(formatBRL(0, 0)).toBe("R$0");
+    expect(formatBRL(42180, 0)).toBe("R$42.180");
+  });
+
+  it("renders negatives with a LEADING minus on the WHOLE token, not parentheses", async () => {
+    const formatBRL = await loadFormatBRL();
+    expect(formatBRL(-42.18)).toBe("-R$42,18");
   });
 });

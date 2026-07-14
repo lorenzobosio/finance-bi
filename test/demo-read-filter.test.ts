@@ -31,6 +31,12 @@ const DEMO_BEARING = [
   // must thread `.eq("is_demo", …)` or the anon /cashflow demo blends the real household's
   // subscription labels/amounts with the demo partition (T-09-01).
   "recurring_series",
+  // Phase-12 ETF-valuation + FX surface (0019 `prices`, 0020 `fx_rates`) — both new tables gain
+  // `is_demo` + the additive anon `demo_anon_read using(is_demo=true)` policy (the 0017/0018 triad).
+  // Any RSC read of them must thread `.eq("is_demo", …)` or the anon demo blends the seeded demo
+  // rates/prices into the real household's market value / P/L / remittance figures — the exact
+  // Phase-4 "5.038 → 61.038" blend class, at the FX/valuation boundary (RESEARCH Pitfall 3).
+  "fx_rates", "prices",
 ];
 
 // The mart-backed protected pages (extend when Phase 5 adds bucket pages).
@@ -57,6 +63,15 @@ const PAGES = [
   "src/components/cashflow/safe-to-spend-section.tsx",
   "src/components/cashflow/bills-section.tsx",
   "src/components/cashflow/projection-section.tsx",
+  // Phase-12 valuation/remittance surface — the /goal page reads the demo-bearing `prices` (+
+  // `investment_contributions`) to derive live market value / P/L after 12-06, and the new
+  // remittance section self-reads `fx_rates` for Fernanda's EUR≈BRL view. Every demo-bearing read
+  // in both must thread `.eq("is_demo", …)` or the anon demo blends demo rates/prices into the real
+  // household's figures (Pitfall 3). goal/page.tsx already exists (its 4 current demo reads are
+  // filtered); remittance-section.tsx is staged-RED via readFileSync ENOENT until 12-06 creates it —
+  // the established staging convention (exactly how the health/accounts/cashflow paths were staged).
+  "src/app/(protected)/goal/page.tsx",
+  "src/components/goal/remittance-section.tsx",
 ];
 
 describe("demo-partition read filter (DEMO-03 / D4-12)", () => {

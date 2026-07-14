@@ -92,3 +92,27 @@ jobs:
           ENABLE_BANKING_APP_ID: ${{ secrets.ENABLE_BANKING_APP_ID }}
           ENABLE_BANKING_PRIVATE_KEY_PATH: ${{ runner.temp }}/eb-private-key.pem
         run: pnpm ingest
+
+      # Bust the REAL mart cache after a successful pull (OBS-02, D-08) so the dashboard reflects
+      # fresh data immediately instead of waiting out the unstable_cache TTL. POSTs the deployed
+      # app's shared-secret /api/revalidate, which calls revalidateTag('marts:real') — only the
+      # real partition (the demo partition is untouched). NON-FATAL and best-effort: revalidation is
+      # an OPTIMIZATION, not correctness (the TTL is the fallback), so a failure here — or missing
+      # APP_BASE_URL / REVALIDATE_SECRET — never fails the cron. The secret is never echoed (curl
+      # reads it from the env; GitHub masks it in any accidental output).
+      - name: Revalidate the mart cache (real partition)
+        if: success()
+        continue-on-error: true
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${APP_BASE_URL:-}" ] || [ -z "${REVALIDATE_SECRET:-}" ]; then
+            echo "APP_BASE_URL / REVALIDATE_SECRET not set — skipping cache revalidation (TTL fallback)."
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${REVALIDATE_SECRET}" \
+            "${APP_BASE_URL%/}/api/revalidate" || echo "000")
+          echo "revalidate -> HTTP ${code}"

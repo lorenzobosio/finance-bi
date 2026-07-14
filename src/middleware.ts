@@ -8,7 +8,10 @@ import { createServerClient } from "@supabase/ssr";
 // `/api/health` is the public liveness probe (OBS-01, D-06): an unauthenticated uptime
 // ping / E2E smoke must receive the `{ app, db, ts }` JSON, not a 307 to /login. It is
 // intentionally low-info — no rows, no secrets (T-07-13) — so making it public is safe.
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/eb/callback", "/api/health"];
+// `/api/revalidate` is the ingestion cron's mart-cache-bust route (OBS-02, D-08): the cron
+// has no app session, so this path bypasses the auth gate — its OWN shared-secret bearer
+// (REVALIDATE_SECRET, constant-time checked in the route) is the SOLE control (T-07-16).
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/eb/callback", "/api/health", "/api/revalidate"];
 
 /**
  * Session refresh + route protection + allowlist gate (D-13/D-17, FND-01/FND-02c).

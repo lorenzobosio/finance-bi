@@ -23,6 +23,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Finance BI",
   description: "Household finance BI — private, allowlisted access.",
+  // iOS standalone-install metadata (PWA-01, 11-RESEARCH Pattern 5). The manifest <link> is
+  // auto-injected by src/app/manifest.ts — do NOT hand-add one here.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Finance BI",
+  },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export default function RootLayout({

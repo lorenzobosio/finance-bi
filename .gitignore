@@ -42,6 +42,15 @@ yarn-error.log*
 # enable banking — saved SCA sessions (session_id + account uids); never commit
 .secrets/
 
+# playwright e2e (Phase 7) — report/results/browser scratch; never commit
+/test-results/
+/playwright-report/
+/.playwright/
+
+# supabase local-stack scratch (Phase 7 E2E) — the committed file is supabase/config.toml only
+supabase/.branches
+supabase/.temp
+
 # vercel
 .vercel
 

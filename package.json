@@ -19,10 +19,15 @@
     "seed:demo": "tsx scripts/seed-demo.ts",
     "db:seed:demo": "tsx scripts/seed-demo.ts",
     "eb:connect": "tsx scripts/eb-connect.ts",
-    "ingest": "tsx scripts/ingest.ts"
+    "ingest": "tsx scripts/ingest.ts",
+    "reconcile": "tsx scripts/reconcile.ts",
+    "types:drift": "tsx scripts/types-drift.ts",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@number-flow/react": "^0.6.1",
+    "@sentry/nextjs": "10.65.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.2",
     "canvas-confetti": "^1.9.4",
@@ -49,6 +54,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/culori": "^4.0.1",

@@ -1,0 +1,45 @@
+# Supabase local-stack config for the Phase-7 E2E fixture (E2E-01/02, RESEARCH Pitfall 3).
+#
+# HAND-AUTHORED: the Supabase CLI is not in this environment's toolchain (`pnpm exec supabase` /
+# `supabase` both unresolvable at Wave-0 time), so this is a minimal `supabase init` equivalent
+# declaring the ports the E2E job's `supabase start` brings up (Postgres + PostgREST + GoTrue in
+# Docker, no external account). In CI the 07-08 e2e job uses `supabase/setup-cli@v1` + `supabase
+# start` regardless; if a newer CLI wants to regenerate this file, `supabase init` is safe to re-run.
+#
+# Local read-plane endpoints the `NEXT_PUBLIC_DEMO=1` build points at:
+#   API (PostgREST/GoTrue): http://127.0.0.1:54321
+#   DB (postgres driver, drizzle-kit migrate + seed:demo): postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+project_id = "finance-bi"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[storage]
+enabled = false
+
+[analytics]
+enabled = false

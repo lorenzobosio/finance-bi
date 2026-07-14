@@ -5,7 +5,10 @@ import { createServerClient } from "@supabase/ssr";
 // `/eb/callback` is the Enable Banking OAuth landing page (D-07): the browser arrives
 // here mid-SCA straight from Revolut/Enable Banking with no app session yet, so it must
 // be public for the redirect to land.
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/eb/callback"];
+// `/api/health` is the public liveness probe (OBS-01, D-06): an unauthenticated uptime
+// ping / E2E smoke must receive the `{ app, db, ts }` JSON, not a 307 to /login. It is
+// intentionally low-info — no rows, no secrets (T-07-13) — so making it public is safe.
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/eb/callback", "/api/health"];
 
 /**
  * Session refresh + route protection + allowlist gate (D-13/D-17, FND-01/FND-02c).

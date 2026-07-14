@@ -1,4 +1,5 @@
 import { Activity } from "lucide-react";
+import { Suspense } from "react";
 
 import { ScorecardChips } from "@/components/scorecard-chips";
 import { demoAwareNow, isDemoForReads } from "@/lib/demo/mode";
@@ -22,6 +23,12 @@ import {
   readOpenReconcileFlags,
   type ReconcileReadClient,
 } from "@/lib/reconcile/read";
+import {
+  deriveIngestHealth,
+  ingestHealthCopy,
+  readLastIngestAt,
+  type IngestHealthReadClient,
+} from "@/lib/status/ingest-health";
 import { createClient } from "@/lib/supabase/server";
 
 // The Financial-Health scorecard page (`/health`, D-05). It NARRATES the five metrics (HEALTH-02) —
@@ -299,8 +306,72 @@ export default async function HealthPage() {
           </>
         )}
       </section>
+
+      {/* Cron/ingestion health (OBS-02, D-09) — an independent read wrapped in its own Suspense
+          boundary (D-10) so a slow heartbeat read streams rather than blocking the scorecard.
+          SURFACE ONLY: the reminder/notification is Phase 14 (REM). */}
+      <Suspense fallback={<IngestionHealthFallback />}>
+        <IngestionHealthSection />
+      </Suspense>
     </div>
   );
+}
+
+// A calm loading placeholder for the streamed ingestion-health section (D-10 boundary).
+function IngestionHealthFallback() {
+  return (
+    <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Ingestion health
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">Checking the pipeline…</p>
+    </section>
+  );
+}
+
+// The ingestion-health surface (OBS-02, D-09) — its OWN async server component so it streams behind
+// the Suspense boundary above, independent of the scorecard + reconcile reads. Reads the latest
+// SUCCESSFUL import_batches heartbeat under the owner JWT (RLS allowlist_all — RLS-safe here), derives
+// fresh/stale/unknown via the pure deriveIngestHealth, and renders a factual, non-shame line (amber
+// for stale, NEVER red — T-07-20). In the public demo the anon client has no import_batches policy
+// (Pitfall 5) so the read returns nothing → 'unknown', which is the safe default.
+async function IngestionHealthSection() {
+  const supabase = await createClient();
+  const demoFilter = await isDemoForReads();
+  const now = demoAwareNow(demoFilter, new Date());
+
+  const lastIngestAt = await readLastIngestAt(
+    supabase as unknown as IngestHealthReadClient,
+  );
+  const health = deriveIngestHealth(lastIngestAt, now);
+
+  const toneClass =
+    health === "stale" ? "text-[var(--warning)]" : "text-muted-foreground";
+  const syncedLine =
+    lastIngestAt !== null ? `Last sync ${formatSyncDate(lastIngestAt)}.` : null;
+
+  return (
+    <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Ingestion health
+      </div>
+      <p className={`mt-2 text-sm font-medium ${toneClass}`}>
+        {ingestHealthCopy(health)}
+      </p>
+      {syncedLine && (
+        <p className="mt-1 text-xs text-muted-foreground">{syncedLine}</p>
+      )}
+    </section>
+  );
+}
+
+/** Format a heartbeat timestamp as "d MMM yyyy" (locale-stable, no date-fns import needed). */
+function formatSyncDate(d: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(d);
 }
 
 /** Render a YYYYMM period key as "YYYY-MM" (e.g. 202607 → "2026-07"). */

@@ -20,6 +20,13 @@ import type { Database } from "@/lib/database.types";
 /** Page size — one extra row is fetched (PAGE_SIZE + 1) to detect the next keyset page. */
 export const PAGE_SIZE = 50;
 
+/**
+ * The "Needs review" sentinel — the toolbar's Uncategorized chip sends `?category=<this>`; the
+ * query maps it to `.is('category_id', null)` (a SERVER filter, not a post-fetch pin — Pitfall 6).
+ * Kept in lockstep with the literal in tx-toolbar.tsx (a client module must not import zod here).
+ */
+export const UNCATEGORIZED = "__uncategorized__";
+
 /** The two sortable columns (allowlist — never a raw param interpolated into `.order()`). */
 export const SORT_COLUMNS = ["booking_date", "amount_eur"] as const;
 export type SortCol = (typeof SORT_COLUMNS)[number];
@@ -152,7 +159,9 @@ export function buildTxQuery(
     .eq("is_demo", demoFilter);
 
   // Filters — plain `.eq/.gte/.lte`, AND-ed with the keyset seek. An absent filter is omitted.
-  if (params.categoryId) query = query.eq("category_id", params.categoryId);
+  // The "Needs review" sentinel becomes a NULL-category server filter (Uncategorized, Pitfall 6).
+  if (params.categoryId === UNCATEGORIZED) query = query.is("category_id", null);
+  else if (params.categoryId) query = query.eq("category_id", params.categoryId);
   if (params.costCenter) query = query.eq("cost_center", params.costCenter);
   if (params.accountId) query = query.eq("account_id", params.accountId);
   if (params.flowType) query = query.eq("flow_type", params.flowType);

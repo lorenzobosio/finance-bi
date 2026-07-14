@@ -65,6 +65,18 @@ jobs:
           ALLOWED_EMAILS: ${{ secrets.ALLOWED_EMAILS }}
         run: pnpm build
 
+      # PWA-01 build gate (11-03): the production build MUST emit the Serwist service worker. This
+      # runs in the lint/build/test job (a normal build, SW enabled) — NOT the e2e job, whose demo
+      # build sets DISABLE_PWA=1 and intentionally emits no SW. Fails CI if the SW stops compiling.
+      - name: Assert the PWA service worker compiled (PWA-01)
+        run: |
+          set -euo pipefail
+          if [ ! -f public/sw.js ]; then
+            echo "::error::public/sw.js not emitted — the Serwist service worker did not compile"
+            exit 1
+          fi
+          echo "PWA-01 OK: public/sw.js emitted by the build"
+
       - name: Assert service_role is NOT in the client bundle (FND-03)
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

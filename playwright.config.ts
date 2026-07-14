@@ -49,6 +49,11 @@ export default defineConfig({
     timeout: 300_000,
     env: {
       NEXT_PUBLIC_DEMO: "1",
+      // Disable the service worker under e2e (Pitfall 5): the demo build runs in production mode, so
+      // the dev-disable does NOT trigger — a registered SW + caches would serve stale/precached
+      // responses across navigations and flake assertions. This keeps the demo DEPLOY PWA-enabled
+      // while keeping TESTS deterministic (the SW compiles fine; it just doesn't register here).
+      DISABLE_PWA: "1",
       NEXT_PUBLIC_SUPABASE_URL:
         process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",

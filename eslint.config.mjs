@@ -23,6 +23,11 @@ const eslintConfig = [
       ".claude/**",
       ".planning/**",
       "drizzle/**",
+      // Serwist service-worker build output (emitted by `next build`, gitignored + excluded
+      // from tsc). Minified — never linted as source (11-03 / Pitfall 2).
+      "public/sw.js",
+      "public/sw.js.map",
+      "public/swe-worker-*.js",
     ],
   },
   // FND-03 / D-16 — service_role guard, layer 2 (fast lint failure).

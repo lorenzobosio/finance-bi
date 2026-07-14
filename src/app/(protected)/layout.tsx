@@ -5,6 +5,8 @@ import {
   type JumpTarget,
 } from "@/components/command-palette/command-palette";
 import { DemoBanner } from "@/components/demo-banner";
+import { PwaProvider } from "@/components/pwa/serwist-provider-mount";
+import { SwUpdatePrompt } from "@/components/pwa/sw-update-prompt";
 import { SiteHeader } from "@/components/site-header";
 import { StatusBanners } from "@/components/status/status-banners";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -69,23 +71,30 @@ export default async function ProtectedLayout({
           userEmail={userEmail}
           displayName={displayName}
         />
-        <SidebarInset>
-          {/* The persistent DEMO DATA indicator stacks ABOVE the freshness/reconnect banners
-              whenever demo mode is active (owner toggle) or the public demo deploy is live. */}
-          <DemoBanner />
-          {/* Status banners at the top of the inset (the "Data as of" trust strip). Must live
-              INSIDE SidebarInset — a full-width sibling of the sidebar breaks the flex-row shell. */}
-          <StatusBanners />
-          <SiteHeader />
+        {/* PwaProvider registers the app's own /sw.js (via @serwist/next/react) and scopes the
+            useSerwist() context; SwUpdatePrompt is its single mount (never RootLayout, which also
+            serves /login). Wraps the inset so the fixed update prompt reads the SW lifecycle. */}
+        <PwaProvider>
+          <SidebarInset>
+            {/* The persistent DEMO DATA indicator stacks ABOVE the freshness/reconnect banners
+                whenever demo mode is active (owner toggle) or the public demo deploy is live. */}
+            <DemoBanner />
+            {/* Status banners at the top of the inset (the "Data as of" trust strip). Must live
+                INSIDE SidebarInset — a full-width sibling of the sidebar breaks the flex-row shell. */}
+            <StatusBanners />
+            {/* Calm, single-mount SW update prompt (PWA-03) — bottom-anchored, non-blocking. */}
+            <SwUpdatePrompt />
+            <SiteHeader />
 
-          {/* Page content. Extra bottom padding on mobile so the fixed bottom-nav never
-              overlaps content. */}
-          <div className="@container/main flex flex-1 flex-col">
-            <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-4 pb-24 lg:px-8 lg:pt-8 lg:pb-8">
-              {children}
-            </main>
-          </div>
-        </SidebarInset>
+            {/* Page content. Extra bottom padding on mobile so the fixed bottom-nav never
+                overlaps content. */}
+            <div className="@container/main flex flex-1 flex-col">
+              <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-4 pb-24 lg:px-8 lg:pt-8 lg:pb-8">
+                {children}
+              </main>
+            </div>
+          </SidebarInset>
+        </PwaProvider>
       </CommandPaletteProvider>
 
       {/* Mobile bottom tab bar (<lg). */}

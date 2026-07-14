@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { Download, Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,10 +43,13 @@ export function TxToolbar({
   categories,
   costCenters,
   accounts,
+  demo = false,
 }: {
   categories: ToolbarOption[];
   costCenters: ToolbarOption[];
   accounts: ToolbarOption[];
+  // Demo/anon session — the export button is hidden (the route 403s anyway; belt & braces, D-05).
+  demo?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -91,6 +94,13 @@ export function TxToolbar({
     searchParams.has("from") ||
     searchParams.has("to") ||
     searchParams.has("q");
+
+  // The CSV export carries the ACTIVE filters/sort but DROPS the keyset cursor (`after`) — the
+  // export is the FULL filtered set, so starting mid-keyset would skip the earlier rows.
+  const exportParams = new URLSearchParams(searchParams.toString());
+  exportParams.delete("after");
+  const exportQs = exportParams.toString();
+  const exportHref = `/api/transactions/export${exportQs ? `?${exportQs}` : ""}`;
 
   return (
     <div className="space-y-3">
@@ -197,7 +207,17 @@ export function TxToolbar({
           </Button>
         )}
 
-        {/* CSV export button slot — added by 08-05 (owner-only Route Handler). */}
+        {/* CSV export (TXN-02, D-05) — an owner-only download of the CURRENTLY-FILTERED real set.
+            A plain anchor to the Route Handler (Content-Disposition attachment), carrying the active
+            filters/sort. Hidden in demo mode (the route 403s regardless — belt & braces). */}
+        {!demo && (
+          <Button asChild size="sm" variant="outline" className="ml-auto">
+            <a href={exportHref} aria-label="Export the filtered transactions to CSV">
+              <Download className="size-3.5" aria-hidden />
+              Export CSV
+            </a>
+          </Button>
+        )}
       </div>
     </div>
   );

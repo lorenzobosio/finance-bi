@@ -176,6 +176,7 @@ export default async function TransacoesPage({
         categories={categoryOptions}
         costCenters={costCenterOptions}
         accounts={accountOptions}
+        demo={demoFilter}
       />
 
       {/* The dense table SHELL inside a Card surface (the table owns its own scroll + the

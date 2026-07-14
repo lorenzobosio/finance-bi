@@ -190,6 +190,30 @@ describe("generateDemoHousehold — believable tagged bucket-spend categories (G
   });
 });
 
+// Wave-0 TDD RED (DAT-01/02, Phase 7) — the public demo must be authored FULLY RECONCILED: the
+// data-trust chip reads "All reconciled ✓" for the recruiter/visitor, never "N discrepancies —
+// review". A later Phase-7 plan extends the generator with a `reconciliationFlags` surface that is
+// either empty OR carries only status:"resolved", is_demo=true rows (the non-shame demo). RED today
+// because the generator emits no such field yet — the intended staged-RED anchor, NOT a bug. The
+// cast keeps `tsc --noEmit` green (the field is not on the current DemoDataset type).
+describe("generateDemoHousehold — the public demo is fully reconciled (DAT-01/02, Phase 7)", () => {
+  const ds = generateDemoHousehold(42) as unknown as {
+    reconciliationFlags?: Array<{ status: string; isDemo: boolean }>;
+  };
+
+  it("emits a reconciliationFlags surface (RED until the Phase-7 generator adds it)", () => {
+    expect(Array.isArray(ds.reconciliationFlags)).toBe(true);
+  });
+
+  it("carries ZERO OPEN discrepancies — a demo never shames the visitor with red flags", () => {
+    const flags = ds.reconciliationFlags;
+    expect(flags).toBeDefined();
+    // Every seeded flag (if any) is already resolved AND demo-partitioned (the isolation invariant).
+    expect((flags ?? []).every((f) => f.status !== "open")).toBe(true);
+    expect((flags ?? []).every((f) => f.isDemo === true)).toBe(true);
+  });
+});
+
 // Wave-0 TDD RED (AI-05 demo, Phase 6) — the demo must be ALIVE with authored insights and ZERO
 // model calls. Plan 06-07 replaces the single structural `kind:"demo"` stub (generator.ts:~589)
 // with 2–4 authored `DemoInsight` rows: a weekly_report, a whats_changed MoM note, and one

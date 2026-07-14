@@ -68,6 +68,16 @@ const GOAL_DEMO_VISIBLE_TABLES = ['household', 'goal_events'];
 // OPTIONAL (mirrors transfer_overrides). Staged-RED until 0015 lands (the pre-check gates it).
 const HEALTH_DEMO_TABLES = ['insight_thresholds'];
 
+// Phase-7 (migration 0016) DATA-TRUST demo-bearing table — the new `reconciliation_flags` (the
+// per-account/period discrepancy ledger the reconcile engine writes). It joins the additive
+// anon-demo read surface, so a wrong anon predicate (`using (true)`) would leak the real
+// household's balance/mart discrepancies to the public CV repo. It gets the full no-leak +
+// cookie-escalation + write-deny directions but is NOT required demo-visible: the public demo is
+// authored fully-reconciled (0 open flags — the non-shame demo), so a seeded is_demo=true flag row
+// is OPTIONAL (mirrors insight_thresholds / transfer_overrides). Staged-RED until 0016 lands (the
+// pre-check below gates it) — the intended staged state, exactly as Phase-4/5/6 staged their tables.
+const PHASE7_DEMO_TABLES = ['reconciliation_flags'];
+
 // `buckets` is REFERENCE data (like cost_centers in 0013): the same 3 rows (wealth/brazil/
 // adventures) for real + demo, anon-readable via `using (true)`, NO is_demo column. It is asserted
 // anon-SELECTable — NOT run through the is_demo no-leak check (there is nothing private in it).
@@ -122,6 +132,13 @@ try {
   for (const t of HEALTH_DEMO_TABLES) {
     if (!(await hasIsDemo(t)))
       fail(`R-C: table public.${t} has no is_demo column yet (migration 0015 not applied)`);
+  }
+  // Phase-7: the data-trust reconciliation_flags table must carry is_demo before its directional
+  // assertions are meaningful. Missing column => RED (migration 0016 not applied) — the intended
+  // staged-RED state for this Wave-0 plan, exactly as Phase-4/5/6 staged their new tables.
+  for (const t of PHASE7_DEMO_TABLES) {
+    if (!(await hasIsDemo(t)))
+      fail(`R-C: table public.${t} has no is_demo column yet (migration 0016 not applied)`);
   }
 
   // A minimal synthetic real row to prove the anon no-leak direction. transactions.account_id is
@@ -448,6 +465,64 @@ try {
       fail('R-A WRITE-DENY: anon INSERT into insight_thresholds SUCCEEDED (expected RLS denial)');
   } finally {
     if (itId) await sql`delete from public.insight_thresholds where id = ${itId}`;
+  }
+
+  // ===========================================================================
+  // PHASE-7 (0016) DATA-TRUST SURFACE — the new reconciliation_flags discrepancy ledger.
+  //
+  // Same discipline as the goal-journey block above: NO-LEAK (anon sees 0 real is_demo=false rows) +
+  // COOKIE-ESCALATION (anon + explicit is_demo=false filter still 0) + WRITE-DENY (no anon write
+  // policy → RLS rejects). reconciliation_flags is NOT required demo-visible — the public demo is
+  // authored fully-reconciled (0 open flags), so a seeded is_demo=true row is optional (mirrors
+  // insight_thresholds / transfer_overrides). A wrong anon predicate here would publish the real
+  // household's balance/mart discrepancies to the public internet. The row needs a real account FK
+  // parent (member → account → reconciliation_flags). RED until 0016 lands (the pre-check above
+  // gates this) — the intended staged state for this Wave-0 plan.
+  // ===========================================================================
+  const rstamp = Date.now();
+  let rfId = null;
+  let rfAcctId = null;
+  let rfMemberId = null;
+  try {
+    [{ id: rfMemberId }] = await sql`
+      insert into public.members (display_name) values (${'gsd-temp-recon-' + rstamp}) returning id`;
+    [{ id: rfAcctId }] = await sql`
+      insert into public.accounts (member_id, name)
+      values (${rfMemberId}, ${'gsd-temp-recon-acct-' + rstamp}) returning id`;
+    // A real (is_demo=false) discrepancy flag the anon role must NOT see. Column set mirrors D-01
+    // (account_id, period_key, kind, expected/actual/delta_eur, status, is_demo; detected_at defaults).
+    [{ id: rfId }] = await sql`
+      insert into public.reconciliation_flags
+        (account_id, period_key, kind, expected_eur, actual_eur, delta_eur, status, is_demo)
+      values (${rfAcctId}, 202607, ${'balance_delta'}, 100.00, 99.50, 0.50, ${'open'}, false)
+      returning id`;
+    const rfLeak = await asAnon((tx) => tx`
+      select count(*)::int as c from public.reconciliation_flags where id = ${rfId}`);
+    if (rfLeak[0].c !== 0)
+      fail(`R-A NO-LEAK: anon saw ${rfLeak[0].c} real (is_demo=false) reconciliation_flags row(s) (expected 0)`);
+    const rfForged = await asAnon((tx) => tx`
+      select count(*)::int as c from public.reconciliation_flags where is_demo = false`);
+    if (rfForged[0].c !== 0)
+      fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${rfForged[0].c} reconciliation_flags row(s) (expected 0)`);
+
+    // Write-deny: anon cannot INSERT (no anon write policy → RLS rejects). Supply full NOT-NULL
+    // columns so the ONLY reason the insert fails is the RLS denial, not a constraint violation.
+    let wroteRf = false;
+    try {
+      await asAnon((tx) => tx`insert into public.reconciliation_flags
+        (account_id, period_key, kind, expected_eur, actual_eur, delta_eur, status, is_demo)
+        values (${rfAcctId}, 202607, ${'balance_delta'}, 100.00, 99.50, 0.50, ${'open'}, true)`);
+      wroteRf = true;
+    } catch {
+      // expected — RLS denies the anon insert.
+    }
+    if (wroteRf)
+      fail('R-A WRITE-DENY: anon INSERT into reconciliation_flags SUCCEEDED (expected RLS denial)');
+  } finally {
+    // Guaranteed cleanup (privileged driver) — respect the FK chain (flag → account → member).
+    if (rfId) await sql`delete from public.reconciliation_flags where id = ${rfId}`;
+    if (rfAcctId) await sql`delete from public.accounts where id = ${rfAcctId}`;
+    if (rfMemberId) await sql`delete from public.members where id = ${rfMemberId}`;
   }
 
   console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation + view.');

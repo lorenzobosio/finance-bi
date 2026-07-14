@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+
+// Wave-0 TDD RED (DAT-03, D-05) — freezes the PURE diff helper contract for the not-yet-existent
+// `@/lib/db/types-drift-core` (built GREEN in 07-04). RED at RUNTIME (module does not resolve); the
+// COMPUTED import specifier keeps `tsc --noEmit` green. The postgres/TS-parse I/O lives in
+// `scripts/types-drift.ts`; the diff of column-name/nullability SETS is factored here so it is
+// node-unit-testable with fixtures (no live DB).
+//
+// The gate asserts NAME presence + nullability parity, NOT exact SQL types (the hand-authored
+// database.types.ts maps numeric→string / timestamptz→string by design — exact-type comparison is
+// noisy). A drift is any added/removed/renamed column OR a nullability flip.
+
+const MODULE = "@/lib/db/types-drift-core";
+
+interface Column {
+  table: string;
+  column: string;
+  nullable: boolean;
+}
+
+interface Drift {
+  table: string;
+  column: string;
+  reason: string;
+}
+
+async function loadDiff(): Promise<(live: Column[], declared: Column[]) => Drift[]> {
+  const mod = (await import(/* @vite-ignore */ MODULE)) as Record<string, unknown>;
+  return mod.diffColumnSets as (live: Column[], declared: Column[]) => Drift[];
+}
+
+const BASE: Column[] = [
+  { table: "transactions", column: "id", nullable: false },
+  { table: "transactions", column: "amount_eur", nullable: false },
+  { table: "transactions", column: "description", nullable: true },
+];
+
+describe("diffColumnSets — no drift on identical shapes", () => {
+  it("returns [] when live and declared match exactly", async () => {
+    const diff = await loadDiff();
+    expect(diff([...BASE], [...BASE])).toEqual([]);
+  });
+});
+
+describe("diffColumnSets — a live column MISSING from declared is drift", () => {
+  it("flags a column present live but absent in the declared types", async () => {
+    const diff = await loadDiff();
+    const live = [...BASE, { table: "transactions", column: "counterparty_iban", nullable: true }];
+    const drift = diff(live, [...BASE]);
+    expect(drift.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("diffColumnSets — a declared column MISSING from live is drift", () => {
+  it("flags a column declared in the types but dropped/renamed live", async () => {
+    const diff = await loadDiff();
+    const declared = [...BASE, { table: "transactions", column: "old_column", nullable: true }];
+    const drift = diff([...BASE], declared);
+    expect(drift.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("diffColumnSets — a nullability FLIP is drift", () => {
+  it("flags a column whose nullability differs between live and declared", async () => {
+    const diff = await loadDiff();
+    const live = BASE.map((c) =>
+      c.column === "description" ? { ...c, nullable: false } : c,
+    );
+    const drift = diff(live, [...BASE]);
+    expect(drift.length).toBeGreaterThanOrEqual(1);
+  });
+});

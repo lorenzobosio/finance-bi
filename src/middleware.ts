@@ -11,7 +11,24 @@ import { createServerClient } from "@supabase/ssr";
 // `/api/revalidate` is the ingestion cron's mart-cache-bust route (OBS-02, D-08): the cron
 // has no app session, so this path bypasses the auth gate — its OWN shared-secret bearer
 // (REVALIDATE_SECRET, constant-time checked in the route) is the SOLE control (T-07-16).
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/eb/callback", "/api/health", "/api/revalidate"];
+// `/sw.js`, `/manifest.webmanifest`, `/icons`, `/~offline` are the PWA static surface (PWA-01,
+// D-05 / T-11-05): the browser fetches them with NO session (the manifest <link> renders on /login
+// too). If they weren't public, the real deploy would 307-redirect the SW/manifest/icon/offline
+// fetches to /login — the SW never registers, the manifest never parses, and the login page gets
+// precached AS the offline fallback (11-RESEARCH Pitfall 3). `/icons` is a prefix entry: the
+// `startsWith(`${p}/`)` matcher below covers every file under public/icons/. All four are low-info
+// static assets with no rows and no secrets, so allowlisting them is safe (T-11-06).
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth/callback",
+  "/eb/callback",
+  "/api/health",
+  "/api/revalidate",
+  "/sw.js",
+  "/manifest.webmanifest",
+  "/icons",
+  "/~offline",
+];
 
 /**
  * Session refresh + route protection + allowlist gate (D-13/D-17, FND-01/FND-02c).

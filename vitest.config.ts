@@ -9,7 +9,9 @@ export default defineConfig({
     environment: "node",
     // `.test.tsx` is included for the status-banner derivation suite; those tsx tests
     // exercise PURE helpers only (no DOM render), so the node environment still applies.
-    include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
+    // `src/**/*.test.ts` covers co-located unit suites (Phase-9 adds the GOAL-09 interaction
+    // guard next to its target at src/lib/ingestion/rules/db-rules.test.ts).
+    include: ["test/**/*.test.ts", "test/**/*.test.tsx", "src/**/*.test.ts"],
     // QUARANTINE — keeps `main` CI green during Phase 1 TDD.
     // These suites were written test-first and import modules the Phase-1 plans
     // have not built yet, so they throw ERR_MODULE_NOT_FOUND at collection time

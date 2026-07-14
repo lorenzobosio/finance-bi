@@ -195,6 +195,20 @@ export interface DemoInsight {
   isDemo: true;
 }
 
+/** A reconciliation-ledger flag (mirrors `reconciliation_flags`, D-01). The public demo is authored
+ *  FULLY-RECONCILED — the non-shame demo (DAT-01/02): the data-trust chip reads "All reconciled ✓",
+ *  never "N discrepancies — review". So the generator seeds ZERO open flags. Any flag it ever emits
+ *  MUST be `status: "resolved"` and `isDemo: true`; NO PII (numeric deltas + period + kind only). */
+export interface DemoReconciliationFlag {
+  periodKey: number;
+  kind: string; // 'balance_delta' | 'mart_vs_ledger'
+  expectedEur: number;
+  actualEur: number;
+  deltaEur: number;
+  status: "resolved"; // NEVER "open" in the demo — the non-shame invariant
+  isDemo: true;
+}
+
 /** One ascending streak entry: a period and its contribution (0 on the break month). */
 export interface StreakMonth {
   periodKey: number;
@@ -245,6 +259,10 @@ export interface DemoDataset {
   balances: DemoBalance[];
   investmentContributions: DemoInvestmentContribution[];
   insights: DemoInsight[];
+  /** The reconciliation ledger surface (DAT-01/02). The public demo is authored FULLY-RECONCILED —
+   *  the non-shame demo: ZERO open flags, so this is empty (the data-trust chip reads "All
+   *  reconciled ✓"). Any flag ever seeded here is `status: "resolved"`, `isDemo: true`, PII-free. */
+  reconciliationFlags: DemoReconciliationFlag[];
   /** The €4k streak, ascending, with exactly one €0 break then recovery (D4-03). */
   investmentStreak: StreakMonth[];
   /** Liquid cash for the months-of-reserve formula (D4-04, ~€12k). */
@@ -643,6 +661,10 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     balances,
     investmentContributions,
     insights,
+    // The public demo is authored FULLY-RECONCILED (DAT-01/02): the non-shame demo seeds ZERO
+    // open flags so the data-trust chip reads "All reconciled ✓". Emitting an empty ledger here is
+    // the correct clean/zero reconciliation state (the schema comment: the demo "seeds NONE").
+    reconciliationFlags: [],
     investmentStreak,
     // Cash-only liquid reserve (~€12k) for the months-of-reserve formula (D4-04).
     cashReserveEur: Math.round(cashBalance),

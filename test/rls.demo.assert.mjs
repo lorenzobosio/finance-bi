@@ -78,6 +78,23 @@ const HEALTH_DEMO_TABLES = ['insight_thresholds'];
 // pre-check below gates it) — the intended staged state, exactly as Phase-4/5/6 staged their tables.
 const PHASE7_DEMO_TABLES = ['reconciliation_flags'];
 
+// Phase-8 (migration 0017) ACCOUNTS SURFACE — `accounts` gains an `is_demo` column + an ADDITIVE anon
+// `demo_anon_read using(is_demo = true)` policy (its existing `allowlist_all` untouched). Before 0017,
+// `accounts` was deliberately anon-EXCLUDED (drizzle/0013:23) to avoid leaking real account names/IBANs;
+// 0017 re-opens it SAFELY, scoped to the demo partition, so the anon /accounts demo renders alive cards
+// (RESEARCH Pitfall 2). It gets the full no-leak + cookie-escalation + write-deny directions AND the
+// staged demo-visible direction (the 0017 seed inserts 4 is_demo=true demo accounts). A wrong anon
+// predicate (`using (true)`) here would publish every real account name to the public internet — the
+// exact T-08-01 boundary. Staged-RED until 0017 lands (the pre-check below gates it) — the intended
+// staged state for this Wave-0 plan, exactly as Phase-4/5/6/7 staged their new tables.
+const PHASE8_DEMO_TABLES = ['accounts'];
+// The new latest-per-account mart the /accounts page actually reads (GOAL/ACC-01). Per the 0013 lesson
+// (assert the VIEWS the app reads, not only tables), the view is checked too. Because the `accounts`
+// anon policy is `using(is_demo = true)`, the security_invoker view exposes ONLY the demo partition to
+// anon — so the STRONG invariant applies (like the transactions table, NOT the zero-fill marts): anon
+// sees >= 1 is_demo=true row AND ZERO is_demo=false rows.
+const ACCOUNTS_DEMO_VIEW = 'v_account_summary';
+
 // `buckets` is REFERENCE data (like cost_centers in 0013): the same 3 rows (wealth/brazil/
 // adventures) for real + demo, anon-readable via `using (true)`, NO is_demo column. It is asserted
 // anon-SELECTable — NOT run through the is_demo no-leak check (there is nothing private in it).
@@ -139,6 +156,13 @@ try {
   for (const t of PHASE7_DEMO_TABLES) {
     if (!(await hasIsDemo(t)))
       fail(`R-C: table public.${t} has no is_demo column yet (migration 0016 not applied)`);
+  }
+  // Phase-8: `accounts` must carry is_demo before its directional assertions are meaningful. Missing
+  // column => RED (migration 0017 not applied) — the intended staged-RED state for this Wave-0 plan,
+  // exactly as Phase-4/5/6/7 staged their new tables/columns.
+  for (const t of PHASE8_DEMO_TABLES) {
+    if (!(await hasIsDemo(t)))
+      fail(`R-C: table public.${t} has no is_demo column yet (migration 0017 not applied)`);
   }
 
   // A minimal synthetic real row to prove the anon no-leak direction. transactions.account_id is
@@ -525,6 +549,85 @@ try {
     if (rfMemberId) await sql`delete from public.members where id = ${rfMemberId}`;
   }
 
+  // ===========================================================================
+  // PHASE-8 (0017) ACCOUNTS SURFACE — the `accounts` table's new additive anon-demo read policy + the
+  // v_account_summary mart. Same discipline as the transactions block: NO-LEAK (anon sees 0 real
+  // is_demo=false account rows) + COOKIE-ESCALATION (anon + explicit is_demo=false filter still 0) +
+  // WRITE-DENY (no anon write policy → RLS rejects) + the staged DEMO-VISIBLE direction (the 0017 seed
+  // inserts 4 is_demo=true demo accounts). `accounts` needs a member FK parent (member → account). The
+  // v_account_summary VIEW check asserts anon reads ONLY the demo partition (the 0013 lesson). RED until
+  // 0017 lands (the pre-check above gates this) + the seed runs — the intended staged state.
+  // ===========================================================================
+  const astamp = Date.now();
+  let acctMemberId = null;
+  let realAcctId = null;
+  try {
+    // A real (is_demo=false) member+account the anon role must NOT see.
+    [{ id: acctMemberId }] = await sql`
+      insert into public.members (display_name) values (${'gsd-temp-acct-' + astamp}) returning id`;
+    [{ id: realAcctId }] = await sql`
+      insert into public.accounts (member_id, name, is_demo)
+      values (${acctMemberId}, ${'gsd-temp-real-acct-' + astamp}, false) returning id`;
+    const acctLeak = await asAnon((tx) => tx`
+      select count(*)::int as c from public.accounts where id = ${realAcctId}`);
+    if (acctLeak[0].c !== 0)
+      fail(`R-A NO-LEAK: anon saw ${acctLeak[0].c} real (is_demo=false) account row(s) (expected 0)`);
+    const acctForged = await asAnon((tx) => tx`
+      select count(*)::int as c from public.accounts where is_demo = false`);
+    if (acctForged[0].c !== 0)
+      fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${acctForged[0].c} account row(s) (expected 0)`);
+
+    // Write-deny: anon cannot INSERT an account (no anon write policy → RLS rejects). Supply the NOT-NULL
+    // member_id + name so the ONLY reason the insert fails is the RLS denial, not a constraint violation.
+    let wroteAcct = false;
+    try {
+      await asAnon((tx) => tx`insert into public.accounts (member_id, name, is_demo)
+        values (${acctMemberId}, ${'gsd-temp-anon-acct-' + astamp}, true)`);
+      wroteAcct = true;
+    } catch {
+      // expected — RLS denies the anon insert.
+    }
+    if (wroteAcct)
+      fail('R-A WRITE-DENY: anon INSERT into accounts SUCCEEDED (expected RLS denial)');
+  } finally {
+    // Guaranteed cleanup (privileged driver) — respect the FK chain (account → member).
+    if (realAcctId) await sql`delete from public.accounts where id = ${realAcctId}`;
+    if (acctMemberId) await sql`delete from public.members where id = ${acctMemberId}`;
+  }
+
+  // Direction 2 (DEMO-VISIBLE): anon sees >= 1 demo (is_demo=true) account after the 0017 seed. Staged:
+  // RED until the seed populates the demo partition (exactly the Phase-4 pattern).
+  for (const t of PHASE8_DEMO_TABLES) {
+    const seen = await asAnon((tx) =>
+      tx.unsafe(`select count(*)::int as c from public.${t} where is_demo = true`),
+    );
+    if (seen[0].c < 1)
+      fail(`R-A DEMO-VISIBLE: anon saw ${seen[0].c} demo (is_demo=true) row(s) in public.${t} (expected >= 1; seed not run?)`);
+  }
+
+  // v_account_summary VIEW check (the 0013 lesson — the /accounts page reads this mart, not `accounts`
+  // directly). Because the `accounts` anon policy is `using(is_demo = true)`, the security_invoker view
+  // exposes ONLY the demo partition to anon — the STRONG invariant: anon sees >= 1 is_demo=true row AND
+  // ZERO is_demo=false rows (real account names/balances NEVER reach anon).
+  const acctViewDemo = await asAnon((tx) =>
+    tx.unsafe(`select count(*)::int as c from public.${ACCOUNTS_DEMO_VIEW} where is_demo = true`),
+  );
+  if (acctViewDemo[0].c < 1)
+    fail(
+      `R-A VIEW DEMO-VISIBLE: anon saw ${acctViewDemo[0].c} demo row(s) in public.${ACCOUNTS_DEMO_VIEW} ` +
+        `(expected >= 1; seed not run?). The view is security_invoker over accounts+balances — anon needs ` +
+        `the additive accounts anon-demo policy (0017) + the seeded demo accounts.`,
+    );
+  const acctViewReal = await asAnon((tx) =>
+    tx.unsafe(`select count(*)::int as c from public.${ACCOUNTS_DEMO_VIEW} where is_demo = false`),
+  );
+  if (acctViewReal[0].c !== 0)
+    fail(
+      `R-A VIEW NO-LEAK: anon read ${acctViewReal[0].c} real (is_demo=false) row(s) in public.${ACCOUNTS_DEMO_VIEW} ` +
+        `(expected 0). The accounts anon policy is using(is_demo = true), so the view must expose ONLY the ` +
+        `demo partition — a non-zero count means real account names/balances are reaching the anon role.`,
+    );
+
   console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation + view.');
   console.log(
     `  demo_tables=${DEMO_TABLES.length} anon: real-leak=0 demo-visible>=1/table forged-filter=0 write-deny=enforced`,
@@ -537,6 +640,10 @@ try {
     `  goal-journey (0014): tables=${GOAL_DEMO_TABLES.join('/')} no-leak=0 write-deny=enforced ` +
       `demo-visible>=1(${GOAL_DEMO_VISIBLE_TABLES.join('/')}) reference=${GOAL_REFERENCE_TABLES.join('/')} ` +
       `view=${GOAL_DEMO_VIEW} real-money-leak=€${bWorst ? bWorst.money : 0}`,
+  );
+  console.log(
+    `  accounts (0017): tables=${PHASE8_DEMO_TABLES.join('/')} no-leak=0 write-deny=enforced ` +
+      `demo-visible=${acctViewDemo[0].c} view=${ACCOUNTS_DEMO_VIEW} real-leak-rows=${acctViewReal[0].c}`,
   );
 } catch (err) {
   if (process.exitCode !== 1) {

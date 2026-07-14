@@ -21,6 +21,11 @@ const DEMO_BEARING = [
   // Phase-6 health settings table (0015) — demo-bearing; a missing filter would blend the real
   // household's threshold config into the public demo (Pitfall 3).
   "insight_thresholds",
+  // Phase-8 accounts surface (0017) — `accounts` gains `is_demo` + an additive anon
+  // `demo_anon_read using(is_demo=true)` policy, and `v_account_summary` is the new latest-per-account
+  // mart the /accounts page reads. Both are demo-bearing: any read must thread `.eq("is_demo", …)`
+  // or the anon /accounts demo blends real account names with the demo partition (RESEARCH Pitfall 2).
+  "accounts", "v_account_summary",
 ];
 
 // The mart-backed protected pages (extend when Phase 5 adds bucket pages).
@@ -33,6 +38,12 @@ const PAGES = [
   // Phase-6 scorecard page (06-03) — every demo-bearing read here must thread `.eq("is_demo", …)`.
   // Staged-RED until the page exists (readFileSync throws on the absent path — intended).
   "src/app/(protected)/health/page.tsx",
+  // Phase-8 accounts page (08-03) — reads `v_account_summary` + `balances` per partition. And the
+  // owner-only CSV export route (08-05) re-runs the filtered transactions read. Both must thread
+  // `.eq("is_demo", …)`. Staged-RED until 08-03/08-05 create them (readFileSync throws — intended,
+  // the established convention: the same staging the health page used through Phase 6).
+  "src/app/(protected)/accounts/page.tsx",
+  "src/app/api/transactions/export/route.ts",
 ];
 
 describe("demo-partition read filter (DEMO-03 / D4-12)", () => {

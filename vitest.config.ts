@@ -21,6 +21,15 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // The real `server-only` package's index.js THROWS at import (so it can never load in a
+      // Client Component). Server-plane source modules (e.g. src/lib/db/marts-read.ts) keep their
+      // real `import "server-only"` build-guard for the Next bundle — the guard that actually
+      // enforces FND-03 lives in the Next build + the CI .next/static bundle-grep, not here. This
+      // empty alias applies ONLY under vitest (node) so those modules' PURE, injected-arg helpers
+      // (martsCacheKey / martsCacheTag) stay unit-testable without tripping the throw.
+      "server-only": fileURLToPath(
+        new URL("./test/stubs/server-only.ts", import.meta.url),
+      ),
     },
   },
 });

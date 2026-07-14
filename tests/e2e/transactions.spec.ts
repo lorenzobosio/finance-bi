@@ -56,11 +56,15 @@ test.describe("Transactions — the upgraded power table (filter / search / CSV)
     expect(bodyText.toLowerCase()).not.toContain("fernanda");
   });
 
-  test("exposes a CSV export affordance", async ({ page }) => {
+  test("hides the owner-only CSV export on the anon demo build (TXN-02 owner-gate)", async ({
+    page,
+  }) => {
     await page.goto("/transactions");
-    // The owner-only, filter-respecting CSV export (D-05) — a visible link/button.
+    // The CSV export (D-05) is OWNER-ONLY — the route 403s for demo/anon and the tx-toolbar `!demo`
+    // gate hides the button on the demo build. The anon E2E can't log in, so it verifies the GATE
+    // (export is NOT exposed on the public surface); the encoder itself is unit-tested (test/tx-csv).
     await expect(page.getByRole("link", { name: /export csv/i }).or(
       page.getByRole("button", { name: /export csv/i }),
-    )).toBeVisible();
+    )).toHaveCount(0);
   });
 });

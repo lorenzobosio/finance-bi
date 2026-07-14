@@ -23,7 +23,9 @@ test.describe("Home — the demo renders alive (voice + hero + KPIs + scorecard)
   test("renders the KPI row — €4k this month, budgets, months-of-reserve", async ({ page }) => {
     await expect(page.getByText("This month invested")).toBeVisible();
     await expect(page.getByText("Budgets", { exact: true })).toBeVisible();
-    await expect(page.getByText("Months of reserve")).toBeVisible();
+    // "Months of reserve" legitimately appears twice (the KPI row AND the Financial-Health scorecard,
+    // Phase-6) — assert the first is visible (strict-mode-safe).
+    await expect(page.getByText("Months of reserve").first()).toBeVisible();
   });
 
   test("renders the Financial-health scorecard section", async ({ page }) => {

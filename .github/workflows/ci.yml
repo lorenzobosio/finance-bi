@@ -141,3 +141,86 @@ jobs:
             exit 1
           fi
           pnpm test:rls
+
+  # E2E critical-flow gate (E2E-01/02, D-11/12). Runs Playwright against the Supabase LOCAL STACK
+  # (`supabase start` → Postgres + PostgREST + GoTrue in Docker, NO external account and NO repo
+  # secret — the app reads via PostgREST over HTTP, which a bare postgres container can't serve;
+  # RESEARCH Pitfall 3). The stack is migrated + seeded from the SINGLE PII-free demo generator
+  # (`scripts/seed-demo.ts`), then the public-demo build runs against it (the demo path
+  # early-returns before Google OAuth and anon RLS caps reads to is_demo=true — Pitfall 4). A
+  # failing critical-flow spec FAILS this job; the operator adds `e2e` to the branch-protection
+  # required checks so it GATES merges (E2E-02). Needs no repo secret, so it runs on every PR.
+  e2e:
+    name: e2e · Playwright critical flows (local Supabase stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # Local read-plane the demo build points at (the ephemeral local-stack ports — NOT production).
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.9
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Boot the Supabase local stack (Docker: Postgres + PostgREST + GoTrue). No external account.
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start the Supabase local stack
+        run: supabase start
+
+      # Capture the ephemeral local anon key into the env for the demo build. The key is a local,
+      # per-run credential (never a production secret — threat T-07-21); masked so it is never
+      # printed in the logs. The elevated service-role key is intentionally NOT captured (the E2E
+      # render tier never needs it; anon + RLS is the whole point of the no-leak assertion).
+      - name: Capture local-stack anon key
+        run: |
+          set -euo pipefail
+          ANON_KEY=$(supabase status -o json | jq -r '.ANON_KEY')
+          if [ -z "$ANON_KEY" ] || [ "$ANON_KEY" = "null" ]; then
+            echo "::error::could not read the local-stack ANON_KEY from supabase status"; exit 1
+          fi
+          echo "::add-mask::$ANON_KEY"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+
+      # Apply 0000..0016 to the local stack, then seed the is_demo=true rows from the demo generator.
+      - name: Migrate the local stack
+        run: pnpm exec drizzle-kit migrate
+
+      - name: Seed the demo dataset (PII-free generator)
+        run: pnpm seed:demo
+
+      - name: Install Playwright browser (chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Playwright's webServer builds + starts the public-demo build (the demo-mode flag is set by
+      # the webServer in playwright.config.ts; URL + anon key come from the env above), waits on
+      # /api/health, then runs the critical-flow suite. A failing critical flow fails the job.
+      - name: Run Playwright E2E (critical flows)
+        run: pnpm exec playwright test
+
+      - name: Upload the Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -156,7 +156,9 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  /* Brightened 0.708 → 0.80 for dark-mode legibility (owner: secondary text unreadable in dark);
+     still clearly muted vs --foreground 0.985, comfortably clears AA on --background/--card. */
+  --muted-foreground: oklch(0.8 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -176,7 +178,7 @@
   --loss-fill: oklch(0.62 0.21 27);
   --warning: oklch(0.82 0.13 80);
   --warning-fill: oklch(0.45 0.1 80);
-  --neutral-data: oklch(0.708 0 0);
+  --neutral-data: oklch(0.8 0 0);
   /* AI accent (D-17), dark tier: lighter L (0.74) so the mark/label clears AA on the dark
      `--card` (0.205 → 7.48:1). Same hue 48; muted/glow alphas slightly higher for the wash. */
   --ai-accent: oklch(0.74 0.12 48);

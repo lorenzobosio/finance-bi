@@ -56,10 +56,42 @@ const COST_CENTER_FK: Record<string, string> = {
   adventures: "adventures",
 };
 
-/** The synthetic name marker for the demo account/member (those tables carry no is_demo column,
- *  so they are matched for the idempotent cleanup by this prefix). No PII. */
+/** The synthetic name marker for the demo member (members carry no is_demo column, so it is matched
+ *  for the idempotent cleanup by this exact name). No PII. */
 const DEMO_MEMBER_NAME = "gsd-demo-member";
-const DEMO_ACCOUNT_NAME = "gsd-demo-account";
+
+/** The synthetic name PREFIX every demo account shares (ACC-01). accounts NOW carries is_demo (0017),
+ *  so the cleanup matches on is_demo=true; the prefix is the belt-and-braces net that also catches a
+ *  pre-0017 demo account (seeded before the column existed → is_demo=false default). No PII. */
+const DEMO_ACCOUNT_PREFIX = "gsd-demo-account";
+
+/** The 4 persona-neutral demo accounts the public /accounts demo renders (D-01 card set: two person
+ *  cards, a Shared card, an Investing card). PERSONA-NEUTRAL synthetic names (no real owner name, no
+ *  IBAN): the rendered LABEL is remapped from `default_cost_center` via costCenterDisplayName in demo
+ *  mode (lorenzo→Alice, fernanda→Bob, compartilhado→Shared), so the DB row carries a valid FK code
+ *  while the anon surface shows the anonymized persona. `costCenterCode` is a GENERATOR code
+ *  (alex/sam/shared) mapped through COST_CENTER_FK to the live FK — so no real-owner substring is
+ *  written into this seed file. The Investing account is the only is_investment=true one and gets NO
+ *  balance snapshot (its card value is the accumulated cost basis, substituted by the Goal engine in
+ *  08-03, Pitfall 8). `balanceShare` distributes the aggregate demo net worth across the 3 cash
+ *  accounts (shares sum to 1.0 so the per-month total — and thus v_balance_trend/v_home_kpis — is
+ *  UNCHANGED); the Investing account has no share (null). */
+const DEMO_ACCOUNTS: ReadonlyArray<{
+  nameSuffix: string;
+  costCenterCode: string;
+  isInvestment: boolean;
+  balanceShare: number | null;
+}> = [
+  { nameSuffix: "personal-a", costCenterCode: "alex", isInvestment: false, balanceShare: 0.35 },
+  { nameSuffix: "personal-b", costCenterCode: "sam", isInvestment: false, balanceShare: 0.25 },
+  { nameSuffix: "shared", costCenterCode: "shared", isInvestment: false, balanceShare: 0.4 },
+  { nameSuffix: "investing", costCenterCode: "shared", isInvestment: true, balanceShare: null },
+];
+
+/** The account the demo TRANSACTIONS attach to (the shared/primary account — the cards read
+ *  v_account_summary/balances, not transactions, so a single carrier account is sufficient and keeps
+ *  the mart account-grain breakdown stable). */
+const PRIMARY_ACCOUNT_SUFFIX = "shared";
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -139,10 +171,11 @@ export async function seedDemo(
       // The Phase-5 goal-journey demo-bearing singletons/events (no FK into transactions).
       await tx`delete from public.goal_events where is_demo = true`;
       await tx`delete from public.household where is_demo = true`;
-      // The demo account/member carry no is_demo column — match the synthetic name marker. The
-      // account must go before the member (accounts.member_id FK) and after its transactions/
-      // balances (already deleted above as is_demo rows).
-      await tx`delete from public.accounts where name = ${DEMO_ACCOUNT_NAME}`;
+      // The demo accounts (ACC-01): after 0017 they carry is_demo=true — delete on it, plus the
+      // name-prefix net that also catches a pre-0017 demo account (is_demo=false default). The member
+      // carries no is_demo column — match its exact synthetic name. Accounts go before the member
+      // (accounts.member_id FK) and after their transactions/balances (deleted above as is_demo rows).
+      await tx`delete from public.accounts where is_demo = true or name like ${DEMO_ACCOUNT_PREFIX + "%"}`;
       await tx`delete from public.members where display_name = ${DEMO_MEMBER_NAME}`;
 
       // --- 2. FK parents the demo facts need: a synthetic member + cash account. ---
@@ -152,12 +185,28 @@ export async function seedDemo(
       counts.member = 1;
       const memberId = member.id as string;
 
-      const [account] = await tx`
-        insert into public.accounts (member_id, name, kind, default_cost_center, currency)
-        values (${memberId}, ${DEMO_ACCOUNT_NAME}, ${"cash"}, ${"compartilhado"}, ${"EUR"})
-        returning id`;
-      counts.account = 1;
-      const accountId = account.id as string;
+      // The 4 persona-neutral demo accounts (ACC-01, D-01 card set). is_demo=true (0017) so the anon
+      // demo policy surfaces them; the Investing account is is_investment=true. Names are synthetic
+      // (prefix + suffix); the rendered label is remapped from default_cost_center in demo mode.
+      const accountIds = new Map<string, string>();
+      for (const acc of DEMO_ACCOUNTS) {
+        const [row] = await tx`
+          insert into public.accounts (member_id, name, kind, default_cost_center, currency, is_investment, is_demo)
+          values (
+            ${memberId},
+            ${DEMO_ACCOUNT_PREFIX + "-" + acc.nameSuffix},
+            ${acc.isInvestment ? "investment" : "cash"},
+            ${COST_CENTER_FK[acc.costCenterCode]},
+            ${"EUR"},
+            ${acc.isInvestment},
+            ${true}
+          )
+          returning id`;
+        accountIds.set(acc.nameSuffix, row.id as string);
+        counts.account += 1;
+      }
+      // The primary/shared account the transactions attach to (the cards read balances, not txns).
+      const accountId = accountIds.get(PRIMARY_ACCOUNT_SUFFIX) as string;
 
       // --- 3. connections (the onboarding "hasConnection" signal — D4-07/13). ---
       for (const c of dataset.connections) {
@@ -238,12 +287,27 @@ export async function seedDemo(
         counts.transactions += 1;
       }
 
-      // --- 7. balances (cash-only net worth — D4-04). ---
+      // --- 7. balances (cash-only net worth — D4-04). Distribute each monthly snapshot across the 3
+      //         cash accounts by a fixed share (shares sum to 1.0 → the per-month TOTAL net worth,
+      //         and thus v_balance_trend/v_home_kpis, is UNCHANGED — the split is purely per-account
+      //         presentation for the /accounts cards). The Investing account gets NO snapshot (its
+      //         card value is the Goal-engine cost basis, Pitfall 8). Integer split: the last cash
+      //         account absorbs the rounding remainder so the parts sum EXACTLY to the aggregate. ---
+      const cashAccounts = DEMO_ACCOUNTS.filter((a) => a.balanceShare !== null);
       for (const bal of dataset.balances) {
-        await tx`
-          insert into public.balances (account_id, as_of_date, balance_eur, is_demo)
-          values (${accountId}, ${bal.asOfDate}, ${bal.balanceEur}, ${bal.isDemo})`;
-        counts.balances += 1;
+        let allocated = 0;
+        for (let i = 0; i < cashAccounts.length; i++) {
+          const acc = cashAccounts[i];
+          const isLast = i === cashAccounts.length - 1;
+          const share = isLast
+            ? bal.balanceEur - allocated
+            : Math.round(bal.balanceEur * (acc.balanceShare as number));
+          allocated += share;
+          await tx`
+            insert into public.balances (account_id, as_of_date, balance_eur, is_demo)
+            values (${accountIds.get(acc.nameSuffix) as string}, ${bal.asOfDate}, ${share}, ${bal.isDemo})`;
+          counts.balances += 1;
+        }
       }
 
       // --- 8. investment_contributions (one per paying streak month). ---

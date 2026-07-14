@@ -301,3 +301,43 @@ describe("generateDemoHousehold — demo funds the buckets when folded through t
     expect(ds.investmentStreak.slice(breakIdx + 1).every((m) => m.amountEur >= 4000)).toBe(true); // recovery
   });
 });
+
+// Wave-0 TDD RED (FLOW-01/04 demo, D-11) — the public /cashflow demo must be ALIVE with ZERO external
+// calls: a few authored PII-free `active` recurring series + a projected cash-flow position. Plan
+// 09-02 extends the generator with a `recurringSeries` surface (persona-neutral merchant labels,
+// is_demo=true) + a `cashflowProjection` (the balance-forward position the chart renders). RED today
+// because the generator emits no such fields yet — the intended staged-RED anchor, NOT a bug. The
+// cast keeps `tsc --noEmit` green (the fields are not on the current DemoDataset type). The same
+// no-PII negative-grep as the dataset suite above applies to each series label.
+describe("generateDemoHousehold — alive PII-free cashflow demo (FLOW-01/04, D-11)", () => {
+  const ds = generateDemoHousehold(42) as unknown as {
+    recurringSeries?: Array<{ label: string; status: string; isDemo: boolean }>;
+    cashflowProjection?: Array<{ periodKey: number; opening: number; close: number; isProjected: boolean }>;
+  };
+  const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}\b/;
+
+  it("emits a recurringSeries surface (RED until the 09-02 generator adds it)", () => {
+    expect(Array.isArray(ds.recurringSeries)).toBe(true);
+  });
+
+  it("carries ≥1 active, is_demo=true, PII-free recurring series", () => {
+    const series = ds.recurringSeries ?? [];
+    const active = series.filter((s) => s.status === "active");
+    expect(active.length).toBeGreaterThanOrEqual(1);
+    for (const s of series) {
+      expect(s.isDemo).toBe(true);
+      expect(s.label.length).toBeGreaterThan(0);
+      expect(s.label.includes("@")).toBe(false);
+      expect(ibanShape.test(s.label)).toBe(false);
+      const lc = s.label.toLowerCase();
+      expect(lc.includes("lorenzo")).toBe(false);
+      expect(lc.includes("fernanda")).toBe(false);
+    }
+  });
+
+  it("emits a projected cash-flow position (≥1 isProjected month) so the demo chart renders", () => {
+    const proj = ds.cashflowProjection ?? [];
+    expect(proj.length).toBeGreaterThanOrEqual(1);
+    expect(proj.some((m) => m.isProjected === true)).toBe(true);
+  });
+});

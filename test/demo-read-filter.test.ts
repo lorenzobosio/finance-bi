@@ -26,6 +26,11 @@ const DEMO_BEARING = [
   // mart the /accounts page reads. Both are demo-bearing: any read must thread `.eq("is_demo", …)`
   // or the anon /accounts demo blends real account names with the demo partition (RESEARCH Pitfall 2).
   "accounts", "v_account_summary",
+  // Phase-9 cashflow surface (0018) — `recurring_series` (the managed recurring/subscription list)
+  // gains `is_demo` + the additive anon `demo_anon_read using(is_demo=true)` policy. Any read of it
+  // must thread `.eq("is_demo", …)` or the anon /cashflow demo blends the real household's
+  // subscription labels/amounts with the demo partition (T-09-01).
+  "recurring_series",
 ];
 
 // The mart-backed protected pages (extend when Phase 5 adds bucket pages).
@@ -44,6 +49,14 @@ const PAGES = [
   // the established convention: the same staging the health page used through Phase 6).
   "src/app/(protected)/accounts/page.tsx",
   "src/app/api/transactions/export/route.ts",
+  // Phase-9 cashflow sections (09-03..06) — the four server-driven /cashflow section components that
+  // read the demo-bearing `recurring_series` (+ marts). Every demo-bearing read here must thread
+  // `.eq("is_demo", …)`. Staged-RED until those plans create them (readFileSync throws ENOENT on the
+  // absent paths — the intended staging, exactly the convention the health/accounts pages used).
+  "src/components/cashflow/recurring-section.tsx",
+  "src/components/cashflow/safe-to-spend-section.tsx",
+  "src/components/cashflow/bills-section.tsx",
+  "src/components/cashflow/projection-section.tsx",
 ];
 
 describe("demo-partition read filter (DEMO-03 / D4-12)", () => {

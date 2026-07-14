@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Wave-0 TDD RED (DAT-03, D-05) — freezes the PURE diff helper contract for the not-yet-existent
@@ -84,5 +86,36 @@ describe("diffColumnSets — v_* view nullability is NOT compared (DAT-03)", () 
     const declared = [{ table: "v_pnl_monthly", column: "revenue", nullable: false }];
     const live = [{ table: "v_pnl_monthly", column: "revenue_renamed", nullable: true }];
     expect(diff(live, declared).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// Wave-0 TDD RED (DAT-03 / FLOW-01, D-11) — the drift gate compares the LIVE Postgres schema against
+// the hand-authored `src/lib/database.types.ts`. Migration 0018 adds `recurring_series`; if 09-02
+// forgets to declare it in database.types.ts, the live/declared column SETS diverge and `pnpm
+// types:drift` fails against the real DB. This suite pins the EXPECTATION at the source level (a text
+// probe of the declared types) so it is RED until 09-02 declares the relation + its columns — the
+// intended staged-RED anchor, NOT a bug. A text probe (not an import of a missing module) keeps
+// `tsc --noEmit` green.
+describe("database.types.ts declares recurring_series (0018 drift expectation, staged-RED)", () => {
+  const declaredTypes = readFileSync(
+    join(__dirname, "..", "src/lib/database.types.ts"),
+    "utf8",
+  );
+
+  it("declares the recurring_series relation", () => {
+    expect(declaredTypes).toMatch(/recurring_series\s*:/);
+  });
+
+  it("declares the recurring_series columns the 0018 migration adds", () => {
+    for (const col of [
+      "series_key",
+      "amount_eur",
+      "cadence",
+      "next_date",
+      "status",
+      "is_demo",
+    ]) {
+      expect(declaredTypes.includes(col)).toBe(true);
+    }
   });
 });

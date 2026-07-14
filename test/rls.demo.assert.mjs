@@ -95,6 +95,16 @@ const PHASE8_DEMO_TABLES = ['accounts'];
 // sees >= 1 is_demo=true row AND ZERO is_demo=false rows.
 const ACCOUNTS_DEMO_VIEW = 'v_account_summary';
 
+// Phase-9 (migration 0018) CASHFLOW SURFACE — the new `recurring_series` table (the managed
+// recurring/subscription list: series_key, label, amount_eur, cadence, next_date, status, is_demo).
+// It joins the additive anon-demo read surface, so a wrong anon predicate (`using (true)`) would
+// publish the real household's subscription labels + amounts to the public CV repo — the exact
+// T-09-01 boundary. It gets the full no-leak + cookie-escalation + write-deny directions AND the
+// staged demo-visible direction (the 09-02 demo seed inserts >=1 is_demo=true active series). Staged-
+// RED until 0018 lands (the pre-check below gates it) — the intended staged state for this Wave-0
+// plan, exactly as Phase-4/5/6/7/8 staged their new tables/columns.
+const PHASE9_DEMO_TABLES = ['recurring_series'];
+
 // `buckets` is REFERENCE data (like cost_centers in 0013): the same 3 rows (wealth/brazil/
 // adventures) for real + demo, anon-readable via `using (true)`, NO is_demo column. It is asserted
 // anon-SELECTable — NOT run through the is_demo no-leak check (there is nothing private in it).
@@ -163,6 +173,13 @@ try {
   for (const t of PHASE8_DEMO_TABLES) {
     if (!(await hasIsDemo(t)))
       fail(`R-C: table public.${t} has no is_demo column yet (migration 0017 not applied)`);
+  }
+  // Phase-9: `recurring_series` must exist AND carry is_demo before its directional assertions are
+  // meaningful. Missing column => RED (migration 0018 not applied) — the intended staged-RED state
+  // for this Wave-0 plan, exactly as Phase-4/5/6/7/8 staged their new tables/columns.
+  for (const t of PHASE9_DEMO_TABLES) {
+    if (!(await hasIsDemo(t)))
+      fail(`R-C: table public.${t} has no is_demo column yet (migration 0018 not applied)`);
   }
 
   // A minimal synthetic real row to prove the anon no-leak direction. transactions.account_id is
@@ -628,6 +645,62 @@ try {
         `demo partition — a non-zero count means real account names/balances are reaching the anon role.`,
     );
 
+  // ===========================================================================
+  // PHASE-9 (0018) CASHFLOW SURFACE — the new `recurring_series` managed-list table. Same discipline
+  // as the insight_thresholds / reconciliation_flags blocks: NO-LEAK (anon sees 0 real is_demo=false
+  // rows) + COOKIE-ESCALATION (anon + explicit is_demo=false filter still 0) + WRITE-DENY (no anon
+  // write policy → RLS rejects) + the staged DEMO-VISIBLE direction (the 09-02 seed inserts >=1
+  // is_demo=true active series). A wrong anon predicate here would publish the real household's
+  // subscription labels/amounts to the public internet (T-09-01). `recurring_series` is standalone
+  // (no FK parent). RED until 0018 lands (the pre-check above gates this) + the seed runs — the
+  // intended staged state for this Wave-0 plan.
+  // ===========================================================================
+  const rsstamp = Date.now();
+  let rsId = null;
+  try {
+    // A real (is_demo=false) series row the anon role must NOT see. Supply the NOT-NULL columns so
+    // the ONLY reason a later anon insert fails is the RLS denial, not a constraint violation. The
+    // label/amount are synthetic (Date.now()-suffixed) — never a real merchant.
+    [{ id: rsId }] = await sql`
+      insert into public.recurring_series
+        (series_key, label, amount_eur, cadence, next_date, status, is_demo)
+      values (${'gsd-temp-' + rsstamp}, ${'gsd-temp-series'}, -1.00, ${'monthly'}, current_date, ${'active'}, false)
+      returning id`;
+    const rsLeak = await asAnon((tx) => tx`
+      select count(*)::int as c from public.recurring_series where id = ${rsId}`);
+    if (rsLeak[0].c !== 0)
+      fail(`R-A NO-LEAK: anon saw ${rsLeak[0].c} real (is_demo=false) recurring_series row(s) (expected 0)`);
+    const rsForged = await asAnon((tx) => tx`
+      select count(*)::int as c from public.recurring_series where is_demo = false`);
+    if (rsForged[0].c !== 0)
+      fail(`R-A COOKIE-ESCALATION: anon + is_demo=false saw ${rsForged[0].c} recurring_series row(s) (expected 0)`);
+
+    // Write-deny: anon cannot INSERT (no anon write policy → RLS rejects). A successful insert fails.
+    let wroteRs = false;
+    try {
+      await asAnon((tx) => tx`insert into public.recurring_series
+        (series_key, label, amount_eur, cadence, next_date, status, is_demo)
+        values (${'gsd-temp-anon-' + rsstamp}, ${'gsd-temp-series'}, -1.00, ${'monthly'}, current_date, ${'active'}, true)`);
+      wroteRs = true;
+    } catch {
+      // expected — RLS denies the anon insert.
+    }
+    if (wroteRs)
+      fail('R-A WRITE-DENY: anon INSERT into recurring_series SUCCEEDED (expected RLS denial)');
+  } finally {
+    if (rsId) await sql`delete from public.recurring_series where id = ${rsId}`;
+  }
+
+  // Direction 2 (DEMO-VISIBLE): anon sees >= 1 demo (is_demo=true) recurring series after the 09-02
+  // seed. Staged: RED until the seed populates the demo partition (exactly the Phase-4 pattern).
+  for (const t of PHASE9_DEMO_TABLES) {
+    const seen = await asAnon((tx) =>
+      tx.unsafe(`select count(*)::int as c from public.${t} where is_demo = true`),
+    );
+    if (seen[0].c < 1)
+      fail(`R-A DEMO-VISIBLE: anon saw ${seen[0].c} demo (is_demo=true) row(s) in public.${t} (expected >= 1; seed not run?)`);
+  }
+
   console.log('anon-no-leak gate passed (R-A): both directions + write-deny + cookie-escalation + view.');
   console.log(
     `  demo_tables=${DEMO_TABLES.length} anon: real-leak=0 demo-visible>=1/table forged-filter=0 write-deny=enforced`,
@@ -644,6 +717,9 @@ try {
   console.log(
     `  accounts (0017): tables=${PHASE8_DEMO_TABLES.join('/')} no-leak=0 write-deny=enforced ` +
       `demo-visible=${acctViewDemo[0].c} view=${ACCOUNTS_DEMO_VIEW} real-leak-rows=${acctViewReal[0].c}`,
+  );
+  console.log(
+    `  cashflow (0018): tables=${PHASE9_DEMO_TABLES.join('/')} no-leak=0 write-deny=enforced demo-visible>=1`,
   );
 } catch (err) {
   if (process.exitCode !== 1) {

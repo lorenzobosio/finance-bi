@@ -43,6 +43,8 @@ import { BUILTIN_RULE_IDS, INVESTING_SIGNATURE, type RuleId } from "@/lib/ingest
 import type { DbRule } from "@/lib/ingestion/rules/db-rules";
 import { pickBalance } from "@/lib/ingestion/pick-balance";
 
+import { createReconcileWriter, runReconcile } from "./reconcile";
+
 const REPO_ROOT = resolve(__dirname, "..");
 
 // A small overlap so a delayed catch-up run never misses a same-day transaction. Idempotency
@@ -475,6 +477,24 @@ export async function runIngest(opts: RunIngestOptions = {}): Promise<RunIngestR
     // Advance the freshness pointer ONLY on a clean success (never on empty/expired/error).
     if (status === "success" && connectionId) {
       await writer.advanceLastPull(connectionId, finishedAt);
+    }
+    // Additive observability (DAT-01, D-03): reconcile after a CLEAN success on the real cron path
+    // (ownWriter — never when a test injects a writer, so a test never touches DATABASE_URL). A
+    // reconcile failure is caught + logged counts-only and NEVER flips the ingest exit code or the
+    // pull success — reconciliation is additive observability, not part of the pull contract (T-07-08).
+    if (ownWriter && status === "success") {
+      try {
+        const reconcileWriter = await createReconcileWriter();
+        try {
+          await runReconcile(reconcileWriter);
+        } finally {
+          await reconcileWriter.close?.();
+        }
+      } catch (e) {
+        console.log(
+          `[ingest] reconcile skipped err=${e instanceof Error ? e.name : "UnknownError"}`,
+        );
+      }
     }
     if (ownWriter) await writer.close?.();
   }

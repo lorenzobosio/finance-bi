@@ -1,0 +1,17 @@
+// Isolated TypeScript scope for the service worker (11-03, PWA-01 / Pitfall 1).
+//
+// The Serwist "getting started" tells you to set `"types": ["@serwist/next/typings"]` +
+// `"lib": ["webworker"]` in the ROOT tsconfig — which would BREAK this app's typecheck
+// (it drops @types/node/@types/react auto-inclusion across every file and clashes the
+// `webworker` globals against the app's `dom` lib). Instead the SW gets its OWN scope here:
+// webworker lib + the Serwist ambient typings, compiling ONLY src/app/sw.ts. The root tsconfig
+// EXCLUDES src/app/sw.ts + public/sw.js so `pnpm typecheck` (tsc --noEmit) stays green. The
+// `@serwist/next` webpack plugin compiles sw.ts at build regardless of the root tsc.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext", "webworker"],
+    "types": ["@serwist/next/typings"]
+  },
+  "include": ["src/app/sw.ts"]
+}

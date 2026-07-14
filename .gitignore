@@ -51,6 +51,11 @@ yarn-error.log*
 supabase/.branches
 supabase/.temp
 
+# serwist / PWA service-worker build output (emitted by `next build`) — never committed (Pitfall 2)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+
 # vercel
 .vercel
 

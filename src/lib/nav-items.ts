@@ -8,6 +8,7 @@ import {
   Settings,
   Target,
   TrendingDown,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Brazil", href: "/goal/brazil", icon: Plane, shortLabel: "Brazil", group: "Overview", bottomNav: false },
   { label: "Adventures", href: "/goal/adventures", icon: Mountain, shortLabel: "Adventures", group: "Overview", bottomNav: false },
   { label: "Health", href: "/health", icon: Activity, shortLabel: "Health", group: "Overview", bottomNav: false },
+  { label: "Accounts", href: "/accounts", icon: Wallet, shortLabel: "Accounts", group: "Money", bottomNav: false },
   { label: "Spending", href: "/spending", icon: TrendingDown, shortLabel: "Spending", group: "Money" },
   { label: "Cost Centers", href: "/cost-centers", icon: Building2, shortLabel: "Centers", group: "Money" },
   { label: "Transactions", href: "/transactions", icon: Receipt, shortLabel: "Transactions", group: "Money" },

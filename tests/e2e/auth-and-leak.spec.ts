@@ -21,13 +21,15 @@ test.describe("Anon-no-leak — the demo build never renders real-household data
   for (const path of surfaces) {
     test(`no PII / no real-owner figure leaks on ${path}`, async ({ page }) => {
       await page.goto(path);
-      const body = (await page.textContent("body")) ?? "";
+      // innerText = VISIBLE text only (excludes <script>/<style>), so framework CSS `@media` and
+      // inline-JS "@" don't false-positive — catch a real email in what a user SEES, not a CSS at-rule.
+      const body = (await page.innerText("body")) ?? "";
       const lc = body.toLowerCase();
       // The real owners must NEVER appear in a public-demo render (D4-08/26).
       expect(lc).not.toContain("lorenzo");
       expect(lc).not.toContain("fernanda");
-      // No email literal and no IBAN-shaped token in the rendered demo surface (D4-06, R-D).
-      expect(body).not.toContain("@");
+      // No REAL email address and no IBAN-shaped token in the visible demo surface (D4-06, R-D).
+      expect(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(body)).toBe(false);
       expect(/\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}\b/.test(body)).toBe(false);
     });
   }

@@ -23,7 +23,7 @@ test.describe("Transactions — the demo table renders rows", () => {
 
   test("carries no PII — no real owner name leaks into the demo rows", async ({ page }) => {
     // The public demo is fully anonymized (Alice/Bob personas). The real owners must never appear.
-    const bodyText = (await page.textContent("body")) ?? "";
+    const bodyText = (await page.innerText("body")) ?? "";
     expect(bodyText.toLowerCase()).not.toContain("lorenzo");
     expect(bodyText.toLowerCase()).not.toContain("fernanda");
   });
@@ -51,7 +51,7 @@ test.describe("Transactions — the upgraded power table (filter / search / CSV)
     await page.goto("/transactions?flow=cost");
     await expect(page.locator("table").first()).toBeVisible();
     await expect(page.getByText("No transactions yet")).toHaveCount(0);
-    const bodyText = (await page.textContent("body")) ?? "";
+    const bodyText = (await page.innerText("body")) ?? "";
     expect(bodyText.toLowerCase()).not.toContain("lorenzo");
     expect(bodyText.toLowerCase()).not.toContain("fernanda");
   });

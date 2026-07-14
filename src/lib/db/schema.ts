@@ -94,6 +94,12 @@ export const members = pgTable('members', {
 // Phase-1 ingestion fields: `is_investment` flags the (virtual) ETF pocket — investimento is
 // keyed on ANY is_investment account (D-22); `enable_banking_id`/`iban` link a row to the
 // live bank account; `is_synced` marks accounts the daily pull should refresh.
+// Phase-8 (0017): `is_demo` partitions the real accounts (backfilled false — ingestion never sets
+// it) from the seeded demo accounts, so the ADDITIVE anon `demo_anon_read using (is_demo = true)`
+// policy (hand-written in 0017, not Drizzle-managed) caps the public demo to the demo partition —
+// real account names never reach anon (the 0013 exclusion, reopened SAFELY). The
+// `v_account_summary` mart (latest CLBD balance per account per partition) is also hand-written in
+// 0017 (security_invoker) — like v_balance_trend/v_bucket_spend, views live in the migration only.
 export const accounts = pgTable('accounts', {
   id: uuid('id').primaryKey().defaultRandom(),
   memberId: uuid('member_id').references(() => members.id),
@@ -106,6 +112,7 @@ export const accounts = pgTable('accounts', {
   iban: text('iban'),
   isSynced: boolean('is_synced').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  isDemo: boolean('is_demo').notNull().default(false),
 });
 
 // Open-banking consent / connection state. `expires_at` tracks the PSD2 reconnect cadence

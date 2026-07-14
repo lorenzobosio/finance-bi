@@ -421,6 +421,10 @@ export type Database = {
           iban: string | null;
           is_synced: boolean;
           created_at: string;
+          // Phase-8 (0017): the demo partition column. `not null default false` → real accounts
+          // are false; the seeded demo accounts are true. The anon `demo_anon_read` policy filters
+          // on it so real account names never reach anon.
+          is_demo: boolean;
         };
         Insert: {
           id?: string;
@@ -434,6 +438,7 @@ export type Database = {
           iban?: string | null;
           is_synced?: boolean;
           created_at?: string;
+          is_demo?: boolean;
         };
         Update: {
           id?: string;
@@ -447,6 +452,7 @@ export type Database = {
           iban?: string | null;
           is_synced?: boolean;
           created_at?: string;
+          is_demo?: boolean;
         };
         Relationships: [];
       };
@@ -742,6 +748,25 @@ export type Database = {
           period_key: number;
           is_demo: boolean;
           net_worth: Money;
+        };
+        Relationships: [];
+      };
+      // v_account_summary (ACC-01; drizzle/0017_accounts_summary.sql) — latest-CLBD-balance per
+      // account per partition, the mart the /accounts page reads (08-03). security_invoker over
+      // accounts + balances, so anon inherits the is_demo=true caps (real account names never
+      // reach anon). current_balance/as_of_date are null for an account with no snapshot (the
+      // virtual Investing account — its card value is substituted from the Goal engine, Pitfall 8).
+      // Nullability here is documentary only: types-drift-core exempts v_* views from the
+      // nullability check (Postgres reports every view column nullable), asserting the NAME set only.
+      v_account_summary: {
+        Row: {
+          account_id: string;
+          name: string;
+          default_cost_center: string | null;
+          is_investment: boolean;
+          is_demo: boolean;
+          current_balance: Money | null;
+          as_of_date: string | null;
         };
         Relationships: [];
       };

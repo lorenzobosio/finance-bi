@@ -382,3 +382,31 @@ export const insightThresholds = pgTable('insight_thresholds', {
   streakWatchMisses: integer('streak_watch_misses').notNull(),
   isDemo: boolean('is_demo').notNull().default(false),
 });
+
+// ---------------------------------------------------------------------------
+// Phase-7 (0016) data-trust reconciliation ledger (D-01, DAT-01/02).
+//
+// DDL-vs-RLS split (0001/0002 convention): this def is the DDL source of truth; the RLS
+// enable + allowlist_all + anon `is_demo = true` policy are hand-written in
+// drizzle/0016_reconciliation_flags.sql (Drizzle does not manage RLS). Mirrors how 0010–0015
+// hand-write the demo isolation + anon-read surface. NO seed — flags are cron-written (07-03).
+// ---------------------------------------------------------------------------
+
+// reconciliation_flags — the per-account/period discrepancy ledger (D-01). DEMO-BEARING:
+// real flags carry is_demo=false; the public demo is authored fully-reconciled (0 open flags,
+// the non-shame demo) so it seeds NONE. accountId is NULLABLE — a household/mart-level flag
+// (mart_vs_ledger) has no single owning account. NO PII: numeric deltas + account + period +
+// kind only — never a description/counterparty/IBAN (T-07-04). kind = 'balance_delta' (bank
+// balance vs derived ledger) | 'mart_vs_ledger'; status = 'open' | 'resolved'.
+export const reconciliationFlags = pgTable('reconciliation_flags', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  accountId: uuid('account_id').references(() => accounts.id), // nullable: household/mart-level flags
+  periodKey: integer('period_key').notNull(),
+  kind: text('kind').notNull(), // 'balance_delta' | 'mart_vs_ledger'
+  expectedEur: numeric('expected_eur', { precision: 14, scale: 2 }).notNull(),
+  actualEur: numeric('actual_eur', { precision: 14, scale: 2 }).notNull(),
+  deltaEur: numeric('delta_eur', { precision: 14, scale: 2 }).notNull(),
+  status: text('status').notNull().default('open'), // 'open' | 'resolved'
+  detectedAt: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
+  isDemo: boolean('is_demo').notNull().default(false),
+});

@@ -512,6 +512,58 @@ export type Database = {
         };
         Relationships: [];
       };
+      // reconciliation_flags: the per-account/period discrepancy ledger (D-01, DAT-01/02),
+      // DEMO-BEARING. Real flags carry is_demo=false; the public demo is authored fully-reconciled
+      // (0 open flags), so it seeds none. account_id is nullable (household/mart-level flags have no
+      // single account). numeric deltas → Money string over the wire; period_key is integer → number.
+      // NO PII column — deltas + account + period + kind only (T-07-04).
+      reconciliation_flags: {
+        Row: {
+          id: string;
+          account_id: string | null;
+          period_key: number;
+          kind: string;
+          expected_eur: Money;
+          actual_eur: Money;
+          delta_eur: Money;
+          status: string;
+          detected_at: string;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          account_id?: string | null;
+          period_key: number;
+          kind: string;
+          expected_eur: Money | number;
+          actual_eur: Money | number;
+          delta_eur: Money | number;
+          status?: string;
+          detected_at?: string;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          account_id?: string | null;
+          period_key?: number;
+          kind?: string;
+          expected_eur?: Money | number;
+          actual_eur?: Money | number;
+          delta_eur?: Money | number;
+          status?: string;
+          detected_at?: string;
+          is_demo?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_flags_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       // --- Analytics marts (read-only; mirror drizzle/0007_marts.sql) -------------------

@@ -134,6 +134,20 @@
       "when": 1782216696000,
       "tag": "0018_recurring_series",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782216697000,
+      "tag": "0019_prices",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1782216698000,
+      "tag": "0020_fx_rates",
+      "breakpoints": true
     }
   ]
 }

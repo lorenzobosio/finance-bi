@@ -711,6 +711,72 @@ export type Database = {
         };
         Relationships: [];
       };
+      // prices: the ETF-01 daily-close source of truth (12-04 units/market-value/P&L), added by 0019.
+      // DEMO-BEARING: real prices carry is_demo=false; the public demo seeds a PII-free is_demo=true
+      // price series so the anon /goal renders market value + P/L alive. close is numeric(18,6) → Money
+      // string over the wire (a HIGHER scale than money's 14,2 so the units × price multiply keeps
+      // precision, Pitfall 1). price_date is a date → string. currency is the quote ccy (USD for the
+      // MVP ETF). UNIQUE (isin, price_date, is_demo). PII-free (isin + date + numeric + ccy only).
+      prices: {
+        Row: {
+          id: string;
+          isin: string;
+          price_date: string;
+          close: Money;
+          currency: string;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          isin: string;
+          price_date: string;
+          close: Money | number;
+          currency: string;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          isin?: string;
+          price_date?: string;
+          close?: Money | number;
+          currency?: string;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
+      // fx_rates: the ETF-03 / BRL-01 ECB reference-rate source of truth (12-03 convert/remittance),
+      // added by 0020. DEMO-BEARING: real rates carry is_demo=false; the public demo seeds PII-free
+      // is_demo=true rates so the anon /goal renders the EUR≈BRL remittance alive. A rate is
+      // quote-per-EUR (base 'EUR', quote 'USD'|'BRL'; A5). rate is numeric(18,6) → Money string over
+      // the wire (6-dp precision on the EUR→quote multiply, Pitfall 1). rate_date is a date → string.
+      // UNIQUE (base, quote, rate_date, is_demo). PII-free (base + quote + date + numeric only).
+      fx_rates: {
+        Row: {
+          id: string;
+          base: string;
+          quote: string;
+          rate_date: string;
+          rate: Money;
+          is_demo: boolean;
+        };
+        Insert: {
+          id?: string;
+          base: string;
+          quote: string;
+          rate_date: string;
+          rate: Money | number;
+          is_demo?: boolean;
+        };
+        Update: {
+          id?: string;
+          base?: string;
+          quote?: string;
+          rate_date?: string;
+          rate?: Money | number;
+          is_demo?: boolean;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       // --- Analytics marts (read-only; mirror drizzle/0007_marts.sql) -------------------

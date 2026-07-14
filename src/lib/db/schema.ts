@@ -447,3 +447,53 @@ export const recurringSeries = pgTable('recurring_series', {
   isIncome: boolean('is_income').notNull().default(false), // D-08: income series vs bill
   isDemo: boolean('is_demo').notNull().default(false),
 });
+
+// ---------------------------------------------------------------------------
+// Phase-12 (0019) ETF-valuation prices table (ETF-01, D-03).
+//
+// DDL-vs-RLS split (0001/0002 convention): this def is the DDL source of truth; the RLS enable +
+// allowlist_all (authenticated) + anon `is_demo = true` SELECT policy are hand-written in
+// drizzle/0019_prices.sql (Drizzle does not manage RLS). Mirrors how 0010–0018 hand-write the demo
+// isolation + anon-read surface. NO seed here — real prices arrive via the ETF price feed (owner
+// pendency, D-07); the PII-free demo price series is seeded by scripts/seed-demo.ts.
+//
+// `close` is numeric(18,6) — a HIGHER scale than money's numeric(14,2) — so a per-unit ETF price
+// never loses precision on the units × price market-value multiply (Pitfall 1). NEVER a float.
+// ---------------------------------------------------------------------------
+export const prices = pgTable(
+  'prices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    isin: text('isin').notNull(),
+    priceDate: date('price_date').notNull(),
+    close: numeric('close', { precision: 18, scale: 6 }).notNull(),
+    currency: text('currency').notNull(),
+    isDemo: boolean('is_demo').notNull().default(false),
+  },
+  (t) => [uniqueIndex('prices_isin_date_is_demo_uq').on(t.isin, t.priceDate, t.isDemo)],
+);
+
+// ---------------------------------------------------------------------------
+// Phase-12 (0020) multicurrency / remittance fx_rates table (ETF-03 / BRL-01, D-01).
+//
+// DDL-vs-RLS split (0001/0002 convention): this def is the DDL source of truth; the RLS enable +
+// allowlist_all (authenticated) + anon `is_demo = true` SELECT policy are hand-written in
+// drizzle/0020_fx_rates.sql (Drizzle does not manage RLS). NO seed here — real rates arrive via the
+// keyless ECB feed (scripts/fetch-fx.ts, 12-05); the PII-free demo rates are seeded by
+// scripts/seed-demo.ts.
+//
+// A rate is quote-per-EUR (base 'EUR', quote 'USD'|'BRL', rate = 1 EUR in quote; A5). `rate` is
+// numeric(18,6) so a 6-dp reference rate never loses precision on the EUR→quote multiply (Pitfall 1).
+// ---------------------------------------------------------------------------
+export const fxRates = pgTable(
+  'fx_rates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    base: text('base').notNull(),
+    quote: text('quote').notNull(),
+    rateDate: date('rate_date').notNull(),
+    rate: numeric('rate', { precision: 18, scale: 6 }).notNull(),
+    isDemo: boolean('is_demo').notNull().default(false),
+  },
+  (t) => [uniqueIndex('fx_rates_base_quote_date_is_demo_uq').on(t.base, t.quote, t.rateDate, t.isDemo)],
+);

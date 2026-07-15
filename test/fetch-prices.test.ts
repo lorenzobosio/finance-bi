@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 // Contract (ETF-01, D-07) — the DEGRADABLE ETF-close pull, proven against an INJECTED writer + an
 // INJECTED close source, so the degrade→zod→upsert chain is exercised with NO live DB and NO network.
-import { runFetchPrices, type PriceRow, type PriceWriter } from "../scripts/fetch-prices";
+import {
+  parseTwelveDataQuote,
+  parseYahooChart,
+  runFetchPrices,
+  type PriceRow,
+  type PriceWriter,
+} from "../scripts/fetch-prices";
 import { WEALTH_ISIN } from "@/lib/goal/constants";
 
 function makeFakePriceWriter() {
@@ -17,10 +23,11 @@ function makeFakePriceWriter() {
 }
 
 describe("fetch-prices is source-agnostic + degradable (ETF-01, D-07)", () => {
-  it("degrades to a no-op (exit 0) when NO source is configured", async () => {
+  it("degrades to a no-op (exit 0) when the source yields no close (null)", async () => {
     const { writer, rows } = makeFakePriceWriter();
-    // No fetchClose injected and no ETF_PRICE_SOURCE_URL env → the default adapter returns null.
-    const result = await runFetchPrices({ writer });
+    // Inject an explicit null source (the default adapter is now a live Yahoo fetch, so we model the
+    // "source unavailable / unparseable" degrade deterministically instead of relying on env absence).
+    const result = await runFetchPrices({ writer, fetchClose: async () => null });
 
     expect(result.status).toBe("degraded");
     expect(result.upserted).toBe(0);
@@ -82,5 +89,68 @@ describe("fetch-prices is source-agnostic + degradable (ETF-01, D-07)", () => {
 
     expect(result.status).toBe("error");
     expect(result.exitCode).toBe(1);
+  });
+});
+
+// The Twelve Data /quote parser (pure) — fixtures only, no network. Twelve Data returns `close` as a
+// STRING, a date in `datetime`, the quote `currency`, and a `{ status: "error" }` / `{ code }` envelope
+// on failure; all must degrade to null (never throw) so the pull no-ops honestly.
+describe("parseTwelveDataQuote — Twelve Data /quote → validated close (ETF-01)", () => {
+  it("parses a valid quote (string close + datetime + currency)", () => {
+    const got = parseTwelveDataQuote({
+      symbol: "FWRA",
+      exchange: "XETR",
+      currency: "EUR",
+      datetime: "2026-07-14",
+      close: "123.45",
+    });
+    expect(got).toEqual({ close: 123.45, priceDate: "2026-07-14", currency: "EUR" });
+  });
+
+  it("slices an intraday datetime to YYYY-MM-DD", () => {
+    const got = parseTwelveDataQuote({ close: "10.5", datetime: "2026-07-14 15:30:00", currency: "USD" });
+    expect(got?.priceDate).toBe("2026-07-14");
+  });
+
+  it("returns null on the Twelve Data error envelope (bad symbol / quota)", () => {
+    expect(parseTwelveDataQuote({ code: 404, message: "symbol not found", status: "error" })).toBeNull();
+    expect(parseTwelveDataQuote({ status: "error", message: "run out of API credits" })).toBeNull();
+  });
+
+  it("returns null on a missing / non-positive / non-numeric close", () => {
+    expect(parseTwelveDataQuote({ currency: "EUR", datetime: "2026-07-14" })).toBeNull();
+    expect(parseTwelveDataQuote({ close: "0" })).toBeNull();
+    expect(parseTwelveDataQuote({ close: "-3.2" })).toBeNull();
+    expect(parseTwelveDataQuote({ close: "n/a" })).toBeNull();
+    expect(parseTwelveDataQuote(null)).toBeNull();
+    expect(parseTwelveDataQuote("not an object")).toBeNull();
+  });
+});
+
+// The Yahoo Finance /v8/finance/chart parser (pure, the DEFAULT source) — fixtures only, no network.
+describe("parseYahooChart — Yahoo chart → validated close (ETF-01, default source)", () => {
+  const chart = (meta: Record<string, unknown>) => ({ chart: { result: [{ meta }], error: null } });
+
+  const T_2026_07_15 = Math.floor(Date.UTC(2026, 6, 15) / 1000); // month is 0-indexed
+
+  it("parses a valid chart meta (regularMarketPrice + currency + unix time)", () => {
+    const got = parseYahooChart(
+      chart({ regularMarketPrice: 8.173, currency: "EUR", regularMarketTime: T_2026_07_15 }),
+    );
+    expect(got).toEqual({ close: 8.173, priceDate: "2026-07-15", currency: "EUR" });
+  });
+
+  it("falls back to chartPreviousClose when regularMarketPrice is absent", () => {
+    const got = parseYahooChart(
+      chart({ chartPreviousClose: 9.19, currency: "USD", regularMarketTime: T_2026_07_15 }),
+    );
+    expect(got).toEqual({ close: 9.19, priceDate: "2026-07-15", currency: "USD" });
+  });
+
+  it("returns null on Yahoo's error envelope / missing meta / bad price", () => {
+    expect(parseYahooChart({ chart: { result: null, error: { code: "Not Found" } } })).toBeNull();
+    expect(parseYahooChart({ chart: { result: [{}] } })).toBeNull();
+    expect(parseYahooChart(chart({ regularMarketPrice: 0, currency: "EUR" }))).toBeNull();
+    expect(parseYahooChart(null)).toBeNull();
   });
 });

@@ -103,16 +103,20 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: pnpm fetch-fx
 
-      # Pull the daily ETF close (ETF-01, 12-05). SOURCE-AGNOSTIC + DEGRADABLE (D-07): with no
-      # ETF_PRICE_SOURCE_URL configured it is a deliberate no-op every run and the app falls back to
-      # the seeded/last-known price + cost basis. OWNER PENDENCY: a real free/keyless ETF-close source
-      # for IE000716YHJ7 is not wired yet — once chosen, add ETF_PRICE_SOURCE_URL (and any source key)
-      # as a cron-plane SECRET here (never a public/client env). continue-on-error keeps a source
-      # outage from failing the cron. DATABASE_URL only for now.
+      # Pull the daily ETF close (ETF-01, 12-05). DEGRADABLE (D-07): works out of the box with NO secret —
+      # the default source is the free, keyless Yahoo Finance chart endpoint for the WEALTH ETF's Xetra
+      # EUR listing FWIA.DE (override the symbol with the ETF_PRICE_SYMBOL repo VARIABLE, e.g. FWRA.L for
+      # the USD primary). Optional: set ETF_PRICE_SOURCE=twelvedata + the TWELVEDATA_API_KEY secret (a
+      # PAID Twelve Data plan is needed for FWRA), or ETF_PRICE_SOURCE_URL for any other source. On any
+      # source outage the pull writes nothing (last-known price + cost-basis fallback); continue-on-error
+      # keeps that from failing the ingestion cron. DATABASE_URL is the only required env.
       - name: Pull ETF close price (degradable)
         continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ETF_PRICE_SYMBOL: ${{ vars.ETF_PRICE_SYMBOL }}
+          ETF_PRICE_SOURCE: ${{ vars.ETF_PRICE_SOURCE }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
         run: pnpm fetch-prices
 
       # Bust the REAL mart cache after a successful pull (OBS-02, D-08) so the dashboard reflects

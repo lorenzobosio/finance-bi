@@ -9,12 +9,16 @@
 //   zod-validate (close > 0 finite, ISO date) -> UPSERT public.prices ON CONFLICT (isin, price_date,
 //   is_demo) DO UPDATE with is_demo = false, keyed by WEALTH_ISIN -> log ONLY counts/status.
 //
-// OWNER PENDENCY (D-07): no clean keyless ETF-close source for IE000716YHJ7 is wired yet. This script
-// is deliberately source-agnostic so choosing the real feed later is a config change (set the env var
-// + swap the tiny adapter) — NOT a code rewrite, and NEVER a blocker for the phase. Until then the pull
-// is a no-op every run and the app degrades to the seeded/last-known price. Any source KEY (if a keyed
-// source is later chosen) is a cron-plane secret ONLY — never a public/client-inlined env var, never
-// logged.
+// SOURCE (D-07): three configured paths, in precedence order —
+//   1) ETF_PRICE_SOURCE_URL — any endpoint returning `{ close, date?, currency? }` (explicit override).
+//   2) ETF_PRICE_SOURCE=twelvedata + TWELVEDATA_API_KEY — Twelve Data /quote (opt-in; NOTE its FREE tier
+//      does NOT cover FWRA's European/UK listings — needs a paid plan).
+//   3) DEFAULT — Yahoo Finance /v8/finance/chart (FREE, NO key, covers FWRA's European listings). Zero-
+//      config: the WEALTH ETF defaults to its Xetra EUR listing FWIA.DE (override via ETF_PRICE_SYMBOL,
+//      e.g. FWRA.L for the USD primary — converted to EUR via fx_rates on read).
+// Any failure (unreachable/rate-limited/unparseable) returns null → the pull no-ops and the app degrades
+// to the seeded/last-known price + cost basis (never a blocker). Any source KEY is a cron-plane secret
+// ONLY — read from env, never a public/client-inlined env var, never logged.
 //
 // WRITE PLANE (FND-03): DB writes use the `postgres` driver via DATABASE_URL — the project's Node-side
 // write plane (mirroring scripts/ingest.ts / scripts/fetch-fx.ts). It does NOT use the elevated
@@ -98,29 +102,105 @@ export async function createPriceWriter(): Promise<PriceWriter> {
 }
 
 // ---------------------------------------------------------------------------
-// Source adapter (DEGRADABLE, D-07). Reads a configurable source URL from the cron-plane env var and
-// parses one close. This is a PLACEHOLDER generic JSON adapter (`{ close, date?, currency? }`) — swap
-// it for the real free ETF-close parser once a source is chosen (OWNER PENDENCY). It NEVER throws to
-// the caller for a source problem: an unset URL / non-2xx / unparseable body all return null so the
-// pull degrades to a no-op. Any source KEY belongs in a cron-plane secret, never inlined/logged here.
+// Source adapters (DEGRADABLE, D-07). Two configured paths, both keyed off cron-plane env vars; either
+// returns null (never throws) so an unset/failed source degrades to a no-op:
+//   1) TWELVE DATA (preferred, free tier) — set TWELVEDATA_API_KEY. Symbol/exchange default to the
+//      WEALTH ETF's Xetra listing (FWRA / XETR) and are overridable via ETF_PRICE_SYMBOL /
+//      ETF_PRICE_EXCHANGE. The KEY is a cron-plane SECRET — read from env, NEVER inlined/logged.
+//   2) GENERIC URL — set ETF_PRICE_SOURCE_URL to any endpoint returning `{ close, date?, currency? }`.
+// Neither configured → null (the seeded/last-known price + cost-basis fallback holds).
 // ---------------------------------------------------------------------------
 
-async function defaultFetchClose(): Promise<PriceClose | null> {
-  const sourceUrl = process.env.ETF_PRICE_SOURCE_URL;
-  if (!sourceUrl || sourceUrl.trim() === "") return null; // no source configured → degrade (D-07)
+/**
+ * Pure parse of a Twelve Data `/quote` payload → a validated-shape close, or null. Handles the string
+ * `close` Twelve Data returns, its `{ status: "error" }` / `{ code }` error envelope, and the `datetime`
+ * date field. PURE (no fetch/env) so a fixture test can exercise every branch. NEVER throws.
+ */
+export function parseTwelveDataQuote(json: unknown): PriceClose | null {
+  if (json === null || typeof json !== "object") return null;
+  const o = json as Record<string, unknown>;
+  if (o.status === "error" || typeof o.code === "number") return null; // Twelve Data error envelope
+  const close = Number(o.close);
+  if (!Number.isFinite(close) || close <= 0) return null;
+  const dt = typeof o.datetime === "string" ? o.datetime.slice(0, 10) : "";
+  const priceDate = /^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : new Date().toISOString().slice(0, 10);
+  const currency = typeof o.currency === "string" && o.currency ? o.currency : "USD";
+  return { close, priceDate, currency };
+}
 
+async function fetchTwelveDataClose(apiKey: string): Promise<PriceClose | null> {
+  const symbol = process.env.ETF_PRICE_SYMBOL?.trim() || "FWRA";
+  const exchange = process.env.ETF_PRICE_EXCHANGE?.trim() || "XETR";
+  const url =
+    `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}` +
+    `&exchange=${encodeURIComponent(exchange)}&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url);
+  if (!res.ok) return null; // upstream/quota error → degrade, write nothing
+  return parseTwelveDataQuote(await res.json());
+}
+
+async function fetchGenericClose(sourceUrl: string): Promise<PriceClose | null> {
   const res = await fetch(sourceUrl);
-  if (!res.ok) return null; // upstream error → degrade, write nothing
-
+  if (!res.ok) return null;
   const json = (await res.json()) as Record<string, unknown>;
   const close = Number(json?.close);
-  if (!Number.isFinite(close) || close <= 0) return null; // no usable close → degrade
+  if (!Number.isFinite(close) || close <= 0) return null;
   const priceDate =
     typeof json?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(json.date)
       ? json.date
       : new Date().toISOString().slice(0, 10);
   const currency = typeof json?.currency === "string" && json.currency ? json.currency : "USD";
   return { close, priceDate, currency };
+}
+
+/**
+ * Pure parse of a Yahoo Finance `/v8/finance/chart` payload → a validated-shape close, or null. Reads
+ * `chart.result[0].meta.regularMarketPrice` (falling back to `chartPreviousClose`), the quote `currency`,
+ * and `regularMarketTime` (unix seconds) for the date. Handles Yahoo's `chart.error` envelope. PURE
+ * (no fetch/env) so a fixture test exercises every branch. NEVER throws.
+ */
+export function parseYahooChart(json: unknown): PriceClose | null {
+  if (json === null || typeof json !== "object") return null;
+  const meta = (json as { chart?: { result?: Array<{ meta?: Record<string, unknown> }> } }).chart
+    ?.result?.[0]?.meta;
+  if (!meta || typeof meta !== "object") return null;
+  const close = Number(meta.regularMarketPrice ?? meta.chartPreviousClose);
+  if (!Number.isFinite(close) || close <= 0) return null;
+  const t = Number(meta.regularMarketTime);
+  const priceDate =
+    Number.isFinite(t) && t > 0
+      ? new Date(t * 1000).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+  const currency = typeof meta.currency === "string" && meta.currency ? meta.currency : "EUR";
+  return { close, priceDate, currency };
+}
+
+async function fetchYahooClose(): Promise<PriceClose | null> {
+  // Default = the WEALTH ETF's Xetra (EUR) listing FWIA.DE — EUR, so the headline needs no FX; override
+  // via ETF_PRICE_SYMBOL (e.g. FWRA.L for the USD primary, converted via fx_rates). No key required.
+  const symbol = process.env.ETF_PRICE_SYMBOL?.trim() || "FWIA.DE";
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?interval=1d&range=5d`;
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  if (!res.ok) return null; // upstream/rate-limit → degrade, write nothing
+  return parseYahooChart(await res.json());
+}
+
+async function defaultFetchClose(): Promise<PriceClose | null> {
+  // Explicit generic URL wins (any endpoint returning `{ close, date?, currency? }`).
+  const sourceUrl = process.env.ETF_PRICE_SOURCE_URL?.trim();
+  if (sourceUrl) return fetchGenericClose(sourceUrl);
+
+  // Opt-in Twelve Data (needs a PAID plan for FWRA's European/UK listings — free tier does NOT cover it).
+  if (process.env.ETF_PRICE_SOURCE?.trim().toLowerCase() === "twelvedata") {
+    const twelveKey = process.env.TWELVEDATA_API_KEY?.trim();
+    return twelveKey ? fetchTwelveDataClose(twelveKey) : null;
+  }
+
+  // DEFAULT — Yahoo Finance chart (free, NO key, covers FWRA's European listings). Zero-config live
+  // price; degrades to a no-op (seeded/last-known price + cost basis) if Yahoo is unreachable.
+  return fetchYahooClose();
 }
 
 // ---------------------------------------------------------------------------

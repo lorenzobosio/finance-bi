@@ -34,6 +34,30 @@ export function formatEUR(n: number, decimals?: number): string {
 }
 
 /**
+ * Format a BRL amount in the de-DE convention with the `R$` prefixed (BRL-01, Fernanda's remittance
+ * view): `formatBRL(246418.5)` → `"R$246.418,50"`, `formatBRL(42180, 0)` → `"R$42.180"`.
+ *
+ * Mirrors {@link formatEUR} exactly — period thousands, comma decimal — but swaps the symbol to `R$`.
+ * The app's money convention keeps de-DE grouping across BOTH currencies (a single comparable number
+ * shape), only the prefix changes. `decimals` controls both min & max fraction digits (default `2`;
+ * pass `0` for hero KPI values). Negatives lead with a minus on the WHOLE token (`-R$42,18`), never
+ * parentheses and never `R$-42,18` — so we format the absolute value and re-prefix `-R$` ourselves.
+ *
+ * Living here (next to formatEUR) keeps every `new Intl.NumberFormat` confined to this file — the
+ * single money-format source the format.test.ts grep enforces.
+ */
+export function formatBRL(n: number, decimals?: number): string {
+  const fractionDigits = decimals ?? 2;
+  const formatter = new Intl.NumberFormat("de-DE", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
+  const isNegative = n < 0;
+  const body = formatter.format(Math.abs(n));
+  return `${isNegative ? "-" : ""}R$${body}`;
+}
+
+/**
  * Format a percentage in the de-DE convention with ONE decimal MAX and the German
  * non-breaking space before `%`: `formatPct(12.4)` → `"12,4 %"`, `formatPct(0)` → `"0 %"`.
  *

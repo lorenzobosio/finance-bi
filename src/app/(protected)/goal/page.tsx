@@ -4,6 +4,8 @@ import { CelebrationOverlay, type CelebrationEvent } from "@/components/celebrat
 import { MilestoneLadder, type LadderRung } from "@/components/milestone-ladder";
 import { SharedWhyCard } from "@/components/shared-why-card";
 import { TrophyShelf, type TrophySeal } from "@/components/trophy-shelf";
+import { RemittanceSection } from "@/components/goal/remittance-section";
+import { ValuationSection, type ValuationModel } from "@/components/goal/valuation-section";
 import { WhatIfPanel } from "@/components/goal/what-if-panel";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { setLaunchDate } from "@/lib/actions/set-launch-date";
@@ -19,7 +21,17 @@ import {
   type BucketState,
 } from "@/lib/goal/allocation";
 import { accruingParts } from "@/lib/goal/adventures-view";
-import { GOAL_EUR, LEVEL_STEP_EUR, MAJOR_STEP_EUR, MILESTONES } from "@/lib/goal/constants";
+import { GOAL_EUR, LEVEL_STEP_EUR, MAJOR_STEP_EUR, MILESTONES, WEALTH_ISIN } from "@/lib/goal/constants";
+import { latestRate } from "@/lib/fx/convert";
+import type { FxRow } from "@/lib/fx/parse-ecb";
+import { perBucketMarketValue } from "@/lib/valuation/per-bucket";
+import {
+  marketValue,
+  unitsFromContributions,
+  unrealizedPnl,
+  type Contribution,
+  type PricePoint,
+} from "@/lib/valuation/valuation";
 import { detectAndRecordGoalEvents } from "@/lib/goal/detect-events";
 import { etaLine } from "@/lib/goal/hero-view";
 import { activeDenominator, getGoalTotal } from "@/lib/goal/getGoalTotal";
@@ -51,6 +63,11 @@ function num(v: string | number | null | undefined): number {
 /** A euro threshold → a compact "€Nk" label (e.g. 100000 → "€100k"). */
 function kLabel(eur: number): string {
   return `€${Math.round(eur / 1000)}k`;
+}
+
+/** A price_date ("YYYY-MM-DD") → its YYYYMM integer period key (dim_calendar grain). */
+function priceDateToPeriodKey(d: string): number {
+  return Number(d.slice(0, 7).replace("-", ""));
 }
 
 /** A period_key (YYYYMM) → an English "Mon YYYY" caption (UTC, no locale leakage into the date math). */
@@ -132,7 +149,80 @@ export default async function GoalPage() {
     });
 
   const goalState = foldAllocation(investEvents, { launchDate });
-  const goalTotal = getGoalTotal(goalState); // the Wealth cost basis — the €100k figure (D5-02).
+
+  // ---------- Phase-12 ETF valuation + FX (ETF-02/04/05, D-05/D-07) ----------
+  // Every new read threads `.eq("is_demo", demoFilter)` (Pitfall 3 / T-12-15). Prices are stored in the
+  // ETF's native USD (Open Q3); the valuation engine is currency-agnostic, so the closes are converted
+  // to EUR at read via the latest EUR/USD reference rate BEFORE the engine sees them.
+  const [{ data: contribRows }, { data: priceRows }, { data: fxRows }] = await Promise.all([
+    supabase
+      .from("investment_contributions")
+      .select("amount_eur, period_key")
+      .eq("is_demo", demoFilter),
+    supabase
+      .from("prices")
+      .select("price_date, close, currency")
+      .eq("isin", WEALTH_ISIN)
+      .eq("is_demo", demoFilter),
+    supabase
+      .from("fx_rates")
+      .select("base, quote, rate_date, rate")
+      .eq("is_demo", demoFilter),
+  ]);
+
+  const fxRowsParsed: FxRow[] = (fxRows ?? []).map((r) => ({
+    base: "EUR" as const,
+    quote: r.quote as string,
+    rateDate: r.rate_date as string,
+    rate: num(r.rate),
+  }));
+  const eurUsd = latestRate(fxRowsParsed, "USD");
+  const eurUsdRate = eurUsd !== null && eurUsd.rate > 0 ? eurUsd.rate : null;
+
+  // Convert a USD close to EUR (closeEur = closeUsd ÷ EUR/USD); pass EUR closes through unchanged. A
+  // USD close with no rate to convert by is NaN → dropped below → the series falls to the cost basis.
+  const toEurClose = (close: number, currency: string): number =>
+    currency === "EUR" ? close : eurUsdRate !== null ? close / eurUsdRate : NaN;
+
+  const priceSeriesEur: PricePoint[] = (priceRows ?? [])
+    .map((r) => ({
+      periodKey: priceDateToPeriodKey(r.price_date as string),
+      close: toEurClose(num(r.close), (r.currency as string) ?? "EUR"),
+    }))
+    .filter((p) => Number.isFinite(p.close) && p.close > 0)
+    .sort((a, b) => a.periodKey - b.periodKey);
+
+  // The latest close (highest price_date) → EUR, plus its as-of date for the provenance caption.
+  let latestPriceRow: { price_date: string; close: string; currency: string } | null = null;
+  for (const r of priceRows ?? []) {
+    const row = r as unknown as { price_date: string; close: string; currency: string };
+    if (latestPriceRow === null || row.price_date > latestPriceRow.price_date) latestPriceRow = row;
+  }
+  let latestCloseEur: number | null = null;
+  if (latestPriceRow !== null) {
+    const c = toEurClose(num(latestPriceRow.close), latestPriceRow.currency ?? "EUR");
+    latestCloseEur = Number.isFinite(c) && c > 0 ? c : null;
+  }
+
+  const contribs: Contribution[] = (contribRows ?? []).map((r) => ({
+    amountEur: num(r.amount_eur),
+    periodKey: Number(r.period_key),
+  }));
+  const totalCostBasis = contribs.reduce((sum, c) => sum + c.amountEur, 0);
+  const units = unitsFromContributions(contribs, priceSeriesEur);
+  const totalMarketValue = marketValue(units, latestCloseEur); // null ⇒ UNPRICED (honest fallback).
+  const priced = totalMarketValue !== null;
+  const totalPnl = unrealizedPnl(totalMarketValue, totalCostBasis);
+  const pricedAsOf = priced ? (latestPriceRow?.price_date ?? null) : null;
+
+  // The ETF-04 SWAP: Wealth's pro-rata market value when priced, else null → getGoalTotal falls back to
+  // the honest cost basis (`state.wealth`), never a stale/invented figure (Pitfall 5, D-07).
+  const wealthMarketValue =
+    priced && totalMarketValue !== null
+      ? perBucketMarketValue(goalState.wealth, totalCostBasis, totalMarketValue)
+      : null;
+
+  const goalTotal = getGoalTotal(goalState, { wealthMarketValue }); // market value when priced (D-05).
   const denominator = activeDenominator(goalTotal); // GOAL-12 multi-goal ceiling.
   const pct = denominator > 0 ? Math.min(100, (goalTotal / denominator) * 100) : 0;
 
@@ -355,6 +445,36 @@ export default async function GoalPage() {
       goalTotal >= threshold ? monthYearFromIso(achievedAtByThreshold.get(threshold) ?? null) : undefined,
   }));
 
+  // The per-bucket allocation model (ETF-05): each bucket's cost basis → its pro-rata market value
+  // (cost basis when unpriced) against the SAME total cost basis the swap uses, so the three shares
+  // partition the total market value. Presentational-only numbers — the section reads no DB.
+  const advCostBasis = goalState.advSmallUnlocked + goalState.advSmallLocked + goalState.advBig;
+  const bucketBases = [
+    { label: "Wealth", cb: goalState.wealth },
+    { label: "Brazil", cb: goalState.brazil },
+    { label: "Adventures", cb: advCostBasis },
+  ];
+  const bucketValues = bucketBases.map((b) => ({
+    label: b.label,
+    value:
+      priced && totalMarketValue !== null
+        ? perBucketMarketValue(b.cb, totalCostBasis, totalMarketValue)
+        : b.cb,
+  }));
+  const bucketValuesTotal = bucketValues.reduce((sum, b) => sum + b.value, 0);
+  const valuationModel: ValuationModel = {
+    priced,
+    marketValue: totalMarketValue,
+    unrealizedPnl: totalPnl,
+    costBasis: totalCostBasis,
+    pricedAsOf,
+    perBucket: bucketValues.map((b) => ({
+      label: b.label,
+      value: b.value,
+      share: bucketValuesTotal > 0 ? (b.value / bucketValuesTotal) * 100 : 0,
+    })),
+  };
+
   return (
     <div className="@container/main space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -384,6 +504,10 @@ export default async function GoalPage() {
           </span>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{etaSentence}</p>
+        {/* Honest basis caption (D-07): market value + as-of when priced, else a labelled cost basis. */}
+        <p className="mt-1 text-xs text-[var(--neutral-data)]">
+          {priced ? `Market value · priced ${pricedAsOf ?? ""}`.trim() : "Cost basis — no live price yet"}
+        </p>
 
         {/* The full €4k streak chain (never red; a lighter month is neutral — D5-07). */}
         <div className="mt-4">
@@ -407,6 +531,14 @@ export default async function GoalPage() {
           </p>
         </div>
       </section>
+
+      {/* INVESTMENTS — live market value + unrealized P/L + per-bucket allocation, alive on the demo
+          with zero external call (ETF-02/05). Presentational: fed the fully-computed model above. */}
+      <ValuationSection model={valuationModel} />
+
+      {/* IN REAIS — Fernanda's remittance view of the €100k figure, with mandatory FX provenance
+          (BRL-01). The section self-reads the latest fx_rates for its OWN partition (is_demo). */}
+      <RemittanceSection amountEur={goalTotal} demoFilter={demoFilter} />
 
       {/* THE "WHAT IF?" PANEL — the reporting app becomes a planning app (WHATIF-02, active branch
           only; hidden pre-launch where no baseline pace exists). Fed by the already-resolved,

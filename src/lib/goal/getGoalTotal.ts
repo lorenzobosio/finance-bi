@@ -11,11 +11,27 @@ import type { BucketState } from "./allocation";
 import { activeDenominator } from "./allocation";
 
 /**
- * The €100k-progress figure = the Wealth cost basis (`state.wealth`). NOT Σ investimento. This is
- * the one place the "what counts toward €100k" definition lives (Phase-6 swaps the internals here).
+ * The optional market-value valuation the Phase-12 swap supplies (Pattern 4). `wealthMarketValue` is
+ * the live Wealth market value when priced, or null when UNPRICED — in which case `getGoalTotal` falls
+ * back to the honest cost basis (`state.wealth`), never a stale/false market figure.
  */
-export function getGoalTotal(state: Pick<BucketState, "wealth">): number {
-  return state.wealth;
+export interface GoalValuation {
+  wealthMarketValue: number | null;
+}
+
+/**
+ * The €100k-progress figure. By default = the Wealth cost basis (`state.wealth`). NOT Σ investimento.
+ * This is the one place the "what counts toward €100k" definition lives.
+ *
+ * NON-BREAKING Phase-12 swap (D-05/D-07, Pattern 4): pass an optional `valuation` and the figure is
+ * valued at MARKET when a live `wealthMarketValue` exists, falling back to the cost basis when it is
+ * null OR the arg is omitted — the HONEST default. All 1-arg callers are unaffected (`?? state.wealth`).
+ */
+export function getGoalTotal(
+  state: Pick<BucketState, "wealth">,
+  valuation?: GoalValuation,
+): number {
+  return valuation?.wealthMarketValue ?? state.wealth;
 }
 
 // Re-export the multi-goal denominator (GOAL-12) so callers can pull both the progress numerator and

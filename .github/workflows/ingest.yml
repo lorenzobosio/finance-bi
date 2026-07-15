@@ -93,6 +93,28 @@ jobs:
           ENABLE_BANKING_PRIVATE_KEY_PATH: ${{ runner.temp }}/eb-private-key.pem
         run: pnpm ingest
 
+      # Pull the REAL EUR/USD + EUR/BRL rates from the FREE keyless ECB feed (ETF-03, 12-05).
+      # continue-on-error: a feed outage / soft parse failure NEVER reddens the ingestion cron —
+      # scripts/fetch-fx.ts writes nothing on a soft failure and keeps the last-known fx_rates row.
+      # DATABASE_URL is the ONLY env it reads (postgres write plane); no service_role, no key.
+      - name: Pull ECB FX rates (fail-soft)
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm fetch-fx
+
+      # Pull the daily ETF close (ETF-01, 12-05). SOURCE-AGNOSTIC + DEGRADABLE (D-07): with no
+      # ETF_PRICE_SOURCE_URL configured it is a deliberate no-op every run and the app falls back to
+      # the seeded/last-known price + cost basis. OWNER PENDENCY: a real free/keyless ETF-close source
+      # for IE000716YHJ7 is not wired yet — once chosen, add ETF_PRICE_SOURCE_URL (and any source key)
+      # as a cron-plane SECRET here (never a public/client env). continue-on-error keeps a source
+      # outage from failing the cron. DATABASE_URL only for now.
+      - name: Pull ETF close price (degradable)
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm fetch-prices
+
       # Bust the REAL mart cache after a successful pull (OBS-02, D-08) so the dashboard reflects
       # fresh data immediately instead of waiting out the unstable_cache TTL. POSTs the deployed
       # app's shared-secret /api/revalidate, which calls revalidateTag('marts:real') — only the

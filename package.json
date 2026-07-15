@@ -20,6 +20,8 @@
     "db:seed:demo": "tsx scripts/seed-demo.ts",
     "eb:connect": "tsx scripts/eb-connect.ts",
     "ingest": "tsx scripts/ingest.ts",
+    "fetch-fx": "tsx scripts/fetch-fx.ts",
+    "fetch-prices": "tsx scripts/fetch-prices.ts",
     "reconcile": "tsx scripts/reconcile.ts",
     "types:drift": "tsx scripts/types-drift.ts",
     "e2e": "playwright test",

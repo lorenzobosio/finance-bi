@@ -52,7 +52,7 @@ import {
   type AllocationEvent,
   type BucketState,
 } from "@/lib/goal/allocation";
-import { LEVEL_STEP_EUR } from "@/lib/goal/constants";
+import { LEVEL_STEP_EUR, WEALTH_ISIN } from "@/lib/goal/constants";
 
 // ---------------------------------------------------------------------------
 // The demo TOTAL-INVESTED cost-basis across ALL buckets (D4-01, extended by Plan-09). The streak
@@ -206,6 +206,31 @@ export interface DemoRecurringSeries {
   isDemo: true;
 }
 
+/** A generated ETF price row (ETF-01, mirrors `prices` 0019). PII-free by construction: instrument
+ *  ISIN + date + numeric close + quote currency only (no email / IBAN / owner name — D-08), is_demo=true.
+ *  The demo series is ASCENDING (a calm rising USD close ~100 → ~130 across the demo months) so units ×
+ *  latest close > cost basis → a positive but calm P/L (D-07). `priceDate` aligns to the demo's
+ *  contribution month-ends so the units derivation finds a near-period on-or-before close for every leg
+ *  (no bootstrap gap — Pitfall 2). `currency` is the ETF quote ccy (USD for the MVP instrument). */
+export interface DemoPrice {
+  isin: string; // the pinned WEALTH_ISIN
+  priceDate: string; // YYYY-MM-DD, aligned to a demo contribution month-end
+  close: number; // per-unit close (positive, ascending)
+  currency: string; // 'USD' — the ETF quote ccy
+  isDemo: true;
+}
+
+/** A generated FX reference-rate row (ETF-03 / BRL-01, mirrors `fx_rates` 0020). PII-free by
+ *  construction: base + quote + date + numeric rate only, is_demo=true. quote-per-EUR (base 'EUR';
+ *  A5) so the demo renders EUR≈USD/BRL with ZERO external call (D-07). */
+export interface DemoFxRate {
+  base: string; // 'EUR'
+  quote: string; // 'USD' | 'BRL'
+  rateDate: string; // YYYY-MM-DD
+  rate: number; // quote-per-EUR (positive)
+  isDemo: true;
+}
+
 /** A generated cash-flow projection month (FLOW-04, the balance-forward position the demo chart
  *  renders). `opening` steps from the prior month's `close`; all rows are `isProjected: true` (the
  *  projection is forward of the demo's latest data month — the dashed "Expected" segment, D-10). */
@@ -317,6 +342,14 @@ export interface DemoDataset {
   recurringSeries: DemoRecurringSeries[];
   /** The 6-month balance-forward cash-flow projection the demo chart renders (all isProjected=true). */
   cashflowProjection: DemoCashflowProjection[];
+  // --- Phase-12 ETF-valuation + multicurrency surface (ETF-01/03, BRL-01, D-07) ---
+  /** The PII-free ascending demo ETF price series (isin=WEALTH_ISIN, USD, is_demo=true) the anon /goal
+   *  demo reads to render market value + P/L ALIVE with ZERO external call. One close per demo month,
+   *  aligned to the contribution month-ends (no bootstrap gap — Pitfall 2). */
+  priceSeries: DemoPrice[];
+  /** The PII-free static demo FX rates (EUR/USD + EUR/BRL, quote-per-EUR, is_demo=true) the anon /goal
+   *  demo reads to render the EUR≈BRL remittance ALIVE with ZERO external call. */
+  fxRates: DemoFxRate[];
 }
 
 // ---------------------------------------------------------------------------
@@ -549,6 +582,45 @@ const BUDGETS: Array<{ costCenter: CostCenterCode; amount: number }> = [
   { costCenter: "sam", amount: 1200 },
   { costCenter: "shared", amount: 1100 },
 ];
+
+// ---------------------------------------------------------------------------
+// Phase-12 ETF-valuation + multicurrency demo surface (ETF-01/03, BRL-01, D-07). A PII-free ascending
+// ETF price series + static ECB-style FX rates so the anon /goal demo renders market value + P/L +
+// EUR≈BRL remittance ALIVE with ZERO external call. The series is keyed to the pinned WEALTH_ISIN and
+// quoted in USD; each close aligns to a WINDOW month-end so the units derivation (12-04) finds an
+// on-or-before close for every contribution leg (no bootstrap gap — Pitfall 2). The rising close
+// (~100 → ~130) keeps market value > cost basis → a positive but calm P/L.
+const DEMO_PRICE_BASE_USD = 100; // the first demo month's per-unit close
+const DEMO_PRICE_STEP_USD = 2; // a calm +$2/month rise (≈+30% over the 15-month window)
+
+// Static demo FX rates (quote-per-EUR, A5) — synthetic, close to real ECB reference values. Emitted at
+// the two most recent demo month-ends so latestRate (12-03) has a newest-date to select.
+const DEMO_FX_EUR_USD = 1.14;
+const DEMO_FX_EUR_BRL = 5.84;
+
+/** Build the ascending PII-free demo ETF price series (one close per WINDOW month-end, keyed to the
+ *  pinned WEALTH_ISIN, USD). Ascending so units × latest close > cost basis → a calm positive P/L. */
+function buildDemoPriceSeries(): DemoPrice[] {
+  return WINDOW.map((m, idx) => ({
+    isin: WEALTH_ISIN,
+    priceDate: m.monthEnd,
+    close: DEMO_PRICE_BASE_USD + idx * DEMO_PRICE_STEP_USD,
+    currency: "USD",
+    isDemo: true as const,
+  }));
+}
+
+/** Build the static PII-free demo FX rates (EUR/USD + EUR/BRL, quote-per-EUR) at the two most recent
+ *  demo month-ends so latestRate selects the newest date (last-known fallback still resolves). */
+function buildDemoFxRates(): DemoFxRate[] {
+  const dates = WINDOW.slice(-2).map((m) => m.monthEnd); // [2026-02-28, 2026-03-31]
+  const rows: DemoFxRate[] = [];
+  for (const rateDate of dates) {
+    rows.push({ base: "EUR", quote: "USD", rateDate, rate: DEMO_FX_EUR_USD, isDemo: true });
+    rows.push({ base: "EUR", quote: "BRL", rateDate, rate: DEMO_FX_EUR_BRL, isDemo: true });
+  }
+  return rows;
+}
 
 /**
  * generateDemoHousehold — the single pure deterministic demo-household factory (DEMO-01).
@@ -810,6 +882,11 @@ export function generateDemoHousehold(seed: number = 42): DemoDataset {
     // balance-forward projection opening at the demo's closing cash reserve. ZERO external calls.
     recurringSeries: DEMO_RECURRING_SERIES,
     cashflowProjection: buildDemoProjection(cashBalance),
+    // The Phase-12 ETF-valuation + multicurrency demo surface (ETF-01/03, BRL-01, D-07): an ascending
+    // priced ETF series + static EUR/USD + EUR/BRL rates so the anon /goal renders market value + P/L +
+    // remittance ALIVE with ZERO external call. All is_demo=true, PII-free (numeric/date/isin/ccy only).
+    priceSeries: buildDemoPriceSeries(),
+    fxRates: buildDemoFxRates(),
   };
 }
 

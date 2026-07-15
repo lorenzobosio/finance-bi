@@ -141,7 +141,10 @@ describe("generateDemoHousehold — no PII in the serialized dataset (D4-06, R-D
 
   it("contains no IBAN-shaped token (two letters, two digits, then 4+ alphanumerics)", () => {
     // Pattern only — never a real IBAN. Word-boundaried so ordinary words do not false-positive.
-    const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}\b/;
+    // Tail is {11,} (total ≥15 — the real IBAN minimum length, Norway) so a 12-char public ISIN
+    // like WEALTH_ISIN (embedded in priceSeries) is NOT a false positive while every real IBAN
+    // (15–34 chars) is still caught — the ISIN is a public instrument id, not PII (Phase-12, D-08).
+    const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{11,}\b/;
     expect(ibanShape.test(serialized)).toBe(false);
   });
 
@@ -224,7 +227,7 @@ describe("generateDemoHousehold — the public demo is fully reconciled (DAT-01/
 // NOT a bug. The same no-PII negative-grep as the dataset suite above applies to each body.
 describe("generateDemoHousehold — authored PII-free demo insights (AI-05, Phase 6)", () => {
   const ds = generateDemoHousehold(42);
-  const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}\b/;
+  const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{11,}\b/;
 
   it("emits 2–4 authored insight rows (replacing the single structural stub)", () => {
     expect(ds.insights.length).toBeGreaterThanOrEqual(2);
@@ -316,7 +319,7 @@ describe("generateDemoHousehold — alive PII-free cashflow demo (FLOW-01/04, D-
     recurringSeries?: Array<{ label: string; status: string; isDemo: boolean }>;
     cashflowProjection?: Array<{ periodKey: number; opening: number; close: number; isProjected: boolean }>;
   };
-  const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}\b/;
+  const ibanShape = /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{11,}\b/;
 
   it("emits a recurringSeries surface (RED until the 09-02 generator adds it)", () => {
     expect(Array.isArray(ds.recurringSeries)).toBe(true);

@@ -125,6 +125,8 @@ export interface SeedCounts {
   goalEvents: number;
   transferOverrides: number;
   recurringSeries: number;
+  prices: number;
+  fxRates: number;
 }
 
 /**
@@ -152,6 +154,8 @@ export async function seedDemo(
     goalEvents: 0,
     transferOverrides: 0,
     recurringSeries: 0,
+    prices: 0,
+    fxRates: 0,
   };
 
   try {
@@ -175,6 +179,9 @@ export async function seedDemo(
       await tx`delete from public.household where is_demo = true`;
       // The Phase-9 recurring-series demo rows (0018, no FK into transactions).
       await tx`delete from public.recurring_series where is_demo = true`;
+      // The Phase-12 ETF price + FX-rate demo rows (0019/0020, no FK into transactions).
+      await tx`delete from public.prices where is_demo = true`;
+      await tx`delete from public.fx_rates where is_demo = true`;
       // The demo accounts (ACC-01): after 0017 they carry is_demo=true — delete on it, plus the
       // name-prefix net that also catches a pre-0017 demo account (is_demo=false default). The member
       // carries no is_demo column — match its exact synthetic name. Accounts go before the member
@@ -379,6 +386,25 @@ export async function seedDemo(
             (${rs.seriesKey}, ${rs.label}, ${rs.amountEur}, ${rs.cadence}, ${rs.nextDate}, ${rs.status}, ${rs.category}, ${rs.isIncome}, ${rs.isDemo})`;
         counts.recurringSeries += 1;
       }
+
+      // --- 14. prices (ETF-01, 0019): the ascending PII-free demo ETF close series (isin=WEALTH_ISIN,
+      //         USD) the anon /goal renders market value + P/L against. is_demo=true so the anon
+      //         demo_anon_read policy surfaces them; numeric/date/isin/ccy only (no PII, D-08). ---
+      for (const p of dataset.priceSeries) {
+        await tx`
+          insert into public.prices (isin, price_date, close, currency, is_demo)
+          values (${p.isin}, ${p.priceDate}, ${p.close}, ${p.currency}, ${p.isDemo})`;
+        counts.prices += 1;
+      }
+
+      // --- 15. fx_rates (ETF-03 / BRL-01, 0020): the static PII-free demo EUR/USD + EUR/BRL rates the
+      //         anon /goal renders the EUR≈BRL remittance against. is_demo=true; numeric/date/ccy only. ---
+      for (const fx of dataset.fxRates) {
+        await tx`
+          insert into public.fx_rates (base, quote, rate_date, rate, is_demo)
+          values (${fx.base}, ${fx.quote}, ${fx.rateDate}, ${fx.rate}, ${fx.isDemo})`;
+        counts.fxRates += 1;
+      }
     });
 
     return counts;
@@ -402,7 +428,7 @@ if (invokedDirectly) {
           `transactions=${c.transactions} balances=${c.balances} ` +
           `investment_contributions=${c.investmentContributions} insights=${c.insights} ` +
           `household=${c.household} goal_events=${c.goalEvents} transfer_overrides=${c.transferOverrides} ` +
-          `recurring_series=${c.recurringSeries}`,
+          `recurring_series=${c.recurringSeries} prices=${c.prices} fx_rates=${c.fxRates}`,
       );
       process.exit(0);
     })

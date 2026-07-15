@@ -13,5 +13,9 @@
     "lib": ["esnext", "webworker"],
     "types": ["@serwist/next/typings"]
   },
+  // Reset the inherited root `exclude` (which lists src/app/sw.ts + public/sw.js) — otherwise it cancels
+  // this project's own `include` (TS `exclude` overrides `include`) and `tsc -p tsconfig.sw.json` matches
+  // ZERO files (TS18003), so the SW is never type-checked by any project. Empty = check exactly `include`.
+  "exclude": [],
   "include": ["src/app/sw.ts"]
 }

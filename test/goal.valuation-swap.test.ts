@@ -52,4 +52,20 @@ describe("getGoalTotal(state, valuation?) — market-value swap with honest fall
     const { getGoalTotal } = await load();
     expect(getGoalTotal(state, undefined)).toBe(4000);
   });
+
+  // Audit regression (getGoalTotal 0-vs-null): a wealthMarketValue of 0 is "priced but zero units"
+  // (nothing invested via the tracked pipeline yet, or all legs predate the first price) — it must NOT
+  // collapse the €100k figure to a false €0. A real live position (units × price) is always > 0, so any
+  // non-positive/non-finite value falls back to the honest cost basis, exactly like null.
+  it("falls back to the Wealth cost basis when the market value is 0 (priced-but-zero-units, NOT €0)", async () => {
+    const { getGoalTotal } = await load();
+    expect(getGoalTotal(state, { wealthMarketValue: 0 })).toBe(4000);
+  });
+
+  it("falls back to the Wealth cost basis on a negative or non-finite market value", async () => {
+    const { getGoalTotal } = await load();
+    expect(getGoalTotal(state, { wealthMarketValue: -100 })).toBe(4000);
+    expect(getGoalTotal(state, { wealthMarketValue: Number.NaN })).toBe(4000);
+    expect(getGoalTotal(state, { wealthMarketValue: Number.POSITIVE_INFINITY })).toBe(4000);
+  });
 });

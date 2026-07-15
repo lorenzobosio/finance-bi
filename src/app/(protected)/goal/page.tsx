@@ -211,7 +211,11 @@ export default async function GoalPage() {
   const totalCostBasis = contribs.reduce((sum, c) => sum + c.amountEur, 0);
   const units = unitsFromContributions(contribs, priceSeriesEur);
   const totalMarketValue = marketValue(units, latestCloseEur); // null ⇒ UNPRICED (honest fallback).
-  const priced = totalMarketValue !== null;
+  // "Priced" requires a POSITIVE market value: units=0 with a valid close yields 0 (not null), which is
+  // NOT a genuine valuation (nothing is invested via the tracked pipeline yet, or all legs predate the
+  // first price) — treat it as unpriced so the hero/label/per-bucket all fall back to the honest cost
+  // basis together, never a false €0 (audit finding, getGoalTotal 0-vs-null).
+  const priced = totalMarketValue !== null && totalMarketValue > 0;
   const totalPnl = unrealizedPnl(totalMarketValue, totalCostBasis);
   const pricedAsOf = priced ? (latestPriceRow?.price_date ?? null) : null;
 

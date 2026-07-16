@@ -343,7 +343,7 @@ export default async function GoalPage() {
             ].map((b) => (
               <div key={b.name} className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
                 <div className="text-sm font-medium">{b.name}</div>
-                <div className="mt-1 font-mono text-3xl font-semibold tabular-nums leading-none text-muted-foreground/60">
+                <div className="mt-1 font-mono text-3xl font-semibold tabular-nums leading-none text-muted-foreground">
                   {formatEUR(0, 0)}
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{b.note} · dormant until launch</p>

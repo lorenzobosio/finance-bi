@@ -162,11 +162,11 @@ export function ThresholdsEditor({ current }: { current: InsightThresholds }) {
         >
           Reset to defaults
         </button>
-        {saved && !pending && (
-          <span role="status" className="text-xs text-muted-foreground">
-            Saved.
-          </span>
-        )}
+        {/* Live region pre-exists in the DOM (only its text toggles) so SR reliably announces
+            the save — regions inserted together with their content are often skipped. */}
+        <span role="status" className="text-xs text-muted-foreground">
+          {saved && !pending ? "Saved." : ""}
+        </span>
       </div>
     </form>
   );

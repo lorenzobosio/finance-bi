@@ -31,6 +31,8 @@
 // Motion: a one-time reduced-motion-gated ~600ms spark twinkle on first reveal only (`ai-spark-twinkle`
 // runs once on mount; the globals.css reduced-motion media query + the root MotionConfig hold the gate).
 
+import { useState } from "react";
+
 import { AiSpark } from "@/components/ai-spark";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +71,9 @@ export function VoiceCard({ body, dateLabel, errored = false, className }: Voice
   const { lead, memo } = hasInsight ? splitLead(body as string) : { lead: "", memo: "" };
   // The date shows ONLY alongside a real insight (states b + d carry no header date, D-15).
   const showDate = hasInsight && !!dateLabel;
+  // The "How is this written?" note is surfaced on focus/tap (not title alone, which is
+  // invisible to sighted keyboard + touch users) and its trigger clears a ≥44px hit area.
+  const [noteOpen, setNoteOpen] = useState(false);
 
   return (
     <section
@@ -102,16 +107,23 @@ export function VoiceCard({ body, dateLabel, errored = false, className }: Voice
               <span className="font-mono text-sm text-muted-foreground">{dateLabel}</span>
             </>
           )}
-          <span
-            tabIndex={0}
-            role="note"
+          <button
+            type="button"
             aria-label={TOOLTIP_COPY}
-            title={TOOLTIP_COPY}
-            className="ml-0.5 cursor-help select-none text-sm text-muted-foreground/70 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={noteOpen}
+            onClick={() => setNoteOpen((v) => !v)}
+            onFocus={() => setNoteOpen(true)}
+            onBlur={() => setNoteOpen(false)}
+            className="-my-2 ml-0.5 inline-flex min-h-11 min-w-11 cursor-help select-none items-center justify-center rounded text-sm text-muted-foreground/70 outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span aria-hidden="true">ⓘ</span>
-          </span>
+          </button>
         </div>
+
+        {/* The note itself — revealed on focus/tap, visible to everyone (not title-only). */}
+        {noteOpen && (
+          <p className="text-xs leading-relaxed text-muted-foreground">{TOOLTIP_COPY}</p>
+        )}
 
         {/* States (b) first-run + (d) error — a single warm line, no lead/memo split, no date. */}
         {errored && (

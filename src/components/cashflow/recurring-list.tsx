@@ -114,6 +114,7 @@ function RecurringRow({ item }: { item: RecurringListItem }) {
             className="min-h-11"
             disabled={pending}
             onClick={runConfirm}
+            aria-label={`Undo dismissing ${item.label}`}
           >
             Undo
           </Button>

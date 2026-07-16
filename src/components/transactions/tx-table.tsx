@@ -278,7 +278,19 @@ export function TxTable({
                   const isAmount = h.column.id === "amount_eur";
                   const dir = h.column.getIsSorted();
                   return (
-                    <TableHead key={h.id} className={cn(isAmount && "text-right")}>
+                    <TableHead
+                      key={h.id}
+                      className={cn(isAmount && "text-right")}
+                      aria-sort={
+                        sortable
+                          ? dir === "asc"
+                            ? "ascending"
+                            : dir === "desc"
+                              ? "descending"
+                              : "none"
+                          : undefined
+                      }
+                    >
                       {sortable ? (
                         <button
                           type="button"

@@ -31,6 +31,10 @@ jobs:
         id: report
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # OPTIONAL: the default GITHUB_TOKEN CANNOT read the Dependabot alerts API (no such scope
+          # exists for the Actions token — `security-events` covers code-scanning, not Dependabot). To
+          # surface alerts here, add a fine-grained PAT (repo: Dependabot alerts → read) as this secret.
+          DEPENDABOT_ALERTS_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           set +e # best-effort: a single failing API call must not fail the whole routine
@@ -44,7 +48,8 @@ jobs:
 
             # --- 1. Open Dependabot security alerts (best-effort; may 403 on token scope) ---
             echo "### 🛡️ Open Dependabot alerts"
-            ALERTS="$(gh api "repos/$REPO/dependabot/alerts?state=open&per_page=100" 2>/dev/null)"
+            # Prefer the optional PAT (the default GITHUB_TOKEN can't read this endpoint); fall back to it.
+            ALERTS="$(GH_TOKEN="${DEPENDABOT_ALERTS_TOKEN:-$GH_TOKEN}" gh api "repos/$REPO/dependabot/alerts?state=open&per_page=100" 2>/dev/null)"
             if echo "$ALERTS" | jq -e 'type == "array"' >/dev/null 2>&1; then
               COUNT="$(echo "$ALERTS" | jq 'length')"
               if [ "$COUNT" -gt 0 ]; then
@@ -54,7 +59,8 @@ jobs:
                 echo "_None_ ✅"
               fi
             else
-              echo "_Could not read alerts via GITHUB_TOKEN — check the Security tab manually._"
+              # NOT actionable — a token-scope limitation, not a finding. Dependabot still emails alerts.
+              echo "_Not checked here: the default \`GITHUB_TOKEN\` can't read the Dependabot alerts API. Add a fine-grained \`DEPENDABOT_ALERTS_TOKEN\` PAT (repo: Dependabot alerts → read) to surface them, or use the Security tab (Dependabot emails them regardless)._"
             fi
             echo ""
 
@@ -88,28 +94,42 @@ jobs:
           # Always publish to the run summary (the at-a-glance dashboard).
           cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upsert tracking issue (only when something needs attention)
-        if: ${{ steps.report.outputs.actionable == '1' }}
+      - name: Upsert or close the tracking issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           REPORT_PATH: ${{ steps.report.outputs.report_path }}
+          ACTIONABLE: ${{ steps.report.outputs.actionable }}
         run: |
           set -e
           gh label create maintenance --repo "$REPO" --color FBCA04 \
             --description "Automated maintenance / security housekeeping" 2>/dev/null || true
 
-          # One rolling issue keyed by the `maintenance` label — update it instead of spamming.
+          # One rolling issue keyed by the `maintenance` label.
           EXISTING="$(gh issue list --repo "$REPO" --label maintenance --state open \
             --json number --jq '.[0].number' 2>/dev/null)"
 
-          if [ -n "$EXISTING" ]; then
-            gh issue edit "$EXISTING" --repo "$REPO" --body-file "$REPORT_PATH"
-            gh issue comment "$EXISTING" --repo "$REPO" \
-              --body "🔄 Refreshed by the daily maintenance run ($(date -u +%Y-%m-%d))."
-            echo "Updated tracking issue #$EXISTING"
+          if [ "$ACTIONABLE" = "1" ]; then
+            # Something needs a human → create or refresh the single tracking issue.
+            if [ -n "$EXISTING" ]; then
+              gh issue edit "$EXISTING" --repo "$REPO" --body-file "$REPORT_PATH"
+              gh issue comment "$EXISTING" --repo "$REPO" \
+                --body "🔄 Refreshed by the daily maintenance run ($(date -u +%Y-%m-%d))."
+              echo "Updated tracking issue #$EXISTING"
+            else
+              gh issue create --repo "$REPO" --label maintenance \
+                --title "🔧 Maintenance: items needing attention" \
+                --body-file "$REPORT_PATH"
+            fi
           else
-            gh issue create --repo "$REPO" --label maintenance \
-              --title "🔧 Maintenance: items needing attention" \
-              --body-file "$REPORT_PATH"
+            # All clear → CLOSE the rolling issue if one is open, so it never lingers stale after the
+            # flagged items are resolved. The next run reopens a fresh one if anything needs attention.
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --repo "$REPO" \
+                --body "✅ All clear as of $(date -u +%Y-%m-%d) — no lingering dependency PRs and main is green. Auto-closing; a fresh issue opens automatically if something needs attention."
+              gh issue close "$EXISTING" --repo "$REPO"
+              echo "Closed tracking issue #$EXISTING (nothing actionable)"
+            else
+              echo "Nothing actionable and no open tracking issue — noop."
+            fi
           fi

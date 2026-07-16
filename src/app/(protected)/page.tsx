@@ -9,6 +9,7 @@ import { GoalHeroCard } from "@/components/goal-hero-card";
 import { Greeting } from "@/components/greeting";
 import { KpiCard, type KpiStatus } from "@/components/kpi-card";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { ProvisionalPill } from "@/components/status/provisional-pill";
 import { ScorecardChips } from "@/components/scorecard-chips";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VoiceCard } from "@/components/voice-card";
@@ -123,14 +124,7 @@ export default async function Home({
       {/* Page header (h1 left); the shared month selector lives in the shell top bar. */}
       <header className="flex items-center gap-3">
         <Greeting name={displayName} />
-        {provisional && (
-          <span
-            className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-[var(--warning)]"
-            title="Month in progress; figures will change."
-          >
-            Provisional
-          </span>
-        )}
+        {provisional && <ProvisionalPill />}
       </header>
 
       {/* The data-heavy dashboard streams behind a Suspense boundary (OBS-02) — the cached mart
@@ -532,7 +526,7 @@ async function HomeDashboard({
       {!hasAnyData && (
         <div
           role="status"
-          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          className="rounded-xl border border-[var(--warning)]/25 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]"
         >
           Synchronizing — your first data appears tomorrow. The daily sync runs each morning;
           no manual import needed.

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AnomalyChip } from "@/components/anomaly-chip";
+import { ProvisionalPill } from "@/components/status/provisional-pill";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { detectAnomalies } from "@/lib/health/anomaly";
 import { formatEUR } from "@/lib/format";
@@ -183,14 +184,7 @@ export default async function CostCentersPage({
       {/* Page header (h1 left; the shared month selector lives in the shell top bar). */}
       <header className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">Cost Centers</h1>
-        {provisional && (
-          <span
-            className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-[var(--warning)]"
-            title="Month in progress; figures will change."
-          >
-            Provisional
-          </span>
-        )}
+        {provisional && <ProvisionalPill />}
       </header>
 
       {/* --- Budgeted vs actual: the 3 household cost centers as SectionCards (BI-02, D2-12) --- */}

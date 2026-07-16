@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ProvisionalPill } from "@/components/status/provisional-pill";
 import { costCenterDisplayName } from "@/lib/cost-center-display";
 import { formatEUR, formatPct } from "@/lib/format";
 import { currentPeriodKey, isProvisional } from "@/lib/period";
@@ -246,14 +247,7 @@ export default async function SpendingPage({
       {/* Page header (h1 left; the shared month selector lives in the shell top bar). */}
       <header className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">Spending</h1>
-        {provisional && (
-          <span
-            className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-[var(--warning)]"
-            title="Month in progress; figures will change."
-          >
-            Provisional
-          </span>
-        )}
+        {provisional && <ProvisionalPill />}
       </header>
 
       {/* --- Breakdown: a segmented 3-way ToggleGroup over a Card-wrapped BarList (BI-03) --- */}

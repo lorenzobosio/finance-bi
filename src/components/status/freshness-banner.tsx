@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 // Freshness banner (D-15 / ING-06) — the global "data as of {date}" trust strip.
 //
 // ALWAYS shown (the fresh state is a passive trust signal — "every dashboard shows", not a
-// notification, so it is never dismissible). Colors derive from globals.css tokens; amber
-// (Tailwind utilities) is the documented exception, reserved EXCLUSIVELY for stale/unknown.
+// notification, so it is never dismissible). Colors derive from globals.css tokens; the calm
+// --warning token surface is reserved EXCLUSIVELY for stale/unknown (dark+light safe, matching
+// overspend-banner — NOT the old hard-coded amber-50/900 which broke in dark mode).
 // Icons are decorative (aria-hidden) — meaning is carried by text + label, never color alone.
 //   role="status" aria-live="polite" (non-urgent).
 
@@ -38,13 +39,13 @@ export function FreshnessBanner({ lastSyncAt }: { lastSyncAt: Date | null }) {
       className={cn(
         "w-full items-center rounded-none border-x-0 border-t-0 px-4 py-2",
         isWarning
-          ? "border-amber-200 bg-amber-50 text-amber-900"
+          ? "border-[var(--warning)]/25 bg-[var(--warning)]/10 text-[var(--warning)]"
           : "border-border bg-muted text-foreground",
       )}
     >
       <Icon aria-hidden="true" />
       <AlertDescription
-        className={cn("text-sm", isWarning ? "text-amber-900" : "text-foreground")}
+        className={cn("text-sm", isWarning ? "text-[var(--warning)]" : "text-foreground")}
       >
         {state === "fresh" && lastSyncAt && (
           <span>

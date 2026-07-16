@@ -149,7 +149,7 @@ export default async function ConfigPage({
       {/* Three tabs (Budgets · Rules · Connection), each a Card surface (UI-SPEC §Re-Skin Map).
           ?tab= deep-links into a tab (D4-22); the value falls back to "budgets". */}
       <Tabs defaultValue={activeTab} className="gap-4">
-        <TabsList>
+        <TabsList className="min-h-11">
           <TabsTrigger value="budgets">Budgets</TabsTrigger>
           <TabsTrigger value="thresholds">Health bands</TabsTrigger>
           <TabsTrigger value="rules">Rules</TabsTrigger>

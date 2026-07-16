@@ -646,7 +646,7 @@ async function HomeDashboard({
           <h2 className="text-sm font-semibold text-muted-foreground">Financial health</h2>
           <a
             href="/health"
-            className="text-sm font-medium text-[var(--brand)] hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="inline-flex min-h-11 items-center -my-2 text-sm font-medium text-[var(--brand)] hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             View details
           </a>

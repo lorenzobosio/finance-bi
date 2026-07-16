@@ -70,6 +70,7 @@ export function MonthSelector() {
         type="button"
         variant="ghost"
         size="icon"
+        className="min-h-11 min-w-11"
         aria-label="Previous month"
         onClick={() => goTo(stepPeriodKey(selected, -1))}
       >
@@ -87,6 +88,7 @@ export function MonthSelector() {
         type="button"
         variant="ghost"
         size="icon"
+        className="min-h-11 min-w-11"
         aria-label="Next month"
         disabled={isCurrentMonth}
         onClick={() => goTo(stepPeriodKey(selected, 1))}

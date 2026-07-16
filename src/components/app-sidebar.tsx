@@ -106,13 +106,13 @@ export function AppSidebar({ userEmail, displayName, ...props }: AppSidebarProps
           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
             {accountLabel}
           </span>
-          <ThemeToggle className="size-8" />
+          <ThemeToggle className="size-11" />
           <form action={signOut}>
             <button
               type="submit"
               aria-label="Sign out"
               title="Sign out"
-              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <LogOut aria-hidden="true" className="size-4" />
             </button>

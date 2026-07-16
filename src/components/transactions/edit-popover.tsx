@@ -113,7 +113,7 @@ export function EditPopover({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="w-full rounded px-1 py-0.5 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="w-full rounded px-1 py-2 -my-2 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             aria-label={`Edit ${field === "category" ? "category" : "cost center"} for ${merchant}`}
           >
             {triggerLabel}

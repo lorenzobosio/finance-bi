@@ -17,7 +17,7 @@ export function DemoExitButton() {
       type="button"
       onClick={() => startTransition(() => void setDemoMode(false))}
       disabled={isPending}
-      className="font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+      className="inline-flex min-h-11 items-center font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
     >
       Exit demo →
     </button>

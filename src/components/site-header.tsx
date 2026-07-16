@@ -23,7 +23,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center gap-2 border-b border-border bg-background px-4 lg:px-6">
-      <SidebarTrigger className="-ml-1" />
+      <SidebarTrigger className="-ml-1 size-11 lg:size-7" />
       <Separator orientation="vertical" className="mr-1 data-[orientation=vertical]:h-4" />
 
       {/* Desktop ⌘K trigger — faux search input opening the palette. */}

@@ -36,6 +36,9 @@ jobs:
           # surface alerts here, add a fine-grained PAT (repo: Dependabot alerts → read) as this secret.
           DEPENDABOT_ALERTS_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
           REPO: ${{ github.repository }}
+          # Ingestion heartbeat (REM-03/D-07): REUSE the existing secret ingest.yml already carries —
+          # the deployed app base URL. Absent → the heartbeat block degrades cleanly (no false alarm).
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
         run: |
           set +e # best-effort: a single failing API call must not fail the whole routine
           TODAY="$(date -u +%Y-%m-%d)"
@@ -86,6 +89,29 @@ jobs:
               success*) : ;;
               *) ACTIONABLE=1 ;;
             esac
+            echo ""
+
+            # --- 4. Ingestion heartbeat (dead-man's-switch, REM-03/D-07) ---
+            # The EXTERNAL alarm for silent ingestion failure: the daily pull runs in GitHub Actions,
+            # so if IT dies the app never notices. This GETs the already-public /api/health (booleans +
+            # one timestamp only, T-14-11) and RAISES ACTIONABLE when the cron has gone quiet. It ONLY
+            # ever raises ACTIONABLE (never resets it) so the 94234c5 auto-close still fires when clean.
+            echo "### 🫀 Ingestion heartbeat"
+            if [ -n "${APP_BASE_URL:-}" ]; then
+              HEALTH="$(curl -sS --max-time 10 "${APP_BASE_URL%/}/api/health" 2>/dev/null)"
+              STALE="$(echo "$HEALTH" | jq -r '.ingestStale' 2>/dev/null)"
+              if [ "$STALE" = "true" ]; then
+                ACTIONABLE=1
+                echo "- ⚠️ Ingestion is STALE. Last: $(echo "$HEALTH" | jq -r '.lastIngestAt // "unknown"')"
+              elif [ "$STALE" = "false" ]; then
+                echo "- Ingestion is fresh ✅ (last: $(echo "$HEALTH" | jq -r '.lastIngestAt // "unknown"'))"
+              else
+                ACTIONABLE=1
+                echo "- ⚠️ /api/health unreachable or unparseable."
+              fi
+            else
+              echo "_Not checked: APP_BASE_URL not set._"
+            fi
           } > "$REPORT"
 
           echo "actionable=$ACTIONABLE" >> "$GITHUB_OUTPUT"

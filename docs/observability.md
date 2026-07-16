@@ -97,3 +97,49 @@ a read-only liveness probe (T-07-14, accepted).
 
 > Cron / ingest freshness (`lastIngestAt`, ">24–48h since last successful ingest") is a
 > separate signal added in **07-07** — `/api/health` stays a minimal liveness probe here.
+
+---
+
+## Ingestion heartbeat — the external dead-man's-switch (REM-03, D-07)
+
+The daily bank pull runs in **GitHub Actions** (`ingest.yml`), so if that cron silently
+stops the app itself never notices — nothing in-app can alarm on an alarm that never
+fires. The `daily-maintenance.yml` workflow closes that loop as an **external**
+watchdog: its "Collect signals" step now GETs the public `/api/health` and reads
+`ingestStale`.
+
+- **`ingestStale: true`** (last successful ingest older than the `INGEST_STALE_HOURS`
+  threshold) **or `/api/health` unreachable/unparseable** → the run sets
+  `ACTIONABLE=1` and writes a heartbeat line into the rolling **maintenance** issue.
+- **`ingestStale: false`** → a calm "fresh ✅" line; nothing is raised.
+- **`APP_BASE_URL` not set** → the block degrades cleanly (a "_Not checked_" line, no
+  false alarm).
+
+The block **only ever RAISES** `ACTIONABLE` — it never resets it — so the auto-close
+that shuts the rolling issue when everything is clean (commit `94234c5`) still fires.
+The probe reads only booleans + one timestamp from an already-public endpoint (threat
+**T-14-11**); no rows, counts, or PII leave.
+
+**Secret:** the workflow reuses the **existing** `APP_BASE_URL` repo secret that
+`ingest.yml` already carries (the deployed app base URL) — no new secret is introduced.
+
+---
+
+## Operator pendency — Enable Banking in-app reconnect (non-blocking, D-03)
+
+The in-app "Complete reconnection" card on `/eb/callback` (Phase 14) signs the Enable
+Banking JWT **server-side on Vercel**, so the Vercel **server** runtime needs the three
+EB values that today live only as **GitHub Actions** secrets. Until they are added, the
+in-app reconnect returns a calm **503** and the card falls back to the CLI
+(`pnpm eb:connect`) — the app never breaks. Add these in **Vercel → the real project →
+Settings → Environment Variables**, **server scope only** (NEVER a `NEXT_PUBLIC_*`
+prefix — these must not reach the browser bundle):
+
+| Variable | Value |
+|----------|-------|
+| `ENABLE_BANKING_APP_ID` | the Enable Banking application id (copy the existing GitHub Actions secret) |
+| `ENABLE_BANKING_PRIVATE_KEY` | the RSA private key **PEM content** (not a file path — Vercel has no filesystem secret; must start with `-----BEGIN`) — the same value `ingest.yml` carries |
+| `ENABLE_BANKING_REDIRECT_URL` | the already-whitelisted deployed `/eb/callback` URL the CLI uses (reuse verbatim — EB rejects any non-whitelisted redirect) |
+
+> These belong only in Vercel env vars — never in this repo, `.env` committed files, or
+> any example here.

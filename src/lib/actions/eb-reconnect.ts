@@ -106,6 +106,8 @@ export async function __completeReconnect(
   const store = await deps.cookieStore();
   const nonce = store.get(EB_RECONNECT_STATE_COOKIE)?.value;
   if (!nonce || nonce !== input.state) {
+    // One-time use: a mismatch is terminal for this nonce — clear it so it can't linger (audit).
+    store.delete?.(EB_RECONNECT_STATE_COOKIE);
     return { status: 403, ok: false, reason: "state mismatch" };
   }
 
@@ -123,7 +125,7 @@ export async function __completeReconnect(
     .maybeSingle();
   if (!latest) return { status: 500, ok: false, reason: "no connection" };
 
-  await client
+  const { error: updateError } = await client
     .from("connections")
     .update({
       session_id: session.session_id,
@@ -131,6 +133,11 @@ export async function __completeReconnect(
       consent_status: "active",
     })
     .eq("id", latest.id);
+
+  // A blocked/failed write must NOT report success: the reminder would clear while the daily sync
+  // stays broken (audit finding, phases 14-15). supabase-js resolves failures as { error } without
+  // throwing, so this is the only place the write outcome is visible.
+  if (updateError) return { status: 500, ok: false, reason: "update failed" };
 
   // 7. Clear the one-time nonce + revalidate so the reminder banner clears immediately.
   store.delete?.(EB_RECONNECT_STATE_COOKIE);

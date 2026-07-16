@@ -218,7 +218,16 @@ function ReconnectConfirmCard({
   if (phase === "success") {
     return (
       <CardShell>
-        <div role="status" aria-live="polite" className="space-y-1.5 text-center">
+      {/* Persistent announcers (audit, phases 14-15): same element/position in every phase branch, so
+          React updates their TEXT instead of remounting — a live region inserted together with its
+          content is often not announced (the thresholds-editor lesson). */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {"Reconnected. Your bank link is active again."}
+      </span>
+      <span role="alert" className="sr-only">
+        {""}
+      </span>
+        <div className="space-y-1.5 text-center">
           <h1 className="flex items-center justify-center gap-1.5 text-xl font-semibold">
             <CircleCheck
               aria-hidden="true"
@@ -250,7 +259,16 @@ function ReconnectConfirmCard({
   if (phase === "error") {
     return (
       <CardShell>
-        <div role="alert" className="space-y-1.5 text-center">
+      {/* Persistent announcers (audit, phases 14-15): same element/position in every phase branch, so
+          React updates their TEXT instead of remounting — a live region inserted together with its
+          content is often not announced (the thresholds-editor lesson). */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {""}
+      </span>
+      <span role="alert" className="sr-only">
+        {"Reconnection failed. You can try again or use the terminal fallback."}
+      </span>
+        <div className="space-y-1.5 text-center">
           <h1 className="flex items-center justify-center gap-1.5 text-xl font-semibold">
             <TriangleAlert
               aria-hidden="true"
@@ -278,6 +296,15 @@ function ReconnectConfirmCard({
   const busy = phase === "busy";
   return (
     <CardShell>
+      {/* Persistent announcers (audit, phases 14-15): same element/position in every phase branch, so
+          React updates their TEXT instead of remounting — a live region inserted together with its
+          content is often not announced (the thresholds-editor lesson). */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {""}
+      </span>
+      <span role="alert" className="sr-only">
+        {""}
+      </span>
       <div className="space-y-1.5 text-center">
         <h1 className="text-xl font-semibold">Complete reconnection</h1>
         <p className="text-sm text-muted-foreground">

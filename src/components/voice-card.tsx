@@ -112,15 +112,13 @@ export function VoiceCard({ body, dateLabel, errored = false, className }: Voice
             aria-label={TOOLTIP_COPY}
             aria-expanded={noteOpen}
             onClick={() => setNoteOpen((v) => !v)}
-            onFocus={() => setNoteOpen(true)}
-            onBlur={() => setNoteOpen(false)}
             className="-my-2 ml-0.5 inline-flex min-h-11 min-w-11 cursor-help select-none items-center justify-center rounded text-sm text-muted-foreground/70 outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span aria-hidden="true">ⓘ</span>
           </button>
         </div>
 
-        {/* The note itself — revealed on focus/tap, visible to everyone (not title-only). */}
+        {/* The note itself — toggled by click/Enter/Space (aria-expanded disclosure), visible to everyone. */}
         {noteOpen && (
           <p className="text-xs leading-relaxed text-muted-foreground">{TOOLTIP_COPY}</p>
         )}

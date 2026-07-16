@@ -108,6 +108,8 @@ export async function __startReconnect(deps: StartDeps): Promise<StartResult> {
     sameSite: "lax",
     path: "/",
     maxAge: 900,
+    // Never ride a plaintext request in production (audit); left off in dev so localhost http works.
+    secure: process.env.NODE_ENV === "production",
   });
 
   return { status: 200, url };

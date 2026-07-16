@@ -78,7 +78,7 @@ export function MonthSelector() {
       </Button>
       <span
         className={cn(
-          "min-w-[5.5rem] text-center font-mono text-sm font-medium tabular-nums",
+          "min-w-[4.5rem] sm:min-w-[5.5rem] text-center font-mono text-sm font-medium tabular-nums",
         )}
         aria-live="polite"
       >

@@ -212,12 +212,13 @@
   }
   html {
     @apply font-sans;
-    /* Owner feedback (2026-07-14): the UI type reads too small — the app leans heavily on
-       text-sm (14px) + text-xs (12px). Raise the ROOT size 16px → 18px (112.5%) so ALL rem-based
-       text AND spacing scale up ~12.5% proportionally (layout-safe "zoom": rem-based heights grow
-       with their text, so nothing clips). This brings forward the deferred UIR-02 "increase the
-       type scale" legibility fix. Tune the % to taste. */
-    font-size: 112.5%;
+    /* Owner feedback (2026-07-14, reinforced by the Phase-15 UI review UIR-02: "fonts read
+       small"): the app leans heavily on text-sm (14px) + text-xs (12px). Raise the ROOT size
+       16px → 20px (125%) so ALL rem-based text AND spacing scale up ~25% proportionally
+       (layout-safe "zoom": rem-based heights grow with their text, so nothing clips). The
+       px-locked eyebrow/chip sizes were converted to rem first (UIR-02a) so this bump reaches
+       them too. Tune the % to taste. */
+    font-size: 125%;
   }
 }
 

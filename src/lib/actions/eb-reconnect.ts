@@ -29,6 +29,12 @@ interface ExchangeResult {
   status: number;
   ok?: boolean;
   reason?: string;
+  /**
+   * On success ONLY: the fresh consent window's `access.valid_until` (the RESPONSE value, never a
+   * hard-coded 90/180) so the confirm card can render "Next renewal by {date}". A date, not a secret —
+   * the private key / code never cross this boundary (T-14-06).
+   */
+  nextRenewal?: string;
 }
 
 /**
@@ -130,7 +136,7 @@ export async function __completeReconnect(
   store.delete?.(EB_RECONNECT_STATE_COOKIE);
   deps.revalidate();
 
-  return { status: 200, ok: true };
+  return { status: 200, ok: true, nextRenewal: session.access.valid_until };
 }
 
 /**

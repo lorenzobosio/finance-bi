@@ -100,7 +100,7 @@ function LoginForm() {
             <Button
               type="button"
               size="lg"
-              className="w-full bg-[var(--brand)] text-[var(--brand-fg)] hover:bg-[var(--brand)]/90"
+              className="min-h-11 w-full bg-[var(--brand)] text-[var(--brand-fg)] hover:bg-[var(--brand)]/90"
               disabled={pending}
               onClick={signIn}
             >
@@ -116,20 +116,21 @@ function LoginForm() {
                 type="button"
                 size="lg"
                 variant="outline"
-                className="w-full"
+                className="min-h-11 w-full"
                 disabled
                 aria-disabled="true"
-                title="A live demo arrives once it is published."
               >
                 View demo →
               </Button>
             ) : (
-              <Button asChild size="lg" variant="outline" className="w-full">
+              <Button asChild size="lg" variant="outline" className="min-h-11 w-full">
                 <a href={demoCta.href}>View demo →</a>
               </Button>
             )}
             <p className="text-center text-xs text-muted-foreground">
-              Explore a pre-seeded household — no login needed.
+              {demoCta.disabled
+                ? "A live demo arrives once it is published."
+                : "Explore a pre-seeded household — no login needed."}
             </p>
           </div>
         </div>

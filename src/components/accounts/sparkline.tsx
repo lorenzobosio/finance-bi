@@ -10,6 +10,8 @@
 // DB and NEVER imports marts (FND-03). The card text carries the actual numbers; the SVG is
 // aria-hidden decoration. <2 points → a flat placeholder, never a 0-height blank.
 
+import { useId } from "react";
+
 import { Area, AreaChart } from "recharts";
 
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
@@ -28,6 +30,11 @@ const chartConfig = {
 
 export function Sparkline({ data, className }: SparklineProps) {
   const prefersReduced = usePrefersReducedMotion();
+  // Per-instance gradient id (UIR-01): a fixed `sparklineFill` id collided across the 4 account
+  // cards, so url(#sparklineFill) resolved to the FIRST gradient in the DOM — a falling account
+  // could inherit the gain-green wash (a wrong loss signal). useId() keeps each wash on its own accent.
+  const rawId = useId();
+  const gradientId = `sparklineFill-${rawId.replace(/:/g, "")}`;
 
   // <2 points can't draw a trend — render a calm flat baseline placeholder (never a 0-height blank).
   if (data.length < 2) {
@@ -58,7 +65,7 @@ export function Sparkline({ data, className }: SparklineProps) {
         margin={{ top: 2, right: 0, bottom: 2, left: 0 }}
       >
         <defs>
-          <linearGradient id="sparklineFill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={accent} stopOpacity={0.25} />
             <stop offset="100%" stopColor={accent} stopOpacity={0.02} />
           </linearGradient>
@@ -68,7 +75,7 @@ export function Sparkline({ data, className }: SparklineProps) {
           type="monotone"
           stroke={accent}
           strokeWidth={1.5}
-          fill="url(#sparklineFill)"
+          fill={`url(#${gradientId})`}
           isAnimationActive={!prefersReduced}
           dot={false}
         />

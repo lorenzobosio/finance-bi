@@ -111,7 +111,7 @@ function BudgetEditorItem({
         <label className="sr-only" htmlFor={`budget-${row.costCenter}-${row.categoryId ?? "cc"}`}>
           {row.name} budget amount in euros
         </label>
-        <div className="flex items-center rounded-md border border-border px-2">
+        <div className="flex h-11 items-center rounded-md border border-border px-2 focus-within:ring-2 focus-within:ring-ring">
           <span aria-hidden="true" className="text-sm text-muted-foreground">
             €
           </span>
@@ -131,7 +131,8 @@ function BudgetEditorItem({
           type="button"
           onClick={fromHistory}
           disabled={pending}
-          className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+          aria-label={`Set ${row.name} budget from history`}
+          className="min-h-11 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
           Set from history
         </button>
@@ -139,7 +140,8 @@ function BudgetEditorItem({
           type="button"
           onClick={save}
           disabled={pending}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          aria-label={`Save ${row.name} budget`}
+          className="min-h-11 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           Save budget
         </button>

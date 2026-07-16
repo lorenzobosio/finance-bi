@@ -114,13 +114,13 @@ function CallbackView() {
             <div className="break-all rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm">
               {code}
             </div>
-            <button
+            <Button
               type="button"
               onClick={copyCode}
-              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              className="min-h-11 w-full"
             >
               {copied ? "Copied" : "Copy code"}
-            </button>
+            </Button>
             {state && (
               <p className="text-center text-xs text-muted-foreground">
                 state: <span className="font-mono">{state}</span>
@@ -218,7 +218,7 @@ function ReconnectConfirmCard({
   if (phase === "success") {
     return (
       <CardShell>
-        <div className="space-y-1.5 text-center">
+        <div role="status" aria-live="polite" className="space-y-1.5 text-center">
           <h1 className="flex items-center justify-center gap-1.5 text-xl font-semibold">
             <CircleCheck
               aria-hidden="true"
@@ -250,7 +250,7 @@ function ReconnectConfirmCard({
   if (phase === "error") {
     return (
       <CardShell>
-        <div className="space-y-1.5 text-center">
+        <div role="alert" className="space-y-1.5 text-center">
           <h1 className="flex items-center justify-center gap-1.5 text-xl font-semibold">
             <TriangleAlert
               aria-hidden="true"

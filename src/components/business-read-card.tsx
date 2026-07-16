@@ -117,7 +117,7 @@ export function BusinessReadCard({
         className,
       )}
     >
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         Operating margin
       </div>
 
@@ -134,7 +134,7 @@ export function BusinessReadCard({
       <dl className="mt-auto space-y-1.5 text-sm">
         {aboveLine.map((r) => renderRow(r, { topBorder: r.isMargin }))}
         {/* Below the line — investing is not an operating cost (BI-08); pay yourself first. */}
-        <p className="pt-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="pt-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
           Below the line — pay yourself first
         </p>
         {belowLine.map((r) => renderRow(r, { topBorder: r.isNet }))}

@@ -194,7 +194,7 @@ function GoalArc({ pct, className }: { pct: number; className?: string }) {
         <span className="font-mono text-xl font-semibold tabular-nums leading-none">
           {formatPct(pct)}
         </span>
-        <span className="mt-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+        <span className="mt-0.5 text-[0.6875rem] uppercase tracking-wide text-muted-foreground">
           to goal
         </span>
       </div>
@@ -296,7 +296,7 @@ export function GoalHeroCard({
         className,
       )}
     >
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         Invested toward €100.000
       </div>
 

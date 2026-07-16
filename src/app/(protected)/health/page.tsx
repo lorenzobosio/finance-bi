@@ -244,7 +244,7 @@ export default async function HealthPage() {
                 key={d.label}
                 className="rounded-xl bg-card p-6 ring-1 ring-foreground/10"
               >
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
                   {d.label}
                 </div>
                 <div className="mt-2 font-mono text-3xl font-semibold tabular-nums leading-none">
@@ -265,7 +265,7 @@ export default async function HealthPage() {
       {/* Data reconciliation drill-down (DAT-02) — factual, non-shame: either a calm "all reconciled"
           empty state or the open flags with expected/actual/delta in font-mono tabular-nums. */}
       <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           Data reconciliation
         </div>
         {reconcileFlags.length === 0 ? (
@@ -321,7 +321,7 @@ export default async function HealthPage() {
 function IngestionHealthFallback() {
   return (
     <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         Ingestion health
       </div>
       <p className="mt-2 text-sm text-muted-foreground">Checking the pipeline…</p>
@@ -352,7 +352,7 @@ async function IngestionHealthSection() {
 
   return (
     <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         Ingestion health
       </div>
       <p className={`mt-2 text-sm font-medium ${toneClass}`}>

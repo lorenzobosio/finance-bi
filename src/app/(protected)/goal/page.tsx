@@ -332,7 +332,7 @@ export default async function GoalPage() {
 
         {/* The three buckets, defined but DORMANT (visible + hopeful, not absent). */}
         <section aria-label="Your buckets, waiting to fund">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
             Your buckets — ready when you launch
           </h2>
           <div className="mt-3 grid grid-cols-1 gap-4 @xl/main:grid-cols-3">
@@ -494,7 +494,7 @@ export default async function GoalPage() {
       {/* HERO — the Wealth cost basis (the €100k figure). Labeled unambiguously; distinct from any
           all-bucket total (the hard visual rule, D5-02). */}
       <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           Invested toward €100.000
         </div>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -574,7 +574,7 @@ export default async function GoalPage() {
 
       {/* The multi-goal buckets (Brazil + Adventures). The Wealth engine is the hero above. */}
       <section aria-label="Your buckets">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           Your buckets
         </h2>
         <div className="mt-3 grid grid-cols-1 gap-4 @xl/main:grid-cols-2">

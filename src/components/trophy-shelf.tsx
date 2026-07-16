@@ -25,7 +25,7 @@ function kLabel(threshold: number): string {
 export function TrophyShelf({ seals }: { seals: TrophySeal[] }) {
   return (
     <section aria-label="Our wins">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         Our wins
       </h2>
       <ul className="mt-3 flex flex-wrap gap-4">
@@ -50,7 +50,7 @@ export function TrophyShelf({ seals }: { seals: TrophySeal[] }) {
             >
               {kLabel(seal.threshold)}
             </span>
-            <span className="text-[11px] leading-tight text-muted-foreground">
+            <span className="text-[0.6875rem] leading-tight text-muted-foreground">
               {seal.achieved
                 ? seal.reachedLabel
                   ? `reached ${seal.reachedLabel}`

@@ -130,7 +130,7 @@ export function KpiCard({
       )}
 
       {/* 1. Eyebrow label + glyph */}
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         <span
           aria-hidden="true"
           className="flex shrink-0 [&>svg]:size-4 [&>svg]:shrink-0"

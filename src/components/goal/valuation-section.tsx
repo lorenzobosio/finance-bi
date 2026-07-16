@@ -70,7 +70,7 @@ export function ValuationSection({ model }: { model: ValuationModel }) {
 
   return (
     <section aria-label="Investments — market value and allocation" className="space-y-6">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
         Investments
       </h2>
 

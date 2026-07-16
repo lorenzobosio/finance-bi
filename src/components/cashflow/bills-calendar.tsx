@@ -58,9 +58,9 @@ function BillChip({ occ }: { occ: BillOccurrence }) {
   return (
     <span
       title={occ.label}
-      className="flex items-center gap-1 rounded bg-muted/50 px-1 py-0.5 text-[10px] text-[var(--neutral-data)]"
+      className="flex items-center gap-1 rounded bg-muted/50 px-1 py-0.5 text-[0.6875rem] text-[var(--neutral-data)]"
     >
-      <MerchantAvatar name={occ.label} className="size-4 text-[0.5rem]" />
+      <MerchantAvatar name={occ.label} className="size-4 text-[0.6rem]" />
       <span className="tabular-nums">{formatEUR(Math.abs(occ.amount), 0)}</span>
       <span className="sr-only">{occ.label}</span>
     </span>
@@ -72,7 +72,7 @@ function IncomeMarker({ occ }: { occ: BillOccurrence }) {
   return (
     <span
       title={`${occ.label} (income)`}
-      className="flex items-center gap-1 text-[10px] font-medium text-[var(--gain)]"
+      className="flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--gain)]"
     >
       <ArrowUpRight className="size-3 shrink-0" aria-hidden />
       <span className="tabular-nums">{formatEUR(Math.abs(occ.amount), 0)}</span>
@@ -103,7 +103,7 @@ function MonthGrid({
       </h3>
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="text-[11px] font-medium uppercase text-muted-foreground">
+          <div key={w} className="text-[0.6875rem] font-medium uppercase text-muted-foreground">
             {w}
           </div>
         ))}
@@ -123,13 +123,13 @@ function MonthGrid({
                 isToday && "font-semibold ring-1 ring-border",
               )}
             >
-              <span className="text-[11px] text-muted-foreground">{format(day, "d")}</span>
+              <span className="text-[0.6875rem] text-muted-foreground">{format(day, "d")}</span>
               {group?.income.map((occ, i) => <IncomeMarker key={`i-${i}`} occ={occ} />)}
               {group?.bills.slice(0, MAX_CHIPS_PER_DAY).map((occ, i) => (
                 <BillChip key={`b-${i}`} occ={occ} />
               ))}
               {overflow > 0 && (
-                <span className="text-[10px] text-muted-foreground">+{overflow} more</span>
+                <span className="text-[0.6875rem] text-muted-foreground">+{overflow} more</span>
               )}
             </div>
           );

@@ -145,7 +145,7 @@ export default async function AdventuresPage() {
       {/* THE hard-lock two-number display (D5-11): Spendable prominent, Accruing secondary + gate marker. */}
       <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
         {/* Spendable now — the unlocked-at-last-gate pool ONLY. Prominent, --gain when >0. */}
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           Spendable now
         </div>
         <div

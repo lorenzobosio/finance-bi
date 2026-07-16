@@ -55,7 +55,7 @@ export function SharedWhyCard({ why, attribution, className }: SharedWhyCardProp
       aria-label="Our why"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           Our why
         </h2>
         {!editing && (

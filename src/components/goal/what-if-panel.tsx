@@ -103,7 +103,7 @@ export function WhatIfPanel({
       className="space-y-6 rounded-xl bg-card p-6 ring-1 ring-foreground/10"
     >
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           What if?
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -119,7 +119,7 @@ export function WhatIfPanel({
               <label
                 id={`${row.id}-label`}
                 htmlFor={row.id}
-                className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground"
               >
                 {row.label}
               </label>

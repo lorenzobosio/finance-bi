@@ -128,7 +128,7 @@ export default async function BrazilPage() {
 
       {/* Accumulated cost basis — the bucket balance from the waterfall. Debt framing when negative. */}
       <section className="rounded-xl bg-card p-6 ring-1 ring-foreground/10">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           Accumulated
         </div>
         <div

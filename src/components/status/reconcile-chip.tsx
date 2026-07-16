@@ -22,7 +22,7 @@ export function ReconcileChip({ status }: ReconcileChipProps) {
   const isWarning = status.tone === "warning";
   const Icon = isWarning ? TriangleAlert : ShieldCheck;
   const pillClass = isWarning
-    ? "bg-amber-400/12 text-[var(--warning)]"
+    ? "bg-[var(--warning-fill)]/12 text-[var(--warning)]"
     : "bg-foreground/5 text-[var(--neutral-data)]";
 
   return (

@@ -15,7 +15,7 @@ const VARIANT_FILL = {
   default: "bg-primary",
   gain: "bg-[var(--gain-fill)]",
   loss: "bg-[var(--loss-fill)]",
-  warning: "bg-amber-400",
+  warning: "bg-[var(--warning-fill)]",
   neutral: "bg-[var(--neutral-data)]",
 } as const;
 

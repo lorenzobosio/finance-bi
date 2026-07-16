@@ -20,7 +20,7 @@ export type CategoryBarTone = "neutral" | "gain" | "warning" | "loss";
 const TONE_FILL: Record<CategoryBarTone, string> = {
   neutral: "bg-[var(--chart-1)]",
   gain: "bg-[var(--gain-fill)]",
-  warning: "bg-amber-400",
+  warning: "bg-[var(--warning-fill)]",
   loss: "bg-[var(--loss-fill)]",
 };
 

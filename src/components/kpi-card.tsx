@@ -170,7 +170,7 @@ export function KpiCard({
             // tinted-surface chip (UI-SPEC §Color) per tone.
             status.tone === "gain" && "bg-[var(--gain-fill)]/12",
             status.tone === "loss" && "bg-[var(--loss-fill)]/12",
-            status.tone === "warning" && "bg-amber-400/12",
+            status.tone === "warning" && "bg-[var(--warning-fill)]/12",
             status.tone === "neutral" && "bg-muted",
           )}
         >

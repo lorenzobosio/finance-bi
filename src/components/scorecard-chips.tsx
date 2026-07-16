@@ -54,7 +54,7 @@ function StatusPill({ read, neutralLabel }: { read: MetricRead; neutralLabel: st
         TONE_TEXT[read.tone],
         read.tone === "gain" && "bg-[var(--gain-fill)]/12",
         read.tone === "loss" && "bg-[var(--loss-fill)]/12",
-        read.tone === "warning" && "bg-amber-400/12",
+        read.tone === "warning" && "bg-[var(--warning-fill)]/12",
         read.tone === "neutral" && "bg-muted",
       )}
     >

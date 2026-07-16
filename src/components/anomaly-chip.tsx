@@ -66,7 +66,7 @@ function flagCopy(flag: Flag, name: string, dayOfMonth?: number): string {
 /** One amber non-shame pill (the exact scorecard-chips warning treatment — amber only, never red). */
 function AnomalyPill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-400/12 px-2 py-0.5 text-sm font-medium text-[var(--warning)]">
+    <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[var(--warning-fill)]/12 px-2 py-0.5 text-sm font-medium text-[var(--warning)]">
       <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
       <span>{children}</span>
     </span>

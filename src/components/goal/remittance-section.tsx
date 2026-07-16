@@ -12,6 +12,8 @@
 // informational, not a performance signal). No rate row → the honest "no rate yet" copy, never a
 // bare/stale number. All money flows through formatEUR/formatBRL (no hand-rolled Intl).
 
+import { format, parseISO } from "date-fns";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { latestRate, remittanceView } from "@/lib/fx/convert";
 import type { FxRow } from "@/lib/fx/parse-ecb";
@@ -32,6 +34,11 @@ function num(v: string | number | null | undefined): number {
  */
 function rateLabel(rate: number): string {
   return rate.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+}
+
+/** Human provenance date "d MMM yyyy" (never bare ISO); guards a null/empty rate_date. */
+function asOfDate(d: string | null | undefined): string {
+  return d ? format(parseISO(d), "d MMM yyyy") : "—";
 }
 
 export async function RemittanceSection({
@@ -82,7 +89,7 @@ export async function RemittanceSection({
             </p>
             {/* MANDATORY provenance — a converted figure NEVER appears without its rate + as-of date. */}
             <p className="text-xs text-muted-foreground">
-              EUR/BRL {rateLabel(view.rate)} · as of {view.rateDate}
+              EUR/BRL {rateLabel(view.rate)} · as of {asOfDate(view.rateDate)}
             </p>
           </>
         )}
@@ -90,7 +97,8 @@ export async function RemittanceSection({
         {/* EUR/USD context — the ETF is priced in USD; same provenance discipline. */}
         {latestUsd && (
           <p className="text-xs text-muted-foreground">
-            ETF priced in USD · EUR/USD {rateLabel(latestUsd.rate)} as of {latestUsd.rateDate}
+            ETF priced in USD · EUR/USD {rateLabel(latestUsd.rate)} as of{" "}
+            {asOfDate(latestUsd.rateDate)}
           </p>
         )}
       </CardContent>

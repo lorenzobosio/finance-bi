@@ -14,6 +14,7 @@
 // caption, never a fake €0 market figure (Pitfall 5). Allocation share carries NO gain/loss meaning —
 // CategoryDonut's neutral greyscale ramp only.
 
+import { format, parseISO } from "date-fns";
 import { PiggyBank, TrendingDown, TrendingUp } from "lucide-react";
 
 import type { Format } from "@number-flow/react";
@@ -84,7 +85,7 @@ export function ValuationSection({ model }: { model: ValuationModel }) {
         >
           <p className="text-xs text-[var(--neutral-data)]">
             {priced
-              ? `Priced ${pricedAsOf ?? ""}`.trim()
+              ? `Priced ${pricedAsOf ? format(parseISO(pricedAsOf), "d MMM yyyy") : ""}`.trim()
               : "No live price yet — showing what you put in"}
           </p>
         </KpiCard>

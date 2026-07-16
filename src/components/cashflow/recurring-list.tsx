@@ -14,6 +14,7 @@
 // `Button` (NOT brand-colored — brand is reserved); `Dismiss`/`Undo` = `ghost`. Both ≥44px tall on
 // mobile. All money via `formatEUR` (no hand-rolled Intl).
 
+import { format, parseISO } from "date-fns";
 import { Check, TrendingUp } from "lucide-react";
 import { useTransition } from "react";
 
@@ -93,7 +94,9 @@ function RecurringRow({ item }: { item: RecurringListItem }) {
         </span>
         {item.nextExpectedDate && (
           <span className="text-sm text-muted-foreground">
-            {dismissed ? "Dismissed" : `Next ${item.nextExpectedDate}`}
+            {dismissed
+              ? "Dismissed"
+              : `Next ${format(parseISO(item.nextExpectedDate), "d MMM yyyy")}`}
           </span>
         )}
       </div>

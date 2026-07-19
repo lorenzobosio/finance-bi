@@ -192,7 +192,7 @@ jobs:
 
       # Boot the Supabase local stack (Docker: Postgres + PostgREST + GoTrue). No external account.
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: latest
 

@@ -70,11 +70,11 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.23",
     "serwist": "9.5.12",
-    "shadcn": "^4.16.2",
+    "shadcn": "^4.18.0",
     "tailwindcss": "^4",
-    "tsx": "^4.23.9",
+    "tsx": "^4.23.12",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "pnpm": {
     "//overrides": "Security: force transitive deps off vulnerable ranges (Dependabot #1 esbuild, #2 postcss). Drop an entry once the parent package ships the fix natively.",
